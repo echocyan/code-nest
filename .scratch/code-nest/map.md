@@ -28,6 +28,7 @@ Label: wayfinder:map
 - [工程结构与测试基础设施](issues/02-project-structure.md)：按业务划分的 Maven 多模块（common / framework / modules/* / app），跨模块只能调用对方 `api` 包（ArchUnit 强制）；返回体 `{code,message,data}` 加语义化 HTTP 状态码；雪花 ID；两种分页；compose 管中间件、应用在 IDEA 运行；Testcontainers；Flyway；SpringDoc；MapStruct
 - [领域与数据模型](issues/03-domain-data-model.md)：分类单选、标签多选且均为系统预置；文章只有草稿和已发布两种状态；评论与回复同表；内容软删除、关系硬删除；只有文章能点赞；计数放在独立计数表，并拆出无依赖的 counter 模块以消除依赖环；不建外键；附完整表结构草案
 - [认证与鉴权方案](issues/04-auth.md)：只支持用户名加密码登录，密码用 BCrypt；token 以 `Authorization: Bearer <uuid>` 传递，有效期 7 天，允许多端登录；Session 只存用户 ID；不区分角色；默认要求登录，公开接口加 `@SaIgnore`；只有 Controller 通过 `AuthContext` 取当前用户
+- [消息可靠性底座](issues/05-mq-reliability.md)：跨模块副作用走 MQ；生产端用 Outbox 加 confirm，补发任务用 SKIP LOCKED 防止多实例重复；业务代码只调用 `publish(event)` 一个方法；消费端用 `@IdempotentConsumer` 和消费记录表做幂等；重试 3 次后进死信；只用一个 topic 交换机；事件是只带 ID 的轻量事件，放在 `api/event/`
 
 ## Not yet specified
 

@@ -30,6 +30,7 @@ Label: wayfinder:map
 - [认证与鉴权方案](issues/04-auth.md)：只支持用户名加密码登录，密码用 BCrypt；token 以 `Authorization: Bearer <uuid>` 传递，有效期 7 天，允许多端登录；Session 只存用户 ID；不区分角色；默认要求登录，公开接口加 `@SaIgnore`；只有 Controller 通过 `AuthContext` 取当前用户
 - [消息可靠性底座](issues/05-mq-reliability.md)：跨模块副作用走 MQ；生产端用 Outbox 加 confirm，补发任务用 SKIP LOCKED 防止多实例重复；业务代码只调用 `publish(event)` 一个方法；消费端用 `@IdempotentConsumer` 和消费记录表做幂等；重试 3 次后进死信；只用一个 topic 交换机；事件是只带 ID 的轻量事件，放在 `api/event/`
 - [计数系统](issues/06-counter-system.md)：点赞关系同步写库，只对热点计数行做优化；各模块经 `CounterApi.increment`（走 Outbox）上报计数，counter 不依赖任何业务模块；Redis Hash 存计数，Lua 原子完成幂等去重、冷 key 判断和累加；每 5 秒 SPOP 待落库集合，把绝对值批量写入 MySQL；由掌握真实数据的模块每周对账；浏览量是近似计数，直接加 Redis；`sync-db` 与 `redis-async` 两种实现可切换，用于压测对比
+- [Feed 推拉结合](issues/07-feed.md)：普通作者推到粉丝收件箱，大 V 在读取时拉取；每个作者有发件箱（最近 100 篇）；收件箱 key 7 天过期，推送时跳过冷用户，用户回来时再重建；ZSet 的 score 直接用雪花 articleId，并作为分页游标；写入时尽量修正、读取时兜底过滤；`pull` 与 `push-pull` 两种实现可切换，用于压测对比
 
 ## Not yet specified
 

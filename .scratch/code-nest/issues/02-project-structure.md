@@ -18,7 +18,8 @@ Maven 多模块怎么划分（按层还是按业务模块、各模块依赖方�
    ├── code-nest-modules/        聚合 pom，也是业务模块的父 pom，统一声明它们共用的依赖
    │   ├── code-nest-user            用户、认证
    │   ├── code-nest-article         文章、标签、评论与回复、热榜（热榜放哪可在热榜票里调整）
-   │   ├── code-nest-interaction     点赞、收藏、计数系统
+   │   ├── code-nest-counter         计数系统（[领域与数据模型](03-domain-data-model.md)为消除依赖环而拆出）
+   │   ├── code-nest-interaction     点赞、收藏
    │   ├── code-nest-social          关注、Feed
    │   ├── code-nest-notification    通知
    │   └── code-nest-search          搜索、ES 同步

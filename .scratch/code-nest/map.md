@@ -26,6 +26,7 @@ Label: wayfinder:map
 
 - [Sa-Token 用法调研](issues/01-sa-token-usage.md)：Redis 用 `sa-token-redis-template` 且避开 Jackson 2；注解鉴权需注册 `SaInterceptor`；MockMvc 测试需挂上下文 Filter；Session 存对象需注册 JSON 白名单；Boot 4.1.1 兼容性不专门验证，实现中暴露再处理
 - [工程结构与测试基础设施](issues/02-project-structure.md)：按业务划分的 Maven 多模块（common / framework / modules/* / app），跨模块只能调用对方 `api` 包（ArchUnit 强制）；返回体 `{code,message,data}` 加语义化 HTTP 状态码；雪花 ID；两种分页；compose 管中间件、应用在 IDEA 运行；Testcontainers；Flyway；SpringDoc；MapStruct
+- [领域与数据模型](issues/03-domain-data-model.md)：分类单选、标签多选且均为系统预置；文章只有草稿和已发布两种状态；评论与回复同表；内容软删除、关系硬删除；只有文章能点赞；计数放在独立计数表，并拆出无依赖的 counter 模块以消除依赖环；不建外键；附完整表结构草案
 
 ## Not yet specified
 
@@ -41,4 +42,5 @@ Label: wayfinder:map
 - 签到、积分、UV 统计；后台管理与审核：与主打亮点无关。
 - 实时推送（SSE/WebSocket）：用户明确不做。
 - CI 与云部署：本地 docker compose 运行即可。
+- 图片上传与对象存储、注销账号、评论点赞、收藏夹：[领域与数据模型](issues/03-domain-data-model.md)里为控制业务复杂度删掉，都不带来技术亮点。
 - 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

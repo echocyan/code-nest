@@ -38,10 +38,13 @@ Label: wayfinder:map
 - [限流防刷](issues/11-rate-limit.md)：用 Redis ZSet 加 Lua 实现滑动窗口日志，时间取 Redis `TIME`；已登录按用户、匿名按 IP 限流，只对可信代理解析 XFF；通过可重复的 `@RateLimit` 注解声明，由拦截器在 `SaInterceptor` 之后执行；超限返回 429 和 `Retry-After`；Redis 故障时放行；有总开关
 - [压测方案](issues/12-load-test.md)：k6，2 实例加 Nginx，每个容器限定 CPU 与内存；新增 loadtest 模块，用 JDBC 造 10 万级数据，派生数据走系统自带的重建路径生成；四组开关分别压测对比，每组 3 次取中位数，并采集服务端状态差值；结果按 STAR 写入 `docs/benchmark.md`；关注列表是否加缓存按 30% 规则决定
 - [通知模块](issues/13-notification.md)：点赞、评论、回复、关注这四类事件产生通知，自己触发的不通知；不做聚合，同一动作靠 `dedup_key` 唯一键去重，防止反复操作刷屏；取消操作不撤回通知；表里只存 ID，展示信息读取时组装；未读数直接 COUNT，最多显示 99+；列表用游标分页
+- [API 设计规范](issues/14-api-conventions.md)：所有接口挂在 `/api/v1` 下；开关型动作用幂等的 PUT/DELETE；时间用 ISO-8601，ID 用字符串，枚举用大写字符串；模块编号同时决定错误码号段和 Flyway 前缀；给出 39 个业务接口和 2 个管理端点的完整清单，评估过删减方案后全部保留
 
 ## Not yet specified
 
 <!-- 迷雾已全部清空：种子数据和 STAR 素材在压测方案中解决；通知模块和 API 规范已转为独立的票。 -->
+
+**已到终点**：所有决策票都已关闭，没有遗留的待决问题。下一步用 `to-spec` 把 Decisions so far 指向的各张票汇编成项目规格，再用 `to-tickets` 拆成实现票。
 
 ## Out of scope
 

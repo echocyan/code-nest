@@ -51,7 +51,8 @@ user            id, username UK, password_hash, nickname, avatar_url, bio    （
 -- article
 category        id, name UK, sort
 tag             id, name UK
-article         id, author_id, category_id, title, summary, cover_url, status, published_at, deleted
+article         id, author_id, category_id, title, summary, cover_url, status, published_at, version, deleted
+                （version 由[搜索与数据同步](08-search-sync.md)追加：MyBatis-Plus @Version，每次编辑/发布/删除 +1，兼作 ES 外部版本号与编辑乐观锁）
                 IDX(author_id, status, published_at), IDX(category_id, status, published_at)
 article_content article_id PK, content MEDIUMTEXT
 article_tag     PK(article_id, tag_id), IDX(tag_id, article_id)

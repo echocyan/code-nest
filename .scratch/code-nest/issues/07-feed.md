@@ -56,4 +56,4 @@ Blocked by: 03
 
    压测场景：一个关注了几百个作者的用户读 Feed，比较两种模式的 P99；再观察大 V 发文时的写扩散量。
 
-**这张票对其他模块提出的接口要求**：article 模块发布 `article.published` 和 `article.deleted` 事件，并提供 `ArticleApi.listByAuthors` 和批量查询文章摘要的接口；social 模块发布 `follow.created` 和 `follow.deleted` 事件。
+**这张票对其他模块提出的接口要求**：article 模块发布 `article.published` 和 `article.deleted` 事件，并提供 `ArticleApi.listByAuthors` 和批量查询文章摘要的接口；social 模块发布 `follow.created` 和 `follow.deleted` 事件。[搜索与数据同步](08-search-sync.md)另外要求 article 模块发布 `article.updated` 事件，并提供按 id 游标遍历已发布文章的接口。

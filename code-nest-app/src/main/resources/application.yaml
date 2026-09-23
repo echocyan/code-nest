@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: code-nest
+  docker:
+    compose:
+      # 应用的工作目录是 code-nest-app（IDEA 与 spring-boot:run 默认如此），compose 文件在仓库根目录
+      file: ../compose.yaml
+      lifecycle-management: start-only
+  flyway:
+    # 各模块独立编号（V1_、V2_……），允许低编号模块后补迁移
+    out-of-order: true
+
+mybatis-plus:
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

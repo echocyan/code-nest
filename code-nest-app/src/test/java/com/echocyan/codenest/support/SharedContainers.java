@@ -16,7 +16,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 final class SharedContainers {
 
-    private static final String ES_IMAGE = "code-nest/elasticsearch-ik:8.19.21";
+    private static final String ES_IMAGE = "code-nest/elasticsearch-ik:9.4.5";
 
     @ServiceConnection
     static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")

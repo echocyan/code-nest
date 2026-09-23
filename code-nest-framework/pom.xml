@@ -56,20 +56,9 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
-        <!-- 只取连接信息（ConnectionDetails 与 Testcontainers/Compose 集成）；客户端由 framework 自行装配 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-elasticsearch</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>co.elastic.clients</groupId>
-                    <artifactId>elasticsearch-rest5-client</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>co.elastic.clients</groupId>
-            <artifactId>elasticsearch-java</artifactId>
+            <artifactId>spring-boot-starter-elasticsearch</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>

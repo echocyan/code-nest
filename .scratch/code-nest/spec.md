@@ -205,8 +205,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - API 文档用 SpringDoc。
     - 对象转换用 MapStruct，配好它与 Lombok 注解处理器的先后顺序。
     - 密码哈希只引入 `spring-security-crypto`。
-- **中间件版本**：以用户本地镜像为准，即 `mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:8.19.21`。ES
-  在官方镜像上安装 IK 8.19.21 插件。需要新增镜像或插件时先问用户。已同意的镜像有 `grafana/k6`、`eclipse-temurin:21-jre`、
+- **中间件版本**：以用户本地镜像为准，即 `mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（原定 8.19.21，因 Boot 4 管理的 ES 客户端为 9.x 而统一升级）。ES
+  在官方镜像上安装 IK 9.4.5 插件。需要新增镜像或插件时先问用户。已同意的镜像有 `grafana/k6`、`eclipse-temurin:21-jre`、
   `nginx`。
 - **本地环境**：根目录的 compose 文件管理中间件，由 `spring-boot-docker-compose` 以 `start-only` 模式拉起并注入连接信息。
 

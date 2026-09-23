@@ -32,7 +32,7 @@ services:
 
   elasticsearch:
     build: docker/elasticsearch
-    image: code-nest/elasticsearch-ik:8.19.21
+    image: code-nest/elasticsearch-ik:9.4.5
     labels:
       org.springframework.boot.service-connection: elasticsearch
     environment:

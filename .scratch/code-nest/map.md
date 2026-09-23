@@ -14,7 +14,7 @@ Label: wayfinder:map
 - **分工**：全部代码由 Claude 编写，用户 review 与决策。
 - **技术栈**：Java 21、Maven、Spring Boot 4.1.1、MySQL、MyBatis-Plus、Redis、Sa-Token、RabbitMQ、Elasticsearch。
 - **压测镜像**：用户已同意使用 `grafana/k6`、`eclipse-temurin:21-jre`、`nginx`。
-- **中间件版本**：以用户本地 Docker 镜像为准——`mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:8.19.21`。IK 分词插件用 8.19.21 对应版本：https://get.infini.cloud/elasticsearch/analysis-ik/8.19.21 。其他额外镜像/插件先问用户。不做逐项兼容性调研，兼容问题在实现中暴露再处理。
+- **中间件版本**：以用户本地 Docker 镜像为准——`mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（原定 8.19.21；Boot 4.1.1 管理的 9.x 客户端连不上 8.x 服务端，实现 01 号票时经用户同意统一升到 9.x）。IK 分词插件用对应版本：https://get.infini.cloud/elasticsearch/analysis-ik/9.4.5 。其他额外镜像/插件先问用户。不做逐项兼容性调研，兼容问题在实现中暴露再处理。
 - **形态**：纯后端 + OpenAPI 文档；Maven 多模块的模块化单体；本地 docker compose 一键起中间件；无 CI，但要有集成测试。
 - **业务范围**：用户、文章（标签/分类）、两级评论、点赞/收藏、关注 + Feed、通知、搜索、热榜。
 - **语言**：规格/票/ADR 用中文；代码标识符与 commit message 用英文；注释中文、克制。

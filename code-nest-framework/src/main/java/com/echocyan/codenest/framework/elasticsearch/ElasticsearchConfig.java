@@ -19,15 +19,22 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Boot 4 的 ES 自动配置基于 9.x 的 Rest5Client，与 8.19 服务端不兼容，这里用 8.x 客户端自行装配。
- * 连接信息优先取 Testcontainers / Docker Compose 提供的 {@link ElasticsearchConnectionDetails}。
+ * 连接信息优先取 Testcontainers / Docker Compose 提供的 {@link ElasticsearchConnectionDetails}，
+ * 否则读 {@code spring.elasticsearch.uris/username/password}。
  */
 @Configuration(proxyBeanMethods = false)
 public class ElasticsearchConfig {
 
     @Bean(destroyMethod = "close")
     public RestClient elasticsearchRestClient(ObjectProvider<ElasticsearchConnectionDetails> connectionDetails,
-                                              @Value("${spring.elasticsearch.uris:http://localhost:9200}") List<URI> uris) {
+                                              @Value("${spring.elasticsearch.uris:http://localhost:9200}") List<URI> uris,
+                                              @Value("${spring.elasticsearch.username:#{null}}") String username,
+                                              @Value("${spring.elasticsearch.password:#{null}}") String password) {
         ElasticsearchConnectionDetails details = connectionDetails.getIfAvailable();
+        if (details != null) {
+            username = details.getUsername();
+            password = details.getPassword();
+        }
         List<URI> nodes = details == null ? uris
                 : details.getNodes().stream()
                         .map(node -> URI.create(node.protocol().name().toLowerCase() + "://" + node.hostname() + ":" + node.port()))
@@ -35,10 +42,9 @@ public class ElasticsearchConfig {
         RestClientBuilder builder = RestClient.builder(nodes.stream()
                 .map(uri -> new HttpHost(uri.getHost(), uri.getPort(), uri.getScheme()))
                 .toArray(HttpHost[]::new));
-        if (details != null && details.getUsername() != null) {
+        if (username != null) {
             BasicCredentialsProvider credentials = new BasicCredentialsProvider();
-            credentials.setCredentials(AuthScope.ANY,
-                    new UsernamePasswordCredentials(details.getUsername(), details.getPassword()));
+            credentials.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));
             builder.setHttpClientConfigCallback(http -> http.setDefaultCredentialsProvider(credentials));
         }
         return builder.build();

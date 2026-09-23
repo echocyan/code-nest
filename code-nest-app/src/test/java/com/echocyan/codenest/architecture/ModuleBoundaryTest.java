@@ -14,6 +14,9 @@ class ModuleBoundaryTest {
     static final ArchRule onlyApiPackagesAcrossModules = ModuleRules.onlyApiPackagesAcrossModules(ROOT);
 
     @ArchTest
+    static final ArchRule onlyDeclaredModuleDependencies = ModuleRules.onlyDeclaredModuleDependencies(ROOT);
+
+    @ArchTest
     static final ArchRule infrastructureDoesNotDependOnBusinessModules =
             ModuleRules.infrastructureDoesNotDependOnBusinessModules(ROOT);
 

@@ -17,7 +17,8 @@ import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
 
 /**
- * JSON 约定：Long 输出为字符串（避免前端精度丢失），时间输出为带偏移的 ISO-8601。
+ * JSON 约定：包装类型 Long（ID）输出为字符串，避免前端精度丢失；基本类型 long（计数、总数）仍为数字。
+ * 时间输出为带偏移的 ISO-8601。
  * 枚举默认按名称（大写）输出，null 字段默认保留。
  */
 @Configuration(proxyBeanMethods = false)
@@ -27,7 +28,6 @@ public class JacksonConfig {
     public SimpleModule codeNestJacksonModule() {
         SimpleModule module = new SimpleModule("code-nest");
         module.addSerializer(Long.class, ToStringSerializer.instance);
-        module.addSerializer(Long.TYPE, ToStringSerializer.instance);
         module.addSerializer(LocalDateTime.class, new OffsetLocalDateTimeSerializer());
         module.addDeserializer(LocalDateTime.class, new OffsetLocalDateTimeDeserializer());
         return module;

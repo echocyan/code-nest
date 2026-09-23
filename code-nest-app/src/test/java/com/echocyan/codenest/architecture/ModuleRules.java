@@ -11,6 +11,8 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * ADR-0001 的模块边界规则。root 参数化，便于用测试夹具验证规则本身。
@@ -19,6 +21,16 @@ final class ModuleRules {
 
     static final List<String> BUSINESS_MODULES =
             List.of("user", "article", "counter", "interaction", "social", "notification", "search");
+
+    /** 规格中约定的模块依赖 DAG：key 可以依赖 value 中的模块。 */
+    static final Map<String, Set<String>> ALLOWED_DEPENDENCIES = Map.of(
+            "user", Set.of(),
+            "counter", Set.of(),
+            "article", Set.of("user", "counter"),
+            "interaction", Set.of("article", "counter"),
+            "social", Set.of("user", "article", "counter"),
+            "notification", Set.of("user", "article"),
+            "search", Set.of("article", "user"));
 
     private ModuleRules() {
     }
@@ -39,6 +51,30 @@ final class ModuleRules {
                             String api = root + "." + targetModule + ".api";
                             if (!isSameOrSubPackage(target.getPackageName(), api)) {
                                 events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()));
+                            }
+                        }
+                    }
+                })
+                .allowEmptyShould(true);
+    }
+
+    /** 业务模块只能依赖 DAG 中声明过的模块，新增依赖方向要先改规格。 */
+    static ArchRule onlyDeclaredModuleDependencies(String root) {
+        return classes().that().resideInAPackage(root + "..")
+                .should(new ArchCondition<>("only depend on business modules declared in the module DAG") {
+                    @Override
+                    public void check(JavaClass origin, ConditionEvents events) {
+                        String own = moduleOf(root, origin.getPackageName());
+                        if (own == null) {
+                            return;
+                        }
+                        for (Dependency dependency : origin.getDirectDependenciesFromSelf()) {
+                            String targetModule = moduleOf(root,
+                                    dependency.getTargetClass().getBaseComponentType().getPackageName());
+                            if (targetModule != null && !targetModule.equals(own)
+                                    && !ALLOWED_DEPENDENCIES.get(own).contains(targetModule)) {
+                                events.add(SimpleConditionEvent.violated(dependency,
+                                        own + " -> " + targetModule + " is not declared: " + dependency.getDescription()));
                             }
                         }
                     }

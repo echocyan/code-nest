@@ -2,14 +2,17 @@ package com.echocyan.codenest.support.probe;
 
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
+import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.result.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +45,16 @@ public class ConventionProbeController {
     @GetMapping("/size")
     public Result<Integer> size(@RequestParam @Max(50) int size) {
         return Result.ok(size);
+    }
+
+    @GetMapping("/page")
+    public Result<PageResult<Long>> page() {
+        return Result.ok(new PageResult<>(List.of(1234567890123456789L), 42, 1, 20));
+    }
+
+    @GetMapping("/header")
+    public Result<String> header(@RequestHeader("X-Required") String value) {
+        return Result.ok(value);
     }
 
     @GetMapping("/forbidden")

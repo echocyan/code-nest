@@ -28,6 +28,18 @@ class ModuleRulesTest {
     }
 
     @Test
+    void reportsDependencyDirectionNotDeclaredInTheDag() {
+        String root = FIXTURE + ".boundary";
+        JavaClasses classes = new ClassFileImporter().importPackages(root);
+
+        EvaluationResult result = ModuleRules.onlyDeclaredModuleDependencies(root).evaluate(classes);
+
+        assertThat(result.getFailureReport().getDetails())
+                .anyMatch(line -> line.contains("ReverseEdge") && line.contains("user -> article"))
+                .noneMatch(line -> line.contains("ViaApi"));
+    }
+
+    @Test
     void reportsCyclesBetweenModules() {
         String root = FIXTURE + ".cycle";
         JavaClasses classes = new ClassFileImporter().importPackages(root);

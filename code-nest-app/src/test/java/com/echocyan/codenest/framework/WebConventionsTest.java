@@ -24,6 +24,19 @@ class WebConventionsTest extends IntegrationTest {
     }
 
     @Test
+    void keepsPrimitiveLongAsNumberInPageResult() {
+        client.get().uri(API + "/probe/page")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(body -> assertThat(body)
+                        .contains("\"list\":[\"1234567890123456789\"]")
+                        .contains("\"total\":42")
+                        .contains("\"page\":1")
+                        .contains("\"size\":20"));
+    }
+
+    @Test
     void acceptsOffsetTimeInRequestBody() {
         client.post().uri(API + "/probe/echo")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -55,6 +68,24 @@ class WebConventionsTest extends IntegrationTest {
         client.get().uri(API + "/probe/size?size=abc")
                 .exchange()
                 .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.code").isEqualTo(90400);
+    }
+
+    @Test
+    void springMvcRequestErrorsKeepTheirStatusWithCommonCode() {
+        client.get().uri(API + "/probe/header")
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.code").isEqualTo(90400);
+        client.post().uri(API + "/probe/echo")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body("name")
+                .exchange()
+                .expectStatus().isEqualTo(415)
+                .expectBody().jsonPath("$.code").isEqualTo(90400);
+        client.delete().uri(API + "/probe/sample")
+                .exchange()
+                .expectStatus().isEqualTo(405)
                 .expectBody().jsonPath("$.code").isEqualTo(90400);
     }
 

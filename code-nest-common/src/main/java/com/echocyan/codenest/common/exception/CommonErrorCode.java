@@ -9,7 +9,6 @@ public enum CommonErrorCode implements ErrorCode {
     UNAUTHORIZED(90401, "未登录或登录已失效", 401),
     FORBIDDEN(90403, "无权限执行该操作", 403),
     NOT_FOUND(90404, "资源不存在", 404),
-    METHOD_NOT_ALLOWED(90405, "请求方法不支持", 405),
     TOO_MANY_REQUESTS(90429, "请求过于频繁", 429),
     INTERNAL_ERROR(99999, "系统繁忙，请稍后再试", 500);
 

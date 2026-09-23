@@ -23,7 +23,8 @@ Maven 多模块怎么划分（按层还是按业务模块、各模块依赖方�
    │   ├── code-nest-social          关注、Feed
    │   ├── code-nest-notification    通知
    │   └── code-nest-search          搜索、ES 同步
-   └── code-nest-app             启动类、配置文件、端到端集成测试
+   ├── code-nest-app             启动类、配置文件、端到端集成测试
+   └── code-nest-loadtest        造数程序、k6 脚本、压测结果（由[压测方案](12-load-test.md)追加，不打进应用 jar）
    ```
    依赖方向为 app → 业务模块 → framework → common。业务模块之间只能单向依赖，不能成环。
 2. **跨模块调用**：一个模块只能使用另一个模块 `api` 包里的门面接口和 DTO（如 `ArticleApi.exists(id)`）。Service、Mapper、Entity 都属于模块内部，由 ArchUnit 测试强制执行，理由见 [ADR-0001](../../../docs/adr/0001-modular-monolith-api-package-seam.md)。需要反向通知时用事件：进程内走 Spring `ApplicationEvent`，需要可靠投递的走 MQ，具体规则由消息可靠性底座票决定。

@@ -13,6 +13,7 @@ Label: wayfinder:map
 - **用途**：求职简历上的 Java 后端项目，每个技术亮点都要能按 STAR 讲清，并用压测数据给出前后对比（R）。
 - **分工**：全部代码由 Claude 编写，用户 review 与决策。
 - **技术栈**：Java 21、Maven、Spring Boot 4.1.1、MySQL、MyBatis-Plus、Redis、Sa-Token、RabbitMQ、Elasticsearch。
+- **压测镜像**：用户已同意使用 `grafana/k6`、`eclipse-temurin:21-jre`、`nginx`。
 - **中间件版本**：以用户本地 Docker 镜像为准——`mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:8.19.21`。IK 分词插件用 8.19.21 对应版本：https://get.infini.cloud/elasticsearch/analysis-ik/8.19.21 。其他额外镜像/插件先问用户。不做逐项兼容性调研，兼容问题在实现中暴露再处理。
 - **形态**：纯后端 + OpenAPI 文档；Maven 多模块的模块化单体；本地 docker compose 一键起中间件；无 CI，但要有集成测试。
 - **业务范围**：用户、文章（标签/分类）、两级评论、点赞/收藏、关注 + Feed、通知、搜索、热榜。
@@ -35,13 +36,11 @@ Label: wayfinder:map
 - [多级缓存与缓存治理](issues/09-multilevel-cache.md)：文章详情用 Caffeine+Redis 两级缓存，用户和文章摘要只用 Redis；业务代码只通过 `TwoLevelCache` 的 3 个方法访问缓存；提交后删缓存，再由 MQ 可靠地二次删除，本地缓存靠 Pub/Sub 广播失效；用 Redis 8 原生布隆过滤器加空值缓存防穿透；用 Caffeine 合并加载防击穿，不加分布式锁；TTL 加随机抖动防雪崩；`cache.mode` 三档可切换对比
 - [热榜](issues/10-hot-list.md)：采用 Hacker News 式时间衰减公式，每 5 分钟由一个实例批量重算最近 7 天发布的文章，结果先写临时 ZSet，再用 RENAME 原子替换正式 ZSet，保留 Top 100；已删除的文章在读取时过滤；只有一个榜单
 - [限流防刷](issues/11-rate-limit.md)：用 Redis ZSet 加 Lua 实现滑动窗口日志，时间取 Redis `TIME`；已登录按用户、匿名按 IP 限流，只对可信代理解析 XFF；通过可重复的 `@RateLimit` 注解声明，由拦截器在 `SaInterceptor` 之后执行；超限返回 429 和 `Retry-After`；Redis 故障时放行；有总开关
+- [压测方案](issues/12-load-test.md)：k6，2 实例加 Nginx，每个容器限定 CPU 与内存；新增 loadtest 模块，用 JDBC 造 10 万级数据，派生数据走系统自带的重建路径生成；四组开关分别压测对比，每组 3 次取中位数，并采集服务端状态差值；结果按 STAR 写入 `docs/benchmark.md`；关注列表是否加缓存按 30% 规则决定
 
 ## Not yet specified
 
-- **通知模块的实现**：通知如何产生、聚合（如"张三等 5 人赞了你"）、存储与未读数，取决于消息可靠性底座与计数系统的方案。
-- **API 设计规范**：URL 风格与命名约定；各接口的分页方式由业务票分别决定后，再看是否需要统一收敛。
-- **种子数据生成**：压测需要的用户/文章/关系规模与生成方式，随压测方案一起浮现。
-- **STAR 叙事素材**：每个亮点的"问题—方案—数据"如何沉淀，待亮点方案与压测方案都定后再看是否需要单独的票。
+<!-- 迷雾已全部清空：种子数据和 STAR 素材在压测方案中解决；通知模块和 API 规范已转为独立的票。 -->
 
 ## Out of scope
 
@@ -55,5 +54,6 @@ Label: wayfinder:map
 - 自建热点 key 探测、用分布式锁防缓存击穿：[多级缓存与缓存治理](issues/09-multilevel-cache.md)已用 Caffeine 的 W-TinyLFU 和同 key 合并加载覆盖了这两类场景。
 - 日榜、周榜、总榜、分类榜，按事件实时更新热度：[热榜](issues/10-hot-list.md)只保留一个 7 天候选的定时重算榜单，这些都不做。
 - 全局接口总限流、登录失败锁定账号：[限流防刷](issues/11-rate-limit.md)只对具体的写操作和匿名接口限流。
+- Prometheus/Grafana 监控栈：[压测方案](issues/12-load-test.md)改用压测前后采集服务端状态差值。
 - 图片上传与对象存储、注销账号、评论点赞、收藏夹：[领域与数据模型](issues/03-domain-data-model.md)里为控制业务复杂度删掉，都不带来技术亮点。
 - 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

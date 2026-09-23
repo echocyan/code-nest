@@ -34,6 +34,7 @@ Label: wayfinder:map
 - [搜索与数据同步](issues/08-search-sync.md)：通过 Outbox + MQ 同步，消费者回查文章最新状态；`article.version` 兼作 ES 外部版本号，防止旧数据覆盖新数据；索引走别名，可零停机重建；写入用 ik_max_word，查询用 ik_smart；作者昵称和计数不进 ES；最多翻 50 页；`mysql-like` 与 `es` 两种实现可切换，用于压测对比
 - [多级缓存与缓存治理](issues/09-multilevel-cache.md)：文章详情用 Caffeine+Redis 两级缓存，用户和文章摘要只用 Redis；业务代码只通过 `TwoLevelCache` 的 3 个方法访问缓存；提交后删缓存，再由 MQ 可靠地二次删除，本地缓存靠 Pub/Sub 广播失效；用 Redis 8 原生布隆过滤器加空值缓存防穿透；用 Caffeine 合并加载防击穿，不加分布式锁；TTL 加随机抖动防雪崩；`cache.mode` 三档可切换对比
 - [热榜](issues/10-hot-list.md)：采用 Hacker News 式时间衰减公式，每 5 分钟由一个实例批量重算最近 7 天发布的文章，结果先写临时 ZSet，再用 RENAME 原子替换正式 ZSet，保留 Top 100；已删除的文章在读取时过滤；只有一个榜单
+- [限流防刷](issues/11-rate-limit.md)：用 Redis ZSet 加 Lua 实现滑动窗口日志，时间取 Redis `TIME`；已登录按用户、匿名按 IP 限流，只对可信代理解析 XFF；通过可重复的 `@RateLimit` 注解声明，由拦截器在 `SaInterceptor` 之后执行；超限返回 429 和 `Retry-After`；Redis 故障时放行；有总开关
 
 ## Not yet specified
 
@@ -53,5 +54,6 @@ Label: wayfinder:map
 - Canal 订阅 binlog；搜索建议、自动补全、拼音搜索；搜索结果按热度排序：[搜索与数据同步](issues/08-search-sync.md)为了控制复杂度、守住模块边界，这些都不做。
 - 自建热点 key 探测、用分布式锁防缓存击穿：[多级缓存与缓存治理](issues/09-multilevel-cache.md)已用 Caffeine 的 W-TinyLFU 和同 key 合并加载覆盖了这两类场景。
 - 日榜、周榜、总榜、分类榜，按事件实时更新热度：[热榜](issues/10-hot-list.md)只保留一个 7 天候选的定时重算榜单，这些都不做。
+- 全局接口总限流、登录失败锁定账号：[限流防刷](issues/11-rate-limit.md)只对具体的写操作和匿名接口限流。
 - 图片上传与对象存储、注销账号、评论点赞、收藏夹：[领域与数据模型](issues/03-domain-data-model.md)里为控制业务复杂度删掉，都不带来技术亮点。
 - 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

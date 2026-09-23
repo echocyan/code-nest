@@ -67,8 +67,9 @@ article_like    id, user_id, article_id, UK(user_id, article_id)
 favorite        id, user_id, article_id, UK(user_id, article_id), IDX(user_id, id)
 -- social
 follow          id, follower_id, author_id, UK(follower_id, author_id), IDX(author_id, follower_id)
--- notification（仅占位，细节在迷雾"通知模块的实现"中）
-notification    id, recipient_id, actor_id, type, article_id, comment_id, is_read, IDX(recipient_id, is_read, id)
+-- notification（由[通知模块](13-notification.md)定稿）
+notification    id, recipient_id, actor_id, type, article_id, comment_id, dedup_key NULL, is_read
+                UK(dedup_key), IDX(recipient_id, id), IDX(recipient_id, is_read)
 ```
 这里没有列出的表：Feed 收件箱（在 Redis 里，由 Feed 票决定）、Outbox 本地消息表（由消息可靠性底座票决定）、搜索相关的表（由搜索票决定）。
 

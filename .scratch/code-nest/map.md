@@ -37,6 +37,7 @@ Label: wayfinder:map
 - [热榜](issues/10-hot-list.md)：采用 Hacker News 式时间衰减公式，每 5 分钟由一个实例批量重算最近 7 天发布的文章，结果先写临时 ZSet，再用 RENAME 原子替换正式 ZSet，保留 Top 100；已删除的文章在读取时过滤；只有一个榜单
 - [限流防刷](issues/11-rate-limit.md)：用 Redis ZSet 加 Lua 实现滑动窗口日志，时间取 Redis `TIME`；已登录按用户、匿名按 IP 限流，只对可信代理解析 XFF；通过可重复的 `@RateLimit` 注解声明，由拦截器在 `SaInterceptor` 之后执行；超限返回 429 和 `Retry-After`；Redis 故障时放行；有总开关
 - [压测方案](issues/12-load-test.md)：k6，2 实例加 Nginx，每个容器限定 CPU 与内存；新增 loadtest 模块，用 JDBC 造 10 万级数据，派生数据走系统自带的重建路径生成；四组开关分别压测对比，每组 3 次取中位数，并采集服务端状态差值；结果按 STAR 写入 `docs/benchmark.md`；关注列表是否加缓存按 30% 规则决定
+- [通知模块](issues/13-notification.md)：点赞、评论、回复、关注这四类事件产生通知，自己触发的不通知；不做聚合，同一动作靠 `dedup_key` 唯一键去重，防止反复操作刷屏；取消操作不撤回通知；表里只存 ID，展示信息读取时组装；未读数直接 COUNT，最多显示 99+；列表用游标分页
 
 ## Not yet specified
 
@@ -55,5 +56,6 @@ Label: wayfinder:map
 - 日榜、周榜、总榜、分类榜，按事件实时更新热度：[热榜](issues/10-hot-list.md)只保留一个 7 天候选的定时重算榜单，这些都不做。
 - 全局接口总限流、登录失败锁定账号：[限流防刷](issues/11-rate-limit.md)只对具体的写操作和匿名接口限流。
 - Prometheus/Grafana 监控栈：[压测方案](issues/12-load-test.md)改用压测前后采集服务端状态差值。
+- 通知聚合、按类型分 Tab、通知定期清理：[通知模块](issues/13-notification.md)用去重防刷屏已经足够。
 - 图片上传与对象存储、注销账号、评论点赞、收藏夹：[领域与数据模型](issues/03-domain-data-model.md)里为控制业务复杂度删掉，都不带来技术亮点。
 - 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

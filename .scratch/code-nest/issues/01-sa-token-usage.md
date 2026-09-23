@@ -10,7 +10,7 @@ Sa-Token 1.46（`sa-token-spring-boot4-starter`）在 Spring Boot 4 下怎么用
 
 ## Research
 
-完整结论（逐条附来源链接）见分支 `research/sa-token-usage`（commit 159a205）上的 `docs/research/sa-token-usage.md`。
+完整结论（逐条附来源链接）见 [docs/research/sa-token-usage.md](../../../docs/research/sa-token-usage.md)（已从 `research/sa-token-usage` 合入 main）。
 
 ## Answer
 

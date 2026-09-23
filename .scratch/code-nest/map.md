@@ -29,6 +29,7 @@ Label: wayfinder:map
 - [领域与数据模型](issues/03-domain-data-model.md)：分类单选、标签多选且均为系统预置；文章只有草稿和已发布两种状态；评论与回复同表；内容软删除、关系硬删除；只有文章能点赞；计数放在独立计数表，并拆出无依赖的 counter 模块以消除依赖环；不建外键；附完整表结构草案
 - [认证与鉴权方案](issues/04-auth.md)：只支持用户名加密码登录，密码用 BCrypt；token 以 `Authorization: Bearer <uuid>` 传递，有效期 7 天，允许多端登录；Session 只存用户 ID；不区分角色；默认要求登录，公开接口加 `@SaIgnore`；只有 Controller 通过 `AuthContext` 取当前用户
 - [消息可靠性底座](issues/05-mq-reliability.md)：跨模块副作用走 MQ；生产端用 Outbox 加 confirm，补发任务用 SKIP LOCKED 防止多实例重复；业务代码只调用 `publish(event)` 一个方法；消费端用 `@IdempotentConsumer` 和消费记录表做幂等；重试 3 次后进死信；只用一个 topic 交换机；事件是只带 ID 的轻量事件，放在 `api/event/`
+- [计数系统](issues/06-counter-system.md)：点赞关系同步写库，只对热点计数行做优化；各模块经 `CounterApi.increment`（走 Outbox）上报计数，counter 不依赖任何业务模块；Redis Hash 存计数，Lua 原子完成幂等去重、冷 key 判断和累加；每 5 秒 SPOP 待落库集合，把绝对值批量写入 MySQL；由掌握真实数据的模块每周对账；浏览量是近似计数，直接加 Redis；`sync-db` 与 `redis-async` 两种实现可切换，用于压测对比
 
 ## Not yet specified
 

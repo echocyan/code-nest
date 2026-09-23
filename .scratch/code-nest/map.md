@@ -25,11 +25,12 @@ Label: wayfinder:map
 <!-- 每个已关闭的票一行：[票名](link)：一句话结论 -->
 
 - [Sa-Token 用法调研](issues/01-sa-token-usage.md)：Redis 用 `sa-token-redis-template` 且避开 Jackson 2；注解鉴权需注册 `SaInterceptor`；MockMvc 测试需挂上下文 Filter；Session 存对象需注册 JSON 白名单；Boot 4.1.1 兼容性不专门验证，实现中暴露再处理
+- [工程结构与测试基础设施](issues/02-project-structure.md)：按业务划分的 Maven 多模块（common / framework / modules/* / app），跨模块只能调用对方 `api` 包（ArchUnit 强制）；返回体 `{code,message,data}` 加语义化 HTTP 状态码；雪花 ID；两种分页；compose 管中间件、应用在 IDEA 运行；Testcontainers；Flyway；SpringDoc；MapStruct
 
 ## Not yet specified
 
 - **通知模块的实现**：通知如何产生、聚合（如"张三等 5 人赞了你"）、存储与未读数，取决于消息可靠性底座与计数系统的方案。
-- **API 设计规范**：URL 风格、分页方式（游标 vs 页码）、错误码体系；工程结构和 Feed 分页定下后再收敛。
+- **API 设计规范**：URL 风格与命名约定；各接口的分页方式由业务票分别决定后，再看是否需要统一收敛。
 - **种子数据生成**：压测需要的用户/文章/关系规模与生成方式，随压测方案一起浮现。
 - **STAR 叙事素材**：每个亮点的"问题—方案—数据"如何沉淀，待亮点方案与压测方案都定后再看是否需要单独的票。
 
@@ -40,3 +41,4 @@ Label: wayfinder:map
 - 签到、积分、UV 统计；后台管理与审核：与主打亮点无关。
 - 实时推送（SSE/WebSocket）：用户明确不做。
 - CI 与云部署：本地 docker compose 运行即可。
+- 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

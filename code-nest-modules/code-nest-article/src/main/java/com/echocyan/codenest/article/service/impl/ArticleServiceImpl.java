@@ -27,6 +27,7 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.PageResult;
+import com.echocyan.codenest.common.util.Texts;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
@@ -310,15 +311,13 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     /**
-     * 作者填写的摘要；没填时截取正文开头。按码点截取，避免切开 emoji 等代理对。
+     * 作者填写的摘要；没填时截取正文开头。
      */
     private static String summaryOf(ArticleRequest request) {
         if (request.summary() != null && !request.summary().isBlank()) {
             return request.summary();
         }
-        String content = request.content().strip();
-        return content.substring(0, content.offsetByCodePoints(0,
-                Math.min(AUTO_SUMMARY_LENGTH, content.codePointCount(0, content.length()))));
+        return Texts.head(request.content().strip(), AUTO_SUMMARY_LENGTH);
     }
 
     private static List<Long> tagIdsOf(ArticleRequest request) {

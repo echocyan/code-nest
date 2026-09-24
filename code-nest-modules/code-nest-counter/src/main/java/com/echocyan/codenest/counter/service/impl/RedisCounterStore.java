@@ -51,18 +51,22 @@ class RedisCounterStore {
     /**
      * KEYS：计数 Hash、待落库集合、去重 key（可选）；ARGV：字段、增量、对象 ID、去重 key 过期秒数。
      * 返回 -1 表示 Hash 不存在（MISS），0 表示重复消息，1 表示已累加。
+     * 去重 key 在累加成功后才写入：脚本中途出错时不会留下标记，重试不会被误判为重复。
      */
     private static final RedisScript<Long> INCREMENT = RedisScript.of("""
             if redis.call('EXISTS', KEYS[1]) == 0 then
                 return -1
             end
-            if KEYS[3] and not redis.call('SET', KEYS[3], 1, 'NX', 'EX', ARGV[4]) then
+            if KEYS[3] and redis.call('EXISTS', KEYS[3]) == 1 then
                 return 0
             end
             if redis.call('HINCRBY', KEYS[1], ARGV[1], ARGV[2]) < 0 then
                 redis.call('HSET', KEYS[1], ARGV[1], 0)
             end
             redis.call('SADD', KEYS[2], ARGV[3])
+            if KEYS[3] then
+                redis.call('SET', KEYS[3], 1, 'EX', ARGV[4])
+            end
             return 1
             """, Long.class);
 
@@ -75,12 +79,16 @@ class RedisCounterStore {
             return 1
             """.getBytes(StandardCharsets.UTF_8);
 
-    /** KEYS：计数 Hash；ARGV：字段、新值。只在 Hash 存在时写入，不存在时留给下次访问从 MySQL 回填。 */
+    /**
+     * KEYS：计数 Hash、待落库集合；ARGV：字段、新值、对象 ID。只在 Hash 存在时写入并标记为待落库，
+     * 不存在时留给下次访问从 MySQL 回填。
+     */
     private static final RedisScript<Long> RESET_IF_PRESENT = RedisScript.of("""
             if redis.call('EXISTS', KEYS[1]) == 0 then
                 return 0
             end
             redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+            redis.call('SADD', KEYS[2], ARGV[3])
             return 1
             """, Long.class);
 
@@ -126,16 +134,22 @@ class RedisCounterStore {
     }
 
     /**
-     * Hash 存在时把一项计数改为给定值，不存在时不写入。
+     * Hash 存在时把一项计数改为给定值，并标记为待落库：即使此前已读出旧值的落库批次随后覆盖了 MySQL，
+     * 下一次落库也会写回新值。Hash 不存在时不写入。
      */
     void resetIfPresent(CounterMetric metric, long targetId, long value) {
-        redis.execute(RESET_IF_PRESENT, List.of(hashKey(metric.target(), targetId)), CounterTables.field(metric),
-                String.valueOf(value));
+        CounterTarget target = metric.target();
+        redis.execute(RESET_IF_PRESENT, List.of(hashKey(target, targetId), dirtyKey(target)),
+                CounterTables.field(metric), String.valueOf(value), String.valueOf(targetId));
     }
 
     /**
      * 把待落库的对象按绝对值写回 MySQL，重复写结果不变。{@code SPOP} 是原子的，多个实例同时落库不会处理同一个对象。
-     * 写库失败时把这批 ID 放回待落库集合；实例在取出之后、写库之前崩溃则会丢失标记，由下次变更或对账修正。
+     * 写库失败时把这批 ID 放回待落库集合。已知缺陷，均由下次变更或对账修正：
+     * <ul>
+     *     <li>实例在取出之后、写库之前崩溃，这批对象的标记丢失。</li>
+     *     <li>多个实例时，一个批次读出旧值后，同一对象再次变更并被另一实例先写入新值，前者随后用旧值覆盖。</li>
+     * </ul>
      */
     @Scheduled(fixedDelay = 5, timeUnit = TimeUnit.SECONDS)
     void flush() {

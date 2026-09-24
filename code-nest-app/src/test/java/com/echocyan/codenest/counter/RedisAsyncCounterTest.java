@@ -83,7 +83,8 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
         String authorId = authorIdOf(author, articleId);
         like(reader(), articleId);
         like(reader(), articleId);
-        await().atMost(FLUSHED).until(() -> stat("article_stat", "like_count", "article_id", articleId) == 2);
+        await().atMost(FLUSHED).until(() -> stat("article_stat", "like_count", "article_id", articleId) == 2
+                && stat("user_stat", "like_received_count", "user_id", authorId) == 2);
 
         redis.delete(List.of("counter:article:" + articleId, "counter:user:" + authorId));
 

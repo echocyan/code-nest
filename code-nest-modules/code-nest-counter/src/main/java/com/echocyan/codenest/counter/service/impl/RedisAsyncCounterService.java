@@ -42,7 +42,8 @@ class RedisAsyncCounterService implements CounterApi {
     }
 
     /**
-     * 先改 Redis 再改 MySQL：反过来的话，两步之间落库会把 Redis 里的旧值写回 MySQL。
+     * 先改 Redis 再改 MySQL：反过来的话，两步之间落库会把 Redis 里的旧值写回 MySQL。与并发写入交错时可能有 ±1 的误差，
+     * 由下一次对账修正。
      */
     @Override
     public void reset(CounterMetric metric, long targetId, long value) {

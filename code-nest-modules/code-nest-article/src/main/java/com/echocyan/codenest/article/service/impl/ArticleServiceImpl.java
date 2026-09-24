@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.convert.TagConverter;
 import com.echocyan.codenest.article.dto.ArticleRequest;
@@ -52,6 +53,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final ArticleTagService articleTagService;
     private final CategoryService categoryService;
     private final TagService tagService;
+    private final ArticleConverter articleConverter;
     private final CategoryConverter categoryConverter;
     private final TagConverter tagConverter;
     private final UserApi userApi;
@@ -131,17 +133,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
             counterApi.increment(CounterMetric.ARTICLE_VIEW, id, 1);
         }
         List<Tag> tags = tagService.listInOrder(articleTagService.listTagIds(id));
-        return new ArticleDetailVO(
-                article.getId(),
-                article.getTitle(),
-                article.getSummary(),
-                article.getCoverUrl(),
+        return articleConverter.toDetailVO(
+                article,
                 articleContentService.getById(id).getContent(),
-                article.getStatus(),
-                article.getPublishedAt(),
-                article.getCreatedAt(),
-                article.getUpdatedAt(),
-                article.getVersion(),
                 categoryConverter.toVO(categoryService.getById(article.getCategoryId())),
                 tagConverter.toVOs(tags),
                 userApi.getBriefs(List.of(article.getAuthorId())).get(article.getAuthorId()),
@@ -212,14 +206,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .collect(Collectors.toMap(Category::getId, categoryConverter::toVO));
         Map<Long, UserBrief> authors = userApi.getBriefs(articles.stream().map(Article::getAuthorId).distinct().toList());
         Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE, articles.stream().map(Article::getId).toList());
-        return articles.stream().map(article -> new ArticleItemVO(
-                        article.getId(),
-                        article.getTitle(),
-                        article.getSummary(),
-                        article.getCoverUrl(),
+        return articles.stream()
+                .map(article -> articleConverter.toItemVO(
+                        article,
                         categories.get(article.getCategoryId()),
-                        article.getStatus(),
-                        article.getPublishedAt(),
                         authors.get(article.getAuthorId()),
                         countsVO(counts.get(article.getId()))))
                 .toList();

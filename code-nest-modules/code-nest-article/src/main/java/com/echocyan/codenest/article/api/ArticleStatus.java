@@ -1,4 +1,4 @@
-package com.echocyan.codenest.article.entity;
+package com.echocyan.codenest.article.api;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 

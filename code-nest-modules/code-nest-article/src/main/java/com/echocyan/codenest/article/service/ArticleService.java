@@ -2,12 +2,12 @@ package com.echocyan.codenest.article.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.echocyan.codenest.article.ArticleErrorCode;
+import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.convert.TagConverter;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.ArticleContent;
-import com.echocyan.codenest.article.entity.ArticleStatus;
 import com.echocyan.codenest.article.entity.ArticleTag;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.ArticleContentMapper;

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.Version;
+import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.framework.mybatis.AuditableEntity;
 import java.time.LocalDateTime;
 import lombok.Getter;

@@ -1,6 +1,6 @@
 package com.echocyan.codenest.article.vo;
 
-import com.echocyan.codenest.article.entity.ArticleStatus;
+import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.time.LocalDateTime;
 import java.util.List;

@@ -1,10 +1,10 @@
-package com.echocyan.codenest.article.service;
+package com.echocyan.codenest.article.service.impl;
 
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.article.convert.ArticleConverter;
-import com.echocyan.codenest.article.mapper.ArticleMapper;
+import com.echocyan.codenest.article.service.ArticleService;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -17,12 +17,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class ArticleApiImpl implements ArticleApi {
 
-    private final ArticleMapper articleMapper;
+    private final ArticleService articleService;
     private final ArticleConverter articleConverter;
 
     @Override
     public Optional<ArticleState> findState(long articleId) {
-        return Optional.ofNullable(articleMapper.selectById(articleId)).map(articleConverter::toState);
+        return Optional.ofNullable(articleService.getById(articleId)).map(articleConverter::toState);
     }
 
     @Override
@@ -30,7 +30,7 @@ class ArticleApiImpl implements ArticleApi {
         if (articleIds.isEmpty()) {
             return Map.of();
         }
-        return articleMapper.selectByIds(articleIds).stream()
+        return articleService.listByIds(articleIds).stream()
                 .map(articleConverter::toBrief)
                 .collect(Collectors.toMap(ArticleBrief::id, Function.identity()));
     }

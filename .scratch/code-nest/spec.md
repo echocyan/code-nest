@@ -200,6 +200,12 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
   后组装。对外发布的事件类放在 `api/event/`。
 - **模块内分包**：`api/`（含 `api/event/`）、`controller/`、`service/`、`mapper/`、`entity/`、`dto/`、`vo/`、`convert/`。
   模块的错误码枚举（如 `UserErrorCode`）放在模块根包；其他模块需要引用时再移入 `api/`。
+- **Service 写法**（MyBatis-Plus 惯例）：
+    - 每个实体一个 Service：`service/XxxService` 是继承 `IService<Xxx>` 的接口，`service/impl/XxxServiceImpl` 继承 `ServiceImpl<XxxMapper, Xxx>` 并实现它。
+    - 3.5.17 中这两个类型在 `com.baomidou.mybatisplus.spring.service` 包下。
+    - 模块门面的实现（如 `UserApiImpl`）也放在 `service/impl/`。
+    - 条件查询和更新一律用链式 Lambda 构造器（`lambdaQuery()…list()/one()/count()/exists()`、`lambdaUpdate()…update()/remove()`），不用 `Wrappers` 构造条件后再传给 Mapper。
+    - 一个 Service 需要读写别的实体时，调用该实体的 Service，不直接注入对方的 Mapper。
 - **依赖选型**：
     - MyBatis-Plus 用 `mybatis-plus-spring-boot4-starter`。
     - Sa-Token 用 `sa-token-spring-boot4-starter`，存储用 `sa-token-redis-template` 加 `commons-pool2`，避开会引入 Jackson

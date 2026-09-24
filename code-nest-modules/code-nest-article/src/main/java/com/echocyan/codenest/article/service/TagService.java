@@ -1,25 +1,22 @@
 package com.echocyan.codenest.article.service;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.echocyan.codenest.article.entity.Tag;
-import com.echocyan.codenest.article.mapper.TagMapper;
+import java.util.Collection;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 /**
  * 预置的文章标签。
  */
-@Service
-@RequiredArgsConstructor
-public class TagService {
-
-    private final TagMapper tagMapper;
+public interface TagService extends IService<Tag> {
 
     /**
      * 按 ID 顺序列出全部标签。
      */
-    public List<Tag> list() {
-        return tagMapper.selectList(Wrappers.<Tag>lambdaQuery().orderByAsc(Tag::getId));
-    }
+    List<Tag> listInOrder();
+
+    /**
+     * 按 ID 顺序列出给定的标签，不存在的 ID 被忽略。
+     */
+    List<Tag> listInOrder(Collection<Long> ids);
 }

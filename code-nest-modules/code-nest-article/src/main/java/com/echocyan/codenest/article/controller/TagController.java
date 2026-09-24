@@ -24,6 +24,6 @@ public class TagController {
     @Operation(summary = "全部标签")
     @GetMapping("/tags")
     public Result<List<TagVO>> list() {
-        return Result.ok(tagConverter.toVOs(tagService.list()));
+        return Result.ok(tagConverter.toVOs(tagService.listInOrder()));
     }
 }

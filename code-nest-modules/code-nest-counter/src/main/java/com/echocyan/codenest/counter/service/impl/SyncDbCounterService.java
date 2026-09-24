@@ -1,4 +1,4 @@
-package com.echocyan.codenest.counter.service;
+package com.echocyan.codenest.counter.service.impl;
 
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;

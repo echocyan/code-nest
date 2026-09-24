@@ -28,7 +28,7 @@ Maven 多模块怎么划分（按层还是按业务模块、各模块依赖方�
    ```
    依赖方向为 app → 业务模块 → framework → common。业务模块之间只能单向依赖，不能成环。
 2. **跨模块调用**：一个模块只能使用另一个模块 `api` 包里的门面接口和 DTO（如 `ArticleApi.exists(id)`）。Service、Mapper、Entity 都属于模块内部，由 ArchUnit 测试强制执行，理由见 [ADR-0001](../../../docs/adr/0001-modular-monolith-api-package-seam.md)。需要反向通知时用事件：进程内走 Spring `ApplicationEvent`，需要可靠投递的走 MQ，具体规则由消息可靠性底座票决定。
-3. **模块内分包**：`com.echocyan.codenest.<module>` 下分为 `api/ controller/ service/ mapper/ entity/ dto/ vo/ convert/`，不设 `model/` 中间层。对外发布的事件类放在 `api/event/`；按[消息可靠性底座](05-mq-reliability.md)的结论，不再单设 `event/` 包。启动类放在 `com.echocyan.codenest`。
+3. **模块内分包**：`com.echocyan.codenest.<module>` 下分为 `api/ controller/ service/ mapper/ entity/ dto/ vo/ convert/`，不设 `model/` 中间层。Service 按 MyBatis-Plus 惯例写成 `IService` 接口加 `service/impl/` 下的 `ServiceImpl` 实现，查询用链式 Lambda 构造器（03 号实现票之后追加，见规格“Service 写法”）。对外发布的事件类放在 `api/event/`；按[消息可靠性底座](05-mq-reliability.md)的结论，不再单设 `event/` 包。启动类放在 `com.echocyan.codenest`。
 4. **返回体与错误码**：body 统一为 `{code, message, data}`，同时按语义设置 HTTP 状态码（400/401/403/404/429/500）。业务错误码按模块分段：用户 1xxxx，文章 2xxxx，其余模块依次往后排。
 5. **ID**：使用 MyBatis-Plus `ASSIGN_ID`（雪花 Long）。JSON 输出时 Long 全局序列化为字符串。Feed 游标可以直接用雪花 ID 的时间有序性。
 6. **分页**：common 提供页码分页 `PageResult` 和游标分页 `CursorResult{list, nextCursor, hasMore}`，每个接口用哪种由各业务票决定。

@@ -24,6 +24,6 @@ public class CategoryController {
     @Operation(summary = "全部分类", description = "按预置顺序返回")
     @GetMapping("/categories")
     public Result<List<CategoryVO>> list() {
-        return Result.ok(categoryConverter.toVOs(categoryService.list()));
+        return Result.ok(categoryConverter.toVOs(categoryService.listInOrder()));
     }
 }

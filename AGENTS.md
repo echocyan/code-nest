@@ -10,6 +10,7 @@
 
 ## 测试
 
+- 构建与测试都在同一次 reactor 构建里带上依赖模块，例如 `./mvnw -pl code-nest-app -am test -Dtest=FollowApiTest -Dsurefire.failIfNoSpecifiedTests=false`。
 - Do not backfill tests after implementing business code.
 - Tautological tests considered harmful.
 - Change-detector tests considered harmful.

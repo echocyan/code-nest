@@ -57,7 +57,7 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
-Run each sub-agent as a Codex subagent through the `codex-subagent` skill, named `codex-review-standards` and `codex-review-spec`. Submit both prompts before waiting on either.
+Run each sub-agent as a Codex subagent through the `codex-subagent` skill, named `codex-<tag>-standards` and `codex-<tag>-spec`, where `<tag>` identifies this review (the ticket number such as `t07`, or a short branch slug) so reviews in parallel sessions never share a name. Submit both prompts before waiting on either.
 
 **Standards sub-agent prompt** should include:
 

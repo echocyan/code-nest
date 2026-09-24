@@ -2,6 +2,7 @@ package com.echocyan.codenest.framework.mq;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import lombok.RequiredArgsConstructor;
+import org.aopalliance.intercept.MethodInterceptor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -14,7 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * {@link IdempotentConsumer} 的实现。messageId 与消费队列名取自当前线程正在处理的消息，
- * 由 {@link MqConfig} 注册的接收后处理器在监听器执行前记下。
+ * 由 {@link #bindConsumingMessage()} 在每次调用监听器期间绑定。
  */
 @Slf4j
 @Aspect
@@ -22,17 +23,27 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 class IdempotentConsumerAspect {
 
-    /**
-     * 监听器线程只用来处理消息，每收到一条就覆盖一次，不需要清理。
-     */
     private static final ThreadLocal<Message> CONSUMING = new ThreadLocal<>();
 
     private final MqConsumeRecordMapper consumeRecordMapper;
     private final TransactionTemplate transactionTemplate;
 
-    static Message remember(Message message) {
-        CONSUMING.set(message);
-        return message;
+    /**
+     * 监听容器的 advice：调用监听器期间把当前消息绑定到线程上，结束后清理。
+     * 要放在重试 advice 外层，重试的每一次调用才都能取到消息。
+     */
+    static MethodInterceptor bindConsumingMessage() {
+        return invocation -> {
+            if (!(invocation.getArguments()[1] instanceof Message message)) {
+                return invocation.proceed();
+            }
+            CONSUMING.set(message);
+            try {
+                return invocation.proceed();
+            } finally {
+                CONSUMING.remove();
+            }
+        };
     }
 
     @Around("@annotation(com.echocyan.codenest.framework.mq.IdempotentConsumer)")

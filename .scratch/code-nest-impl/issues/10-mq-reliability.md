@@ -36,6 +36,6 @@ Status: closed
   - 补发每 5 秒扫一次，每批 100 条；退避从 10 秒开始翻倍，上限 30 分钟。
   - 没有事务时同步等待 confirm（5 秒），共尝试 3 次，仍失败则抛 `AmqpException`。
   - 没有队列绑定的路由键，broker 照样 ack，消息被丢弃。
-- **幂等**：`@IdempotentConsumer` 的 consumer 取消费队列名；messageId 与队列名来自监听器执行前记下的当前消息，所以注解只能用在 `@RabbitListener` 方法上，别处调用直接报错。
+- **幂等**：`@IdempotentConsumer` 的 consumer 取消费队列名。messageId 与队列名来自当前消息：`MqConfig` 自定义了 `rabbitListenerContainerFactory`，在重试 advice 外层加了一层 advice，只在调用监听器期间把消息绑定到线程上。所以注解只能用在 `@RabbitListener` 方法上，别处调用直接报错。
 - **重试**：用 Boot 的 `spring.rabbitmq.listener.simple.retry` 配置（`application.yaml`），重试耗尽由 `MqConfig` 的 MessageRecoverer 打 ERROR 日志并拒绝消息。
 - **测试**：`framework/mq` 下两个测试类，测试用的事件、队列和监听器在 `support/probe/MqProbe`。broker 不可用用 `rabbitmqctl stop_app` / `start_app` 模拟，容器端口不变。

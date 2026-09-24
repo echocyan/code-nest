@@ -55,6 +55,7 @@ tag             id, name UK
 article         id, author_id, category_id, title, summary, cover_url, status, published_at, version, deleted
                 （version 由[搜索与数据同步](08-search-sync.md)追加：MyBatis-Plus @Version，每次编辑/发布/删除 +1，兼作 ES 外部版本号与编辑乐观锁）
                 IDX(author_id, status, published_at), IDX(category_id, status, published_at)
+                IDX(status, published_at)（04 号实现票追加：不带筛选的最新文章列表需要）
 article_content article_id PK, content MEDIUMTEXT
 article_tag     PK(article_id, tag_id), IDX(tag_id, article_id)
 comment         id, article_id, user_id, root_id, reply_to_user_id, content VARCHAR(1000), deleted

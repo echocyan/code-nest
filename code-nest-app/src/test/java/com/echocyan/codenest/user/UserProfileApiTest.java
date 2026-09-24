@@ -2,6 +2,7 @@ package com.echocyan.codenest.user;
 
 import com.echocyan.codenest.support.IntegrationTest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -65,8 +66,9 @@ class UserProfileApiTest extends IntegrationTest {
         Map<String, Object> blankNickname = new HashMap<>(Map.of("nickname", " "));
         Map<String, Object> longNickname = new HashMap<>(Map.of("nickname", "一二三四五六七八九十一二三四五六七八九十一"));
         Map<String, Object> longBio = new HashMap<>(Map.of("nickname", "ok", "bio", "x".repeat(201)));
+        Map<String, Object> scriptAvatar = new HashMap<>(Map.of("nickname", "ok", "avatarUrl", "javascript:alert(1)"));
 
-        for (Map<String, Object> body : new Map[]{blankNickname, longNickname, longBio}) {
+        for (Map<String, Object> body : List.of(blankNickname, longNickname, longBio, scriptAvatar)) {
             me.put().uri(API + "/users/me")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)

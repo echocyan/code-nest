@@ -1,6 +1,7 @@
 package com.echocyan.codenest.user.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -8,6 +9,6 @@ import jakarta.validation.constraints.Size;
  */
 public record UpdateProfileRequest(
         @NotBlank @Size(max = 20) String nickname,
-        @Size(max = 512) String avatarUrl,
+        @Size(max = 512) @Pattern(regexp = "^https?://\\S+$", message = "头像需为 http(s) 地址") String avatarUrl,
         @Size(max = 200) String bio) {
 }

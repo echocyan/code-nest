@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.framework.mq.DomainEventPublisher;
+import com.echocyan.codenest.interaction.api.event.LikeCreatedEvent;
 import com.echocyan.codenest.interaction.entity.ArticleLike;
 import com.echocyan.codenest.interaction.mapper.ArticleLikeMapper;
 import com.echocyan.codenest.interaction.service.ArticleLikeService;
@@ -21,6 +23,7 @@ public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, Artic
 
     private final PublishedArticles publishedArticles;
     private final CounterApi counterApi;
+    private final DomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -36,6 +39,7 @@ public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, Artic
             return;
         }
         countLike(article, 1);
+        eventPublisher.publish(new LikeCreatedEvent(articleId, userId, article.authorId()));
     }
 
     @Override

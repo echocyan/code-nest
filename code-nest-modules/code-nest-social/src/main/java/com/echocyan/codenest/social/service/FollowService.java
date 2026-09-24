@@ -10,7 +10,7 @@ import java.util.Collection;
 import java.util.Set;
 
 /**
- * 关注与取关。两者都幂等，只有真的插入或删除了一行才更新被关注者的粉丝数和关注者的关注数。
+ * 关注与取关。两者都幂等，只有真的插入或删除了一行才更新被关注者的粉丝数和关注者的关注数；关注成功时还会发出 {@code follow.created}。
  */
 public interface FollowService extends IService<Follow> {
 

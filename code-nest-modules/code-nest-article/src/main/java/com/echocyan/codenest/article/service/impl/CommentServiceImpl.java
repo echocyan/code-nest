@@ -3,6 +3,7 @@ package com.echocyan.codenest.article.service.impl;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.Comment;
 import com.echocyan.codenest.article.mapper.CommentMapper;
@@ -17,6 +18,7 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.util.List;
@@ -38,11 +40,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     private final ArticleService articleService;
     private final UserApi userApi;
     private final CounterApi counterApi;
+    private final DomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
     public Comment comment(long articleId, long userId, String content) {
-        checkPublished(articleId);
+        Article article = requirePublished(articleId);
         Comment comment = new Comment();
         comment.setArticleId(articleId);
         comment.setUserId(userId);
@@ -50,12 +53,14 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         comment.setContent(content);
         save(comment);
         counterApi.increment(CounterMetric.ARTICLE_COMMENT, articleId, 1);
+        eventPublisher.publish(new CommentCreatedEvent(comment.getId(), articleId, userId, Comment.NO_ROOT, null,
+                article.getAuthorId()));
         return comment;
     }
 
     @Override
     public CursorResult<CommentVO> listComments(long articleId, Long cursor, int size) {
-        checkPublished(articleId);
+        requirePublished(articleId);
         CursorResult<Comment> page = pageOf(baseMapper.selectVisibleComments(
                 articleId, cursor == null ? Long.MAX_VALUE : cursor, size + 1), size);
         return page.map(commentVOMapper(page.list()));
@@ -68,7 +73,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         if (target == null) {
             throw new BizException(ArticleErrorCode.COMMENT_NOT_FOUND);
         }
-        checkPublished(target.getArticleId());
+        Article article = requirePublished(target.getArticleId());
         long rootId = target.isReply() ? target.getRootId() : target.getId();
         if (replyToUserId == null && target.isReply()) {
             replyToUserId = target.getUserId();
@@ -84,6 +89,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         save(reply);
         counterApi.increment(CounterMetric.COMMENT_REPLY, rootId, 1);
         counterApi.increment(CounterMetric.ARTICLE_COMMENT, target.getArticleId(), 1);
+        // 没有 @ 人时，被回复的是评论的作者
+        eventPublisher.publish(new CommentCreatedEvent(reply.getId(), target.getArticleId(), userId, rootId,
+                replyToUserId != null ? replyToUserId : target.getUserId(), article.getAuthorId()));
         return reply;
     }
 
@@ -93,7 +101,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         if (root == null || root.isReply()) {
             throw new BizException(ArticleErrorCode.COMMENT_NOT_FOUND);
         }
-        checkPublished(root.getArticleId());
+        requirePublished(root.getArticleId());
         CursorResult<Comment> page = pageOf(lambdaQuery()
                 .eq(Comment::getArticleId, root.getArticleId())
                 .eq(Comment::getRootId, commentId)
@@ -148,11 +156,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     /**
      * @throws BizException 文章不存在、已删除或是草稿时 {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
      */
-    private void checkPublished(long articleId) {
+    private Article requirePublished(long articleId) {
         Article article = articleService.getById(articleId);
         if (article == null || article.getStatus() != ArticleStatus.PUBLISHED) {
             throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
+        return article;
     }
 
     private Function<Comment, CommentVO> commentVOMapper(List<Comment> comments) {

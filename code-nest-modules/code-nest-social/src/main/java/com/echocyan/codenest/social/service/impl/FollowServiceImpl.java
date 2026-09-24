@@ -5,6 +5,8 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.framework.mq.DomainEventPublisher;
+import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 import com.echocyan.codenest.social.SocialErrorCode;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.mapper.FollowMapper;
@@ -29,6 +31,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
     private final UserApi userApi;
     private final CounterApi counterApi;
+    private final DomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -44,6 +47,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             return;
         }
         countFollow(followerId, authorId, 1);
+        eventPublisher.publish(new FollowCreatedEvent(followerId, authorId));
     }
 
     @Override

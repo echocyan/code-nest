@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.Set;
 
 /**
- * 点赞与取消点赞。两者都幂等，只有真的插入或删除了一行才更新文章点赞数和作者获赞数。
+ * 点赞与取消点赞。两者都幂等，只有真的插入或删除了一行才更新文章点赞数和作者获赞数；点赞成功时还会发出 {@code like.created}。
  */
 public interface ArticleLikeService extends IService<ArticleLike> {
 

@@ -15,7 +15,7 @@ import com.echocyan.codenest.common.result.CursorResult;
 public interface CommentService extends IService<Comment> {
 
     /**
-     * 对已发布的文章发表评论，文章评论数 +1。
+     * 对已发布的文章发表评论，文章评论数 +1，并发出 {@code comment.created}。
      *
      * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
      */
@@ -30,7 +30,7 @@ public interface CommentService extends IService<Comment> {
     CursorResult<CommentVO> listComments(long articleId, Long cursor, int size);
 
     /**
-     * 在评论下发表回复，评论回复数和文章评论数各 +1。对回复再回复时，新回复仍挂在同一条评论下。
+     * 在评论下发表回复，评论回复数和文章评论数各 +1，并发出 {@code comment.created}。对回复再回复时，新回复仍挂在同一条评论下。
      *
      * @param commentId     被回复的评论或回复
      * @param replyToUserId 回复 @某人；为 null 时，回复评论即回复评论本身，回复某条回复即 @ 该回复的作者

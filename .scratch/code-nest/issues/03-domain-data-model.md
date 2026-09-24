@@ -33,7 +33,7 @@ Blocked by:
   article → user, counter
   interaction → article, counter
   social → user, article, counter
-  notification → user, article
+  notification → user, article, interaction, social
   search → article, user
   ```
 

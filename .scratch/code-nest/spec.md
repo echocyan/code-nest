@@ -194,11 +194,11 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - article → user、counter
     - interaction → article、counter
     - social → user、article、counter
-    - notification → user、article
+    - notification → user、article、interaction、social
     - search → article、user
 - **跨模块调用**：只能调用对方 `api` 包里的门面接口和 DTO。不联表；需要别的模块的数据时，由服务层批量调用对方的 API
   后组装。对外发布的事件类放在 `api/event/`。
-- **模块内分包**：`api/`（含 `api/event/`）、`controller/`、`service/`、`mapper/`、`entity/`、`dto/`、`vo/`、`convert/`。
+- **模块内分包**：`api/`（含 `api/event/`）、`controller/`、`listener/`（MQ 消费者）、`service/`、`mapper/`、`entity/`、`dto/`、`vo/`、`convert/`。
   模块的错误码枚举（如 `UserErrorCode`）放在模块根包；其他模块需要引用时再移入 `api/`。
 - **Service 写法**（MyBatis-Plus 惯例）：
     - 每个实体一个 Service：`service/XxxService` 是继承 `IService<Xxx>` 的接口，`service/impl/XxxServiceImpl` 继承 `ServiceImpl<XxxMapper, Xxx>` 并实现它。

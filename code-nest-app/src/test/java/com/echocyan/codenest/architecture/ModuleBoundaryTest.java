@@ -30,7 +30,7 @@ class ModuleBoundaryTest {
             "article", Set.of("user", "counter"),
             "interaction", Set.of("article", "counter"),
             "social", Set.of("user", "article", "counter"),
-            "notification", Set.of("user", "article"),
+            "notification", Set.of("user", "article", "interaction", "social"),
             "search", Set.of("article", "user"));
 
     @ArchTest

@@ -35,7 +35,7 @@ Status: closed
   - 有事务时，Outbox 记录的首次补发时间是写入后 10 秒，给 afterCommit 发送留出时间；confirm 回调切到应用线程池再标记 SENT。
   - 补发每 5 秒扫一次，每批 100 条；退避从 10 秒开始翻倍，上限 30 分钟。
   - 没有事务时同步等待 confirm（5 秒），共尝试 3 次，仍失败则抛 `AmqpException`。
-  - 没有队列绑定的路由键，broker 照样 ack，消息被丢弃。
+  - 发送开启了 mandatory：路由键上没有任何队列绑定时，消息被退回，按发送失败处理（无事务时抛异常，有事务时由补发任务重试直至 FAILED）。所以新增事件时，至少要有一个消费队列绑定它的路由键。
 - **幂等**：`@IdempotentConsumer` 的 consumer 取消费队列名。messageId 与队列名来自当前消息：`MqConfig` 自定义了 `rabbitListenerContainerFactory`，在重试 advice 外层加了一层 advice，只在调用监听器期间把消息绑定到线程上。所以注解只能用在 `@RabbitListener` 方法上，别处调用直接报错。
 - **重试**：用 Boot 的 `spring.rabbitmq.listener.simple.retry` 配置（`application.yaml`），重试耗尽由 `MqConfig` 的 MessageRecoverer 打 ERROR 日志并拒绝消息。
 - **测试**：`framework/mq` 下两个测试类，测试用的事件、队列和监听器在 `support/probe/MqProbe`。broker 不可用用 `rabbitmqctl stop_app` / `start_app` 模拟，容器端口不变。

@@ -22,7 +22,7 @@ class EventSender {
     private final RabbitTemplate rabbitTemplate;
 
     /**
-     * 发送一条消息，返回 broker 的 confirm 结果：true 为 ack，false 为 nack。
+     * 发送一条消息，返回是否送达：broker ack 且消息没有因无队列绑定而被退回时为 true。
      * 连接失败等发送异常也体现为异常完成的 future，不直接抛出。
      */
     CompletableFuture<Boolean> send(String messageId, String routingKey, String eventType, String payload) {
@@ -39,6 +39,7 @@ class EventSender {
         } catch (RuntimeException e) {
             return CompletableFuture.failedFuture(e);
         }
-        return correlation.getFuture().thenApply(CorrelationData.Confirm::ack);
+        // 退回先于 confirm 到达，confirm 完成时已能看到退回结果
+        return correlation.getFuture().thenApply(confirm -> confirm.ack() && correlation.getReturned() == null);
     }
 }

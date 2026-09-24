@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,7 +89,17 @@ class DomainEventPublisherTest extends IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void failsWhenNoQueueIsBoundToRoutingKey() {
+        assertThatThrownBy(() -> publisher.publish(new Unbound(nonce())))
+                .isInstanceOf(AmqpException.class);
+    }
+
     private record Undeclared(String value) {
+    }
+
+    @DomainEvent("probe.unbound")
+    record Unbound(String nonce) {
     }
 
     private static String nonce() {

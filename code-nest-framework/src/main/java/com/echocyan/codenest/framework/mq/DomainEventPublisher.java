@@ -131,7 +131,7 @@ public class DomainEventPublisher {
                         .get(CONFIRM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
                     return;
                 }
-                lastError = new AmqpException("Broker nacked the event");
+                lastError = new AmqpException("Event was nacked or returned as unroutable");
             } catch (ExecutionException | TimeoutException e) {
                 lastError = e;
             } catch (InterruptedException e) {

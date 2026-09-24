@@ -8,6 +8,10 @@ spring:
       lifecycle-management: start-only
   rabbitmq:
     publisher-confirm-type: correlated
+    # 没有队列绑定的消息退回给生产者，按发送失败处理
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
         # 本地重试 3 次，间隔 1s、2s、4s；之后拒绝消息，转入死信队列

@@ -68,6 +68,7 @@ article_like    id, user_id, article_id, UK(user_id, article_id)
 favorite        id, user_id, article_id, UK(user_id, article_id), IDX(user_id, id)
 -- social
 follow          id, follower_id, author_id, UK(follower_id, author_id), IDX(author_id, follower_id)
+                IDX(author_id, id), IDX(follower_id, id)
 -- notification（由[通知模块](13-notification.md)定稿）
 notification    id, recipient_id, actor_id, type, article_id, comment_id, dedup_key NULL, is_read
                 UK(dedup_key), IDX(recipient_id, id), IDX(recipient_id, is_read)

@@ -267,7 +267,9 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - `comment`：用 `root_id = 0` 区分评论和回复，回复带 `reply_to_user_id`。
 - **counter 模块**：`article_stat`、`user_stat`、`comment_stat`。
 - **interaction 模块**：`article_like`、`favorite`，两张表都有 (user_id, article_id) 唯一键。
-- **social 模块**：`follow`，唯一键 (follower_id, author_id)，另建索引 (author_id, follower_id)。
+- **social 模块**：`follow`，唯一键 (follower_id, author_id)。
+    - 索引 (author_id, follower_id) 供 Feed 推送按粉丝分页。
+    - 索引 (author_id, id)、(follower_id, id) 供粉丝列表、关注列表按关注时间翻页。
 - **notification 模块**：`notification`。
     - `dedup_key` 可为空，建唯一索引。
     - 列表查询用 IDX (recipient_id, id)，未读数用 IDX (recipient_id, is_read)。

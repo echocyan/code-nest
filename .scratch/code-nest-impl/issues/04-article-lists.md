@@ -20,7 +20,8 @@
 - **排序**：
   - 最新文章按 `published_at` 倒序，同一秒发布的再按 ID 倒序。
   - 作者文章、我的草稿、`listByAuthors` 以文章 ID 作游标，所以按文章 ID 倒序。雪花 ID 约等于创建时间，与 Feed 用 articleId 作 score 的做法一致；代价是很早建好、很晚才发布的草稿会排在靠后的位置。
-- **`listByAuthors` 的测试**：`GET /users/{id}/articles` 直接复用同一个查询（只传一个作者），所以这个门面方法经由 HTTP 测试覆盖，没有单独测门面，符合"各模块的 `XxxApi` 不单独测试"的约定。
+- **`listByAuthors` 的测试**：查询写在 `ArticleService.listPublishedByAuthors`，门面 `ArticleApi.listByAuthors` 只负责把结果转成 `ArticleBrief`。`GET /users/{id}/articles` 复用同一个查询（只传一个作者），所以 HTTP 测试覆盖的是这个查询，没有覆盖门面里的转换。按"各模块的 `XxxApi` 不单独测试"的约定，门面不单独测试。
+- **对象转换**：列表项和详情都用 `ArticleConverter` 的多源映射（MapStruct）组装。审查时发现 03 号票的详情原来是手工拼的，一并改掉了。
 - **查询索引**：用 2 万篇文章做了 EXPLAIN。
   - 按分类筛选：走 `idx_category_status_published`，倒序扫描索引，没有 filesort。
   - 按标签筛选：先走 `article_tag` 的 `idx_tag_article` 取出文章 ID，再按主键回表，最后 filesort（标签下的文章数有限）。

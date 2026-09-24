@@ -1,5 +1,6 @@
 package com.echocyan.codenest.article.api;
 
+import com.echocyan.codenest.common.result.PageResult;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,15 @@ public interface ArticleApi {
      * @param limit  最多返回的条数
      */
     List<ArticleBrief> listByAuthors(Collection<Long> authorIds, Long cursor, int limit);
+
+    /**
+     * 按关键词搜索已发布的文章：标题、摘要、正文任一包含关键词（{@code LIKE '%kw%'}，不分词）即命中，
+     * 按发布时间倒序，页码分页。关键词中的 {@code %}、{@code _} 按字面匹配。
+     *
+     * @param categoryId 为 null 时不按分类筛选
+     * @param tagId      为 null 时不按标签筛选
+     */
+    PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
 
     /**
      * 批量查询评论或回复的摘要，不检查所属文章的状态。

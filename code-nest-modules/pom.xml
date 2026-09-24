@@ -17,6 +17,7 @@
         <module>code-nest-article</module>
         <module>code-nest-interaction</module>
         <module>code-nest-social</module>
+        <module>code-nest-search</module>
     </modules>
 
     <dependencies>

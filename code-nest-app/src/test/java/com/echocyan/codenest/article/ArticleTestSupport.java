@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 /**
  * 文章相关 HTTP 测试共用的造数步骤，都走真实接口。
  */
-abstract class ArticleTestSupport extends IntegrationTest {
+public abstract class ArticleTestSupport extends IntegrationTest {
 
     /** 一份合法的草稿请求体；分类 1 = 后端，标签 1 = Java、6 = Redis。 */
     protected static Map<String, Object> draft() {

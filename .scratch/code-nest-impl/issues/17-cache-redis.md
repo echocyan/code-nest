@@ -4,7 +4,7 @@
 
 **Blocked by:** 03, 10
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **`TwoLevelCache`**：只有三个方法：`get(key, loader)`、`getAll(keys, batchLoader)`（批量读取走 `MGET`）、`evict(key)`。
   - Redis TTL 为 30 分钟，加 0–5 分钟随机抖动。

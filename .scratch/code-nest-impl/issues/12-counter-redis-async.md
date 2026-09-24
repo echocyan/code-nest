@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06, 07, 10
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **`increment` 的 redis-async 实现**：通过 `DomainEventPublisher` 发出计数变更事件，与调用方的业务事务一起走 Outbox；counter 模块自己消费这些事件。
 - [ ] **Redis 结构**：每个对象一个 Hash（article、user、comment 三类），不设 TTL；待落库集合与 dedup key 按规格设计。

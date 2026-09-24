@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **拓扑**：topic 交换机 `codenest.events`，死信交换机 `codenest.dlx`；每个消费队列都有对应的 `<queue>.dlq`。全部持久化，队列用 classic 类型。提供一种声明新消费队列的简便方式。
 - [ ] **表结构**：`mq_outbox`、`mq_consume_record`（`V0_`）。

@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06, 07, 09
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **滑动窗口 Lua**：用 ZSet 实现，依次执行 `ZREMRANGEBYSCORE`、`ZCARD`、`ZADD`、`PEXPIRE`，时间取自 Redis `TIME`。为窗口边界写纯逻辑测试或脚本级测试。
 - [ ] **`@RateLimit(key, limit, window, dimension)`**：可以重复标注，由注册在 `SaInterceptor` 之后的 `HandlerInterceptor` 执行。

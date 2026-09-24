@@ -4,7 +4,7 @@
 
 **Blocked by:** 22
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] 每组跑 3 次，取中位数；原始结果 JSON 提交到仓库。
 - [ ] **benchmark 文档**：

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** done
+Status: closed
 
 - [x] **counter 模块**：
   - 建 `article_stat`、`user_stat`、`comment_stat` 表（`V7_`），定义 7xxxx 错误码。

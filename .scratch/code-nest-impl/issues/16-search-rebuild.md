@@ -4,7 +4,7 @@
 
 **Blocked by:** 15
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **重建流程**：
   1. 新建 `article_v{n+1}`。

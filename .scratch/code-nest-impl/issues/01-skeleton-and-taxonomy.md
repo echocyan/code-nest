@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** done
+Status: closed
 
 - [x] **Maven 结构**：父 pom、common、framework、modules 聚合（先建 article 模块）、app、loadtest（空壳）。依赖方向为 app → 业务模块 → framework → common。
 - [x] **依赖**：MyBatis-Plus 改用 `mybatis-plus-spring-boot4-starter`；配置 MapStruct 与 Lombok 注解处理器的先后顺序；引入 SpringDoc。

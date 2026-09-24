@@ -4,7 +4,7 @@
 
 **Blocked by:** 21
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **场景 A 计数**：200 个 VU，用不同账号对同一篇文章反复点赞、取消。对比 `counter.mode` 两档。压测结束、落库完成后，断言计数等于 `COUNT(*)`。
 - [ ] **场景 B Feed**：200 个 VU 以重度用户身份读 Feed 首页，对比 `feed.mode` 两档。另外测量一个有 4999 个粉丝的普通作者发文后，推送完成的耗时。

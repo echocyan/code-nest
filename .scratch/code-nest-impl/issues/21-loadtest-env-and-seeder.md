@@ -4,7 +4,7 @@
 
 **Blocked by:** 11, 13, 14, 16, 18, 19, 20
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **应用镜像**：多阶段 Dockerfile，运行时基础镜像为 `eclipse-temurin:21-jre`，`-Xmx1g`。
 - [ ] **压测 compose**：叠加在本地 compose 之上，包含 2 个应用实例和 Nginx。

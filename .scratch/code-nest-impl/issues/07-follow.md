@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **social 模块**：新增模块，建 follow 表（`V4_`），唯一键 (follower_id, author_id)，另建索引 IDX(author_id, follower_id)；定义 4xxxx 错误码。
 - [ ] **`PUT`/`DELETE` `/users/{id}/follow`**：幂等；关注自己返回 400；目标用户不存在返回 404。只有真的插入或删除了一行，才更新被关注者的粉丝数和关注者的关注数。

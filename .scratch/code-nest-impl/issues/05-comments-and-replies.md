@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** done
+Status: closed
 
 - [x] **comment 表**：`root_id = 0` 表示评论，否则是挂在该评论下的回复；索引 IDX(article_id, root_id, id)。
 - [x] **`POST /articles/{id}/comments`**：对草稿、已删除或不存在的文章发表评论时返回 404。内容不超过 1000 字。

@@ -4,7 +4,7 @@
 
 **Blocked by:** 09, 10
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **生产端事件**：article 发出 `article.updated`，发布和删除事件复用已有的（没有就补上）。编辑、发布、删除时 `version` 都会 +1。
 - [ ] **ES 客户端**：用 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`）。

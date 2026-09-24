@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06, 07, 10
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **生产端事件**：
   - interaction 在真的点赞成功后发出 `like.created`，带 articleId、userId、authorId。

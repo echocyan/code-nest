@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **热度公式**：`(3·like + 5·fav + 4·comment + 0.1·view) / (hours + 2)^1.5`，各项权重和重力系数都可配置。为公式写纯单元测试。
 - [ ] **定时重算**：每 5 分钟执行一次，用 `SET hot:lock NX EX 240` 保证同一时刻只有一个实例在算。

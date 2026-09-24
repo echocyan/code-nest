@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** done
+Status: closed
 
 - [x] **user 模块**：新增模块，建 `user` 表（Flyway 前缀 `V1_`），定义 1xxxx 号段的错误码。
 - [x] **注册校验**：

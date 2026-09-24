@@ -4,7 +4,7 @@
 
 **Blocked by:** 04, 07
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **`GET /feed?cursor=&size=`**：以 articleId 作为游标，返回 `CursorResult`，列表项含文章摘要、作者信息和计数。
 - [ ] **关注列表**：通过 follow 表的覆盖索引查出；pull 实现调用 `listByAuthors`。

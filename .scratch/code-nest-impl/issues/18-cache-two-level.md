@@ -4,7 +4,7 @@
 
 **Blocked by:** 17
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **Caffeine 本地缓存**：`TwoLevelCache` 的 L1，最多 10000 条，写入 60 秒后过期。读取顺序为 L1 → Redis → DB，利用 Caffeine 的同 key 合并加载防击穿。
 - [ ] **失效广播**：`evict` 时通过 Redis Pub/Sub 频道 `cache:invalidate` 广播，各实例收到后清除本地缓存；漏收时依靠 60 秒 TTL 兜底。

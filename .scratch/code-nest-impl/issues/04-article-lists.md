@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** done
+Status: closed
 
 - [x] **`GET /articles?categoryId=&tagId=&page=&size=`**：匿名可访问，只返回已发布的文章，按 `published_at` 倒序，返回 `PageResult`。
 - [x] **`GET /users/{id}/articles?cursor=&size=`**：匿名可访问，以 articleId 作为游标，返回 `CursorResult`。

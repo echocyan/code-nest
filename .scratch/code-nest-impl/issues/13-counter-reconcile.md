@@ -4,7 +4,7 @@
 
 **Blocked by:** 12
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **各模块的对账范围**：
   - interaction：点赞数、收藏数、获赞数。

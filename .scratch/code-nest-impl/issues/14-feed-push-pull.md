@@ -4,7 +4,7 @@
 
 **Blocked by:** 08, 10
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **生产端事件**：article 在发布或删除时发出 `article.published` 和 `article.deleted`（如果后续票已经加过，就直接复用）；social 发出 `follow.created` 和 `follow.deleted`。
 - [ ] **Redis 结构**：每个作者一个发件箱（上限 100 条）、每个读者一个收件箱（上限 500 条，TTL 7 天）。member 和 score 都是 articleId。

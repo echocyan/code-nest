@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** done
+Status: closed
 
 - [x] **interaction 模块**：新增模块，建 article_like、favorite 表（`V3_`），定义 3xxxx 错误码。
 - [x] **接口**：`PUT` 和 `DELETE` `/articles/{id}/like`，`PUT` 和 `DELETE` `/articles/{id}/favorite`。

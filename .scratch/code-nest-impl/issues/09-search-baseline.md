@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+Status: open
 
 - [ ] **search 模块**：新增模块，定义 6xxxx 错误码；不建表。
 - [ ] **`GET /search/articles?q=&categoryId=&tagId=&sort=RELEVANCE|LATEST&page=&size=`**：匿名可访问，返回 `PageResult`。

@@ -58,7 +58,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         checkPublished(articleId);
         CursorResult<Comment> page = pageOf(baseMapper.selectVisibleComments(
                 articleId, cursor == null ? Long.MAX_VALUE : cursor, size + 1), size);
-        return page.map(toCommentVOs(page.list()));
+        return page.map(commentVOMapper(page.list()));
     }
 
     @Override
@@ -155,7 +155,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         }
     }
 
-    private Function<Comment, CommentVO> toCommentVOs(List<Comment> comments) {
+    private Function<Comment, CommentVO> commentVOMapper(List<Comment> comments) {
         List<Long> ids = comments.stream().map(Comment::getId).toList();
         Map<Long, Counts> counts = counterApi.get(CounterTarget.COMMENT, ids);
         Map<Long, UserBrief> authors = userApi.getBriefs(comments.stream().map(Comment::getUserId).toList());

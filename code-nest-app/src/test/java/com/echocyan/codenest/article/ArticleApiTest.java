@@ -1,6 +1,5 @@
 package com.echocyan.codenest.article;
 
-import com.echocyan.codenest.support.IntegrationTest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
-class ArticleApiTest extends IntegrationTest {
+class ArticleApiTest extends ArticleTestSupport {
 
     @Test
     void authorCanCreateADraftAndReadItBack() {
@@ -141,14 +140,6 @@ class ArticleApiTest extends IntegrationTest {
         expectArticleCount(authorId, 1);
     }
 
-    private String authorIdOf(RestTestClient author, String articleId) {
-        AtomicReference<String> authorId = new AtomicReference<>();
-        author.get().uri(API + "/articles/{id}", articleId)
-                .exchange()
-                .expectBody().jsonPath("$.data.author.id").value(String.class, authorId::set);
-        return authorId.get();
-    }
-
     private void expectArticleCount(String userId, int expected) {
         client.get().uri(API + "/users/{id}", userId)
                 .exchange()
@@ -239,13 +230,6 @@ class ArticleApiTest extends IntegrationTest {
                 .expectStatus().isOk();
     }
 
-    private String publish(RestTestClient author, String id) {
-        author.post().uri(API + "/articles/{id}/publish", id)
-                .exchange()
-                .expectStatus().isOk();
-        return id;
-    }
-
     private RestTestClient.ResponseSpec edit(RestTestClient author, String id, int version, Map<String, Object> body) {
         return author.put().uri(API + "/articles/{id}?version={version}", id, version)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -272,27 +256,5 @@ class ArticleApiTest extends IntegrationTest {
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.code").isEqualTo(code);
-    }
-
-    /** 一份合法的草稿请求体；分类 1 = 后端，标签 1 = Java、6 = Redis。 */
-    private static Map<String, Object> draft() {
-        return new HashMap<>(Map.of(
-                "title", "Redis 计数实践",
-                "content", "# 背景\n热点行更新会排队等锁。",
-                "summary", "手写摘要",
-                "coverUrl", "https://example.com/cover.png",
-                "categoryId", 1,
-                "tagIds", List.of(1, 6)));
-    }
-
-    private String createDraft(RestTestClient author, Map<String, Object> body) {
-        AtomicReference<String> id = new AtomicReference<>();
-        author.post().uri(API + "/articles")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

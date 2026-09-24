@@ -63,6 +63,11 @@ public interface ArticleService extends IService<Article> {
     PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size);
 
     /**
+     * 按关键词搜索已发布的文章，见 {@link com.echocyan.codenest.article.api.ArticleApi#searchPublished}。
+     */
+    PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
+
+    /**
      * 一批作者已发布的文章，按文章 ID 倒序。
      *
      * @param cursor 只返回 ID 小于它的文章；为 null 时从最新的开始

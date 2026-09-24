@@ -8,6 +8,7 @@ import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CommentConverter;
 import com.echocyan.codenest.article.service.ArticleService;
 import com.echocyan.codenest.article.service.CommentService;
+import com.echocyan.codenest.common.result.PageResult;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,12 @@ class ArticleApiImpl implements ArticleApi {
         return articleService.listPublishedByAuthors(authorIds, cursor, limit).stream()
                 .map(articleConverter::toBrief)
                 .toList();
+    }
+
+    @Override
+    public PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page,
+                                                    long size) {
+        return articleService.searchPublished(keyword, categoryId, tagId, page, size).map(articleConverter::toBrief);
     }
 
     @Override

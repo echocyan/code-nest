@@ -156,6 +156,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
+    public PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size) {
+        // 转义 LIKE 通配符，MySQL 默认的转义字符是反斜杠
+        String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        Page<Article> result = lambdaQuery()
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .eq(categoryId != null, Article::getCategoryId, categoryId)
+                .inSql(tagId != null, Article::getId, "SELECT article_id FROM article_tag WHERE tag_id = " + tagId)
+                .and(match -> match
+                        .like(Article::getTitle, escaped)
+                        .or().like(Article::getSummary, escaped)
+                        .or().apply("id IN (SELECT article_id FROM article_content WHERE content LIKE {0})",
+                                "%" + escaped + "%"))
+                .orderByDesc(Article::getPublishedAt)
+                .orderByDesc(Article::getId)
+                .page(new Page<>(page, size));
+        return new PageResult<>(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    @Override
     public List<Article> listPublishedByAuthors(Collection<Long> authorIds, Long cursor, int limit) {
         if (authorIds.isEmpty()) {
             return List.of();

@@ -14,6 +14,10 @@ counter:
   # sync-db：在调用方事务里直接更新计数表（基线）
   mode: sync-db
 
+search:
+  # mysql-like：LIKE '%kw%' 匹配标题、摘要、正文，按发布时间倒序（基线）
+  mode: mysql-like
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

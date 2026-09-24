@@ -9,7 +9,7 @@
 - [x] **user 模块**：新增模块，建 `user` 表（Flyway 前缀 `V1_`），定义 1xxxx 号段的错误码。
 - [x] **注册校验**：
   - 用户名 4–20 位，限字母、数字、下划线，唯一，重复时返回明确的错误码。
-  - 密码 8–32 位，用 spring-security-crypto 的 BCrypt 存储。
+  - 密码 8–32 位，限可打印 ASCII 字符，用 spring-security-crypto 的 BCrypt 存储。
   - 昵称默认等于用户名。
 - [x] **Sa-Token**：
   - 按决策票 04 的配置使用 Bearer 前缀和 uuid 风格；token 有效期 7 天，无活跃超时；允许多端登录，不共享 token；不从 cookie 或 body 读 token。

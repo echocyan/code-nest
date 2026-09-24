@@ -107,6 +107,7 @@ class AuthApiTest extends IntegrationTest {
             "中文用户名, Passw0rd!",
             "valid_name, 1234567",              // 密码少于 8 位
             "valid_name, 123456789012345678901234567890123", // 密码多于 32 位
+            "valid_name, 一二三四五六七八九十一二三四五六七八九十一二三四五", // 25 个汉字：不超过 32 位但超过 BCrypt 的 72 字节
     })
     void registrationRejectsInvalidUsernameOrPassword(String username, String password) {
         client.post().uri(API + "/auth/register")

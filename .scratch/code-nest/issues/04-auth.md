@@ -12,7 +12,7 @@ Blocked by: 01, 03
 
 1. **登录方式**：只支持用户名加密码，注册成功后自动登录。
    - 用户名 4–20 位，限字母、数字、下划线，唯一且注册后不可修改。
-   - 密码 8–32 位。
+   - 密码 8–32 位，限可打印 ASCII 字符（BCrypt 最多只接受 72 字节，实现 02 号票时补充）。
    - 昵称默认等于用户名，之后可以修改。
 2. **密码存储**：用 BCrypt，只引入 `spring-security-crypto`，不引入完整的 Spring Security。
 3. **token**：通过配置把默认的 `satoken: <uuid>` 改成 `Authorization: Bearer <uuid>`（参考 Sa-Token 文档 `docs/up/token-prefix.md`、`docs/up/token-style.md`）：

@@ -1,25 +1,23 @@
 package com.echocyan.codenest.interaction.service.impl;
 
-import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.common.result.CursorResult;
-import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.interaction.entity.Favorite;
 import com.echocyan.codenest.interaction.mapper.FavoriteMapper;
 import com.echocyan.codenest.interaction.service.FavoriteService;
 import com.echocyan.codenest.interaction.vo.FavoriteVO;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,23 +32,23 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
     @Override
     @Transactional
     public void favorite(long userId, long articleId) {
-        publishedArticles.get(articleId);
+        publishedArticles.require(articleId);
         Favorite favorite = new Favorite();
-        favorite.setId(IdWorker.getId());
         favorite.setUserId(userId);
         favorite.setArticleId(articleId);
-        LocalDateTime now = DateTimes.now();
-        favorite.setCreatedAt(now);
-        favorite.setUpdatedAt(now);
-        if (baseMapper.insertIgnore(favorite) > 0) {
-            counterApi.increment(CounterMetric.ARTICLE_FAVORITE, articleId, 1);
+        try {
+            save(favorite);
+        } catch (DuplicateKeyException e) {
+            // 已收藏过（包括并发的重复请求），不产生变化；MySQL 只回滚这一条语句，事务可以继续
+            return;
         }
+        counterApi.increment(CounterMetric.ARTICLE_FAVORITE, articleId, 1);
     }
 
     @Override
     @Transactional
     public void unfavorite(long userId, long articleId) {
-        publishedArticles.get(articleId);
+        publishedArticles.require(articleId);
         boolean removed = lambdaUpdate()
                 .eq(Favorite::getUserId, userId)
                 .eq(Favorite::getArticleId, articleId)

@@ -20,7 +20,7 @@ class PublishedArticles {
     /**
      * @throws BizException {@link InteractionErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
      */
-    ArticleState get(long articleId) {
+    ArticleState require(long articleId) {
         return articleApi.findState(articleId)
                 .filter(article -> article.status() == ArticleStatus.PUBLISHED)
                 .orElseThrow(() -> new BizException(InteractionErrorCode.ARTICLE_NOT_FOUND));

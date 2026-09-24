@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * article 模块对其他模块的门面。已删除的文章视为不存在。
+ * article 模块对其他模块的门面。已删除的文章、评论视为不存在。
  */
 public interface ArticleApi {
 
@@ -22,4 +22,11 @@ public interface ArticleApi {
      * @return 以文章 ID 为 key；不存在的文章不出现在结果中
      */
     Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds);
+
+    /**
+     * 批量查询评论或回复的摘要，不检查所属文章的状态。
+     *
+     * @return 以评论 ID 为 key；不存在的评论不出现在结果中
+     */
+    Map<Long, CommentBrief> getCommentBriefs(Collection<Long> commentIds);
 }

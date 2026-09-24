@@ -10,7 +10,9 @@ public enum ArticleErrorCode implements ErrorCode {
     ARTICLE_NOT_FOUND(20001, "文章不存在", 404),
     VERSION_CONFLICT(20002, "文章已在别处修改，请刷新后重试", 409),
     CATEGORY_NOT_FOUND(20003, "分类不存在", 400),
-    TAG_NOT_FOUND(20004, "标签不存在", 400);
+    TAG_NOT_FOUND(20004, "标签不存在", 400),
+    COMMENT_NOT_FOUND(20005, "评论不存在", 404),
+    REPLY_TO_USER_INVALID(20006, "只能回复该评论下参与讨论的用户", 400);
 
     private final int code;
     private final String message;

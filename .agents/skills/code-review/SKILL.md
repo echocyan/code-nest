@@ -57,6 +57,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
 
 ### 4. Spawn both sub-agents in parallel
 
+Run each sub-agent as a Codex subagent through the `codex-subagent` skill, named `codex-review-standards` and `codex-review-spec`. Submit both prompts before waiting on either.
+
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.

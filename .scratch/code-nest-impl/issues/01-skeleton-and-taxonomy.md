@@ -30,4 +30,4 @@
   - `spring.flyway.out-of-order: true`：每个模块独立编号，需要允许低编号模块在后面补迁移脚本。
   - 预置的分类和标签使用固定的小整数 ID，不用雪花 ID，便于造数和测试引用。
   - Spring MVC 自带的请求类异常（405、415、缺少请求头等）沿用各自的 HTTP 状态码，body 中的 code 为 90400，404 时为 90404。
-  - ArchUnit 除了 api 包规则和无环规则，还按规格中的模块 DAG 校验依赖方向。
+  - 模块依赖无环、framework/common 不依赖业务模块，由 Maven 模块依赖在编译期保证，不再用 ArchUnit 重复检查。ArchUnit 只检查 Maven 管不到的两点：跨模块只能用 `api` 包；即使通过传递依赖能访问到，也不能越过规格约定的依赖方向。

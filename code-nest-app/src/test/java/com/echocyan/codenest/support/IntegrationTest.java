@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  * 通过 {@link #withToken} 以登录用户身份调用。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, SaTokenDaoRebinding.class})
 public abstract class IntegrationTest {
 
     protected static final String API = "/api/v1";

@@ -147,12 +147,12 @@ class FollowApiTest extends IntegrationTest {
     }
 
     private void expectCounts(String userId, int followers, int followings) {
-        client.get().uri(API + "/users/{id}", userId)
+        eventually(() -> client.get().uri(API + "/users/{id}", userId)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.counts.followerCount").isEqualTo(followers)
-                .jsonPath("$.data.counts.followingCount").isEqualTo(followings);
+                .jsonPath("$.data.counts.followingCount").isEqualTo(followings));
     }
 
     private String idOf(RestTestClient user) {

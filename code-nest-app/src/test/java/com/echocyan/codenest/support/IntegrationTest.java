@@ -1,8 +1,12 @@
 package com.echocyan.codenest.support;
 
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import org.awaitility.core.ThrowingRunnable;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -31,6 +35,13 @@ public abstract class IntegrationTest {
     @BeforeEach
     void setUpClient() {
         client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+    }
+
+    /**
+     * 反复执行断言，直到通过或超时。计数在 redis-async 档异步生效，断言计数时用它等计数最终生效。
+     */
+    protected static void eventually(ThrowingRunnable assertion) {
+        await().pollDelay(Duration.ZERO).atMost(Duration.ofSeconds(10)).untilAsserted(assertion);
     }
 
     /**

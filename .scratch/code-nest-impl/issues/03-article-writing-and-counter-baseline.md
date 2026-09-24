@@ -10,7 +10,7 @@
   - 建 `article_stat`、`user_stat`、`comment_stat` 表（`V7_`），定义 7xxxx 错误码。
   - `CounterApi` 提供 `increment(metric, targetId, delta)`、批量 `get`、`reset`，用 `counter.mode=sync-db` 装配。
   - `sync-db` 实现在调用方的事务里直接执行 `UPDATE … + delta`，没有计数行时插入；计数最小为 0；读取时查不到的对象按全 0 返回。
-- [x] **article 表结构**：article、article_content、article_tag 三张表，`version` 字段用 `@Version`，文章和评论用 `@TableLogic` 软删除。
+- [~] **article 表结构**：article、article_content、article_tag 三张表，`version` 字段用 `@Version`，文章和评论用 `@TableLogic` 软删除。
 - [x] **`POST /articles`**：新建草稿，包含标题、正文、摘要、封面 URL、分类、至多 5 个标签。分类或标签不存在、标签超过 5 个时返回 400。不填摘要时截取正文前 N 个字。
 - [x] **`PUT /articles/{id}`**：带 version 做乐观锁，冲突时返回 409；只有作者本人能编辑，其他人返回 403。
 - [x] **`POST /articles/{id}/publish`**：设置 `published_at`，状态变为 PUBLISHED；作者文章数 +1。
@@ -44,4 +44,6 @@
 - **计数**：
   - `CounterApi.get` 保证每个传入的 ID 都有结果；没有计数行的对象，各项都是 0。
   - sync-db 实现用 `INSERT … ON DUPLICATE KEY UPDATE col = GREATEST(col + delta, 0)`，一条语句同时完成"没有就插入、有就累加、最小为 0"。
+- **评论表**：`comment` 表及其软删除没有建，因为本票不涉及评论，推迟到 05 号票（标 `[~]`）。
+- **并发**：删除文章时按读到的版本号删除。期间文章被发布或删除，就返回 409，所以作者文章数总是按真实状态增减。详情由多次查询拼成，并发编辑时可能读到新旧混合的内容；这一点可以接受，缓存票上线后再看。
 - **留给后续票**：删除文章时 `version` 暂不 +1，由 15 号票在需要 ES 外部版本号时补上。

@@ -123,6 +123,18 @@ class WebConventionsTest extends IntegrationTest {
     }
 
     @Test
+    void openApiMarksOnlyLoginRequiredEndpointsAsSecured() {
+        client.get().uri("/v3/api-docs")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.security").doesNotExist()
+                .jsonPath("$.paths['/api/v1/users/me'].get.security[0].bearer").exists()
+                .jsonPath("$.paths['/api/v1/auth/login'].post.security").doesNotExist()
+                .jsonPath("$.paths['/api/v1/users/{id}'].get.security").doesNotExist();
+    }
+
+    @Test
     void openApiDocumentListsBusinessEndpoints() {
         client.get().uri("/v3/api-docs")
                 .exchange()

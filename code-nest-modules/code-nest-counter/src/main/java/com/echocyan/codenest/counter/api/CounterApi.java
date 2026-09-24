@@ -24,6 +24,8 @@ public interface CounterApi {
 
     /**
      * 把一项计数直接改为给定值，供对账修正。
+     *
+     * @throws IllegalArgumentException value 为负数
      */
     void reset(CounterMetric metric, long targetId, long value);
 }

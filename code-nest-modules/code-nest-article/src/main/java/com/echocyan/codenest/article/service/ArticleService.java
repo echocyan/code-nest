@@ -120,13 +120,19 @@ public class ArticleService {
     /**
      * 软删除文章；删除的是已发布文章时，作者文章数 -1。
      *
-     * @throws BizException 文章不存在、不是作者本人
+     * @throws BizException 文章不存在、不是作者本人、并发修改导致版本冲突
      */
     @Transactional
     public void delete(long id, long userId) {
         Article article = getOwned(id, userId);
-        // 并发删除时只有一个请求真正删除成功，避免文章数重复扣减
-        if (articleMapper.deleteById(id) == 1 && article.getStatus() == ArticleStatus.PUBLISHED) {
+        // 带上读到的版本号：期间被发布或删除时按冲突处理，保证按读到的状态增减文章数是正确的
+        int deleted = articleMapper.delete(Wrappers.<Article>lambdaQuery()
+                .eq(Article::getId, id)
+                .eq(Article::getVersion, article.getVersion()));
+        if (deleted == 0) {
+            throw new BizException(ArticleErrorCode.VERSION_CONFLICT);
+        }
+        if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
         }
     }

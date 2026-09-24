@@ -54,6 +54,9 @@ class SyncDbCounterService implements CounterApi {
 
     @Override
     public void reset(CounterMetric metric, long targetId, long value) {
+        if (value < 0) {
+            throw new IllegalArgumentException("计数不能为负数: " + metric + "=" + value);
+        }
         CounterTarget target = metric.target();
         counterMapper.reset(table(target), idColumn(target), column(metric), targetId, value, DateTimes.now());
     }

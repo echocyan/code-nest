@@ -34,6 +34,26 @@ public interface CounterMapper {
     void reset(@Param("table") String table, @Param("idColumn") String idColumn, @Param("column") String column,
                @Param("id") long id, @Param("value") long value, @Param("now") LocalDateTime now);
 
+    /**
+     * 批量写入绝对值，没有计数行时插入。每行依次是对象 ID 和 columns 中各列的值。
+     */
+    @Insert("""
+            <script>
+            INSERT INTO ${table} (${idColumn},
+            <foreach collection="columns" item="column" separator=",">${column}</foreach>, created_at, updated_at)
+            VALUES
+            <foreach collection="rows" item="row" separator=",">
+            (<foreach collection="row" item="value" separator=",">#{value}</foreach>, #{now}, #{now})
+            </foreach>
+            AS new ON DUPLICATE KEY UPDATE
+            <foreach collection="columns" item="column" separator=",">${column} = new.${column}</foreach>,
+            updated_at = new.updated_at
+            </script>
+            """)
+    void upsertAll(@Param("table") String table, @Param("idColumn") String idColumn,
+                   @Param("columns") List<String> columns, @Param("rows") List<List<Long>> rows,
+                   @Param("now") LocalDateTime now);
+
     @Select("""
             <script>
             SELECT * FROM ${table} WHERE ${idColumn} IN

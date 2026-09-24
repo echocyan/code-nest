@@ -201,9 +201,9 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
     }
 
     private void expectFavorites(String articleId, int expected) {
-        client.get().uri(API + "/articles/{id}", articleId)
+        eventually(() -> client.get().uri(API + "/articles/{id}", articleId)
                 .exchange()
-                .expectBody().jsonPath("$.data.counts.favoriteCount").isEqualTo(expected);
+                .expectBody().jsonPath("$.data.counts.favoriteCount").isEqualTo(expected));
     }
 
     /**
@@ -211,15 +211,15 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
      */
     private void expectLikes(String articleId, int expected) {
         AtomicReference<String> authorId = new AtomicReference<>();
-        client.get().uri(API + "/articles/{id}", articleId)
+        eventually(() -> client.get().uri(API + "/articles/{id}", articleId)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.counts.likeCount").isEqualTo(expected)
-                .jsonPath("$.data.author.id").value(String.class, authorId::set);
-        client.get().uri(API + "/users/{id}", authorId.get())
+                .jsonPath("$.data.author.id").value(String.class, authorId::set));
+        eventually(() -> client.get().uri(API + "/users/{id}", authorId.get())
                 .exchange()
-                .expectBody().jsonPath("$.data.counts.likeReceivedCount").isEqualTo(expected);
+                .expectBody().jsonPath("$.data.counts.likeReceivedCount").isEqualTo(expected));
     }
 
     private String publishedArticle(RestTestClient author) {

@@ -145,11 +145,11 @@ class CommentApiTest extends IntegrationTest {
                 .jsonPath("$.data.list[0].replyTo").isEmpty()
                 .jsonPath("$.data.list[0].createdAt").isNotEmpty()
                 .jsonPath("$.data.hasMore").isEqualTo(false);
-        client.get().uri(API + "/articles/{id}/comments", article)
+        eventually(() -> client.get().uri(API + "/articles/{id}/comments", article)
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.list[*].id").isEqualTo(List.of(commentId))
-                .jsonPath("$.data.list[0].replyCount").isEqualTo(1);
+                .jsonPath("$.data.list[0].replyCount").isEqualTo(1));
         expectCommentCount(article, 2);
     }
 
@@ -168,10 +168,10 @@ class CommentApiTest extends IntegrationTest {
                 .jsonPath("$.data.list[*].id").isEqualTo(List.of(firstReply, secondReply))
                 .jsonPath("$.data.list[1].rootId").isEqualTo(commentId)
                 .jsonPath("$.data.list[1].replyTo.nickname").isEqualTo(firstReplierName);
-        client.get().uri(API + "/articles/{id}/comments", article)
+        eventually(() -> client.get().uri(API + "/articles/{id}/comments", article)
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[0].replyCount").isEqualTo(2);
+                .jsonPath("$.data.list[0].replyCount").isEqualTo(2));
         client.get().uri(API + "/comments/{id}/replies", firstReply)
                 .exchange()
                 .expectStatus().isNotFound()
@@ -271,14 +271,14 @@ class CommentApiTest extends IntegrationTest {
 
         delete(commenter, commentId).expectStatus().isOk();
 
-        client.get().uri(API + "/articles/{id}/comments", article)
+        eventually(() -> client.get().uri(API + "/articles/{id}/comments", article)
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.list[*].id").isEqualTo(List.of(commentId))
                 .jsonPath("$.data.list[0].content").isEqualTo("该评论已删除")
                 .jsonPath("$.data.list[0].deleted").isEqualTo(true)
                 .jsonPath("$.data.list[0].author").isEmpty()
-                .jsonPath("$.data.list[0].replyCount").isEqualTo(1);
+                .jsonPath("$.data.list[0].replyCount").isEqualTo(1));
         client.get().uri(API + "/comments/{id}/replies", commentId)
                 .exchange()
                 .expectStatus().isOk()
@@ -316,9 +316,9 @@ class CommentApiTest extends IntegrationTest {
         client.get().uri(API + "/comments/{id}/replies", commentId)
                 .exchange()
                 .expectBody().jsonPath("$.data.list[*].id").isEqualTo(List.of(kept));
-        client.get().uri(API + "/articles/{id}/comments", article)
+        eventually(() -> client.get().uri(API + "/articles/{id}/comments", article)
                 .exchange()
-                .expectBody().jsonPath("$.data.list[0].replyCount").isEqualTo(1);
+                .expectBody().jsonPath("$.data.list[0].replyCount").isEqualTo(1));
         expectCommentCount(article, 2);
     }
 
@@ -395,10 +395,10 @@ class CommentApiTest extends IntegrationTest {
     }
 
     private void expectCommentCount(String articleId, int expected) {
-        client.get().uri(API + "/articles/{id}", articleId)
+        eventually(() -> client.get().uri(API + "/articles/{id}", articleId)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.counts.commentCount").isEqualTo(expected);
+                .expectBody().jsonPath("$.data.counts.commentCount").isEqualTo(expected));
     }
 
     /** 新注册一个作者，发布一篇文章，返回文章 ID。 */

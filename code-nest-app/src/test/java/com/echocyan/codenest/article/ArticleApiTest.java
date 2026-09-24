@@ -141,14 +141,14 @@ class ArticleApiTest extends ArticleTestSupport {
     }
 
     private void expectArticleCount(String userId, int expected) {
-        client.get().uri(API + "/users/{id}", userId)
+        eventually(() -> client.get().uri(API + "/users/{id}", userId)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.counts.articleCount").isEqualTo(expected)
                 .jsonPath("$.data.counts.followerCount").isEqualTo(0)
                 .jsonPath("$.data.counts.followingCount").isEqualTo(0)
-                .jsonPath("$.data.counts.likeReceivedCount").isEqualTo(0);
+                .jsonPath("$.data.counts.likeReceivedCount").isEqualTo(0));
     }
 
     @Test

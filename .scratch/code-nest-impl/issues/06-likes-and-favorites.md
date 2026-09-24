@@ -25,4 +25,4 @@ Status: closed
   - 取消点赞、取消收藏同样要求文章已发布；文章删除后无法再取消，关系行留在表里，由对账处理计数。
 - **幂等与并发**：插入直接 `save`，捕获 `DuplicateKeyException` 视为已存在（MySQL 只回滚这一条语句，事务继续）；删除按影响行数判断。只有插入或删除成功才调用 `CounterApi.increment`，并发重复请求也只计一次。
 - **并发取舍**：先查文章状态再写关系行，期间文章被删除仍可能点赞成功；计数由对账修正，可以接受。
-- **测试**：计数在 sync-db 下同步可见，测试直接断言；12 号票引入 redis-async 时再改用 Awaitility。
+- **测试**：断言计数时用 `eventually`（Awaitility）等计数最终生效；`LikeAndFavoriteRedisAsyncApiTest` 在 redis-async 档重跑同一组测试。

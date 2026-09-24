@@ -1,5 +1,6 @@
 package com.echocyan.codenest.user.convert;
 
+import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.entity.User;
 import com.echocyan.codenest.user.vo.UserProfileVO;
 import org.mapstruct.Mapper;
@@ -8,4 +9,6 @@ import org.mapstruct.Mapper;
 public interface UserConverter {
 
     UserProfileVO toProfileVO(User user);
+
+    UserBrief toBrief(User user);
 }

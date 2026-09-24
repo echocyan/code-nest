@@ -36,4 +36,13 @@ public final class AuthContext {
     public static long currentUserId() {
         return StpUtil.getLoginIdAsLong();
     }
+
+    /**
+     * 当前登录用户的 ID，供 {@code @SaIgnore} 的公开接口识别访客身份。token 缺失或无效时按匿名处理。
+     *
+     * @return 未登录时为 null
+     */
+    public static Long currentUserIdOrNull() {
+        return StpUtil.isLogin() ? StpUtil.getLoginIdAsLong() : null;
+    }
 }

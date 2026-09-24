@@ -9,4 +9,11 @@
     </parent>
     <artifactId>code-nest-article</artifactId>
     <description>文章、分类与标签、评论与回复、热榜</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.echocyan</groupId>
+            <artifactId>code-nest-user</artifactId>
+        </dependency>
+    </dependencies>
 </project>

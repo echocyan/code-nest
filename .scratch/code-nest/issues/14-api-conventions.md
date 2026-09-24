@@ -68,7 +68,7 @@ Blocked by:
    | user | GET | `/users/{id}` | 用户主页，含资料和计数（匿） |
    | article | GET | `/categories`、`/tags` | 预置的分类和标签（匿） |
    | article | POST | `/articles` | 新建草稿 |
-   | article | PUT | `/articles/{id}` | 编辑，用 version 做乐观锁 |
+   | article | PUT | `/articles/{id}?version=` | 编辑，用 version 做乐观锁 |
    | article | POST | `/articles/{id}/publish` | 发布 |
    | article | DELETE | `/articles/{id}` | 软删除 |
    | article | GET | `/articles/{id}` | 文章详情；草稿只有作者本人能看（匿） |

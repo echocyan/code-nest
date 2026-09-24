@@ -5,7 +5,12 @@ import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
+import com.echocyan.codenest.article.vo.ArticleItemVO;
 import com.echocyan.codenest.common.exception.BizException;
+import com.echocyan.codenest.common.result.CursorResult;
+import com.echocyan.codenest.common.result.PageResult;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 文章的写作、发布、删除与详情。
@@ -48,4 +53,29 @@ public interface ArticleService extends IService<Article> {
      * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
      */
     ArticleDetailVO getDetail(long id, Long viewerId);
+
+    /**
+     * 最新发布的文章，按发布时间倒序，页码分页。
+     *
+     * @param categoryId 为 null 时不按分类筛选
+     * @param tagId      为 null 时不按标签筛选
+     */
+    PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size);
+
+    /**
+     * 一批作者已发布的文章，按文章 ID 倒序。
+     *
+     * @param cursor 只返回 ID 小于它的文章；为 null 时从最新的开始
+     */
+    List<Article> listPublishedByAuthors(Collection<Long> authorIds, Long cursor, int limit);
+
+    /**
+     * 某位作者已发布的文章，按文章 ID 倒序，游标分页。
+     */
+    CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size);
+
+    /**
+     * 作者自己的草稿，按文章 ID 倒序，游标分页。
+     */
+    CursorResult<ArticleItemVO> listDrafts(long authorId, Long cursor, int size);
 }

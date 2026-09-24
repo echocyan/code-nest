@@ -1,5 +1,6 @@
 package com.echocyan.codenest.article.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleStatus;
@@ -8,6 +9,7 @@ import com.echocyan.codenest.article.convert.TagConverter;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.ArticleContent;
+import com.echocyan.codenest.article.entity.Category;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.ArticleMapper;
 import com.echocyan.codenest.article.service.ArticleContentService;
@@ -17,16 +19,24 @@ import com.echocyan.codenest.article.service.CategoryService;
 import com.echocyan.codenest.article.service.TagService;
 import com.echocyan.codenest.article.vo.ArticleCountsVO;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
+import com.echocyan.codenest.article.vo.ArticleItemVO;
+import com.echocyan.codenest.article.vo.CategoryVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
+import com.echocyan.codenest.common.result.CursorResult;
+import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.user.api.UserApi;
+import com.echocyan.codenest.user.api.UserBrief;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -138,6 +148,83 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 countsOf(id));
     }
 
+    @Override
+    public PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size) {
+        Page<Article> result = lambdaQuery()
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .eq(categoryId != null, Article::getCategoryId, categoryId)
+                // 经由 article_tag 的反向索引 idx_tag_article 找出文章；tagId 是 Long，拼接不会注入
+                .inSql(tagId != null, Article::getId, "SELECT article_id FROM article_tag WHERE tag_id = " + tagId)
+                .orderByDesc(Article::getPublishedAt)
+                .orderByDesc(Article::getId)
+                .page(new Page<>(page, size));
+        return new PageResult<>(toItems(result.getRecords()), result.getTotal(), page, size);
+    }
+
+    @Override
+    public List<Article> listPublishedByAuthors(Collection<Long> authorIds, Long cursor, int limit) {
+        if (authorIds.isEmpty()) {
+            return List.of();
+        }
+        return lambdaQuery()
+                .in(Article::getAuthorId, authorIds)
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .lt(cursor != null, Article::getId, cursor)
+                .orderByDesc(Article::getId)
+                .last("LIMIT " + limit)
+                .list();
+    }
+
+    @Override
+    public CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size) {
+        return toCursorResult(listPublishedByAuthors(List.of(authorId), cursor, size + 1), size);
+    }
+
+    @Override
+    public CursorResult<ArticleItemVO> listDrafts(long authorId, Long cursor, int size) {
+        return toCursorResult(lambdaQuery()
+                .eq(Article::getAuthorId, authorId)
+                .eq(Article::getStatus, ArticleStatus.DRAFT)
+                .lt(cursor != null, Article::getId, cursor)
+                .orderByDesc(Article::getId)
+                .last("LIMIT " + (size + 1))
+                .list(), size);
+    }
+
+    /**
+     * 多查了一条的结果转为游标分页：多出的那条只用来判断是否还有下一页。
+     */
+    private CursorResult<ArticleItemVO> toCursorResult(List<Article> fetched, int size) {
+        boolean hasMore = fetched.size() > size;
+        List<Article> page = hasMore ? fetched.subList(0, size) : fetched;
+        return new CursorResult<>(toItems(page), hasMore ? page.getLast().getId() : null, hasMore);
+    }
+
+    /**
+     * 批量补全分类、作者与计数，保持传入顺序。
+     */
+    private List<ArticleItemVO> toItems(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, CategoryVO> categories = categoryService.listByIds(
+                        articles.stream().map(Article::getCategoryId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Category::getId, categoryConverter::toVO));
+        Map<Long, UserBrief> authors = userApi.getBriefs(articles.stream().map(Article::getAuthorId).distinct().toList());
+        Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE, articles.stream().map(Article::getId).toList());
+        return articles.stream().map(article -> new ArticleItemVO(
+                        article.getId(),
+                        article.getTitle(),
+                        article.getSummary(),
+                        article.getCoverUrl(),
+                        categories.get(article.getCategoryId()),
+                        article.getStatus(),
+                        article.getPublishedAt(),
+                        authors.get(article.getAuthorId()),
+                        countsVO(counts.get(article.getId()))))
+                .toList();
+    }
+
     /**
      * 查询当前用户自己的文章，用于写操作前的归属检查。
      *
@@ -178,7 +265,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     private ArticleCountsVO countsOf(long id) {
-        Counts counts = counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id);
+        return countsVO(counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id));
+    }
+
+    private static ArticleCountsVO countsVO(Counts counts) {
         return new ArticleCountsVO(
                 counts.get(CounterMetric.ARTICLE_LIKE),
                 counts.get(CounterMetric.ARTICLE_FAVORITE),

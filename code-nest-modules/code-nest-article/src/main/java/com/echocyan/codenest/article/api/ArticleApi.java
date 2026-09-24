@@ -1,6 +1,7 @@
 package com.echocyan.codenest.article.api;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -22,4 +23,12 @@ public interface ArticleApi {
      * @return 以文章 ID 为 key；不存在的文章不出现在结果中
      */
     Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds);
+
+    /**
+     * 一批作者已发布的文章，按文章 ID 倒序（雪花 ID，约等于创建时间倒序），以文章 ID 作游标。
+     *
+     * @param cursor 只返回 ID 小于它的文章；为 null 时从最新的开始
+     * @param limit  最多返回的条数
+     */
+    List<ArticleBrief> listByAuthors(Collection<Long> authorIds, Long cursor, int limit);
 }

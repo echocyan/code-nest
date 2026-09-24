@@ -6,6 +6,7 @@ import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.service.ArticleService;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -33,5 +34,12 @@ class ArticleApiImpl implements ArticleApi {
         return articleService.listByIds(articleIds).stream()
                 .map(articleConverter::toBrief)
                 .collect(Collectors.toMap(ArticleBrief::id, Function.identity()));
+    }
+
+    @Override
+    public List<ArticleBrief> listByAuthors(Collection<Long> authorIds, Long cursor, int limit) {
+        return articleService.listPublishedByAuthors(authorIds, cursor, limit).stream()
+                .map(articleConverter::toBrief)
+                .toList();
     }
 }

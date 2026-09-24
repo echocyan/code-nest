@@ -23,12 +23,16 @@ services:
 
   rabbitmq:
     image: rabbitmq:4.3.5-management
+    # 数据目录按节点名 rabbit@<hostname> 区分，固定主机名才能在重建容器后沿用同一份数据
+    hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: codenest
       RABBITMQ_DEFAULT_PASS: codenest
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
 
   elasticsearch:
     build: docker/elasticsearch
@@ -47,4 +51,5 @@ services:
 volumes:
   mysql-data:
   redis-data:
+  rabbitmq-data:
   es-data:

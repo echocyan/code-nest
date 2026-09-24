@@ -15,6 +15,7 @@
         <module>code-nest-counter</module>
         <module>code-nest-user</module>
         <module>code-nest-article</module>
+        <module>code-nest-interaction</module>
     </modules>
 
     <dependencies>

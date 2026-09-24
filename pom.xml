@@ -47,8 +47,24 @@
             </dependency>
             <dependency>
                 <groupId>com.echocyan</groupId>
+                <artifactId>code-nest-user</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.echocyan</groupId>
                 <artifactId>code-nest-article</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-spring-boot4-starter</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+            <!-- 通用的 Redis 存储插件，Boot 4 可用；不用 sa-token-redis-jackson（会引入 Jackson 2） -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-redis-template</artifactId>
+                <version>${sa-token.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>

@@ -1,5 +1,6 @@
 package com.echocyan.codenest.article.controller;
 
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.service.CategoryService;
 import com.echocyan.codenest.article.vo.CategoryVO;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@SaIgnore
 @Tag(name = "分类")
 @RestController
 @RequiredArgsConstructor

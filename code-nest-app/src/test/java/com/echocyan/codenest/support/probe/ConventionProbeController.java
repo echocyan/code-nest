@@ -1,5 +1,6 @@
 package com.echocyan.codenest.support.probe;
 
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.PageResult;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 仅存在于测试类路径，用来从 HTTP 层验证 framework 的 Web 约定。
  */
+@SaIgnore
 @RestController
 @RequestMapping("/probe")
 public class ConventionProbeController {

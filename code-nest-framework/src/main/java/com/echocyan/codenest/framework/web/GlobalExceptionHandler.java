@@ -1,5 +1,6 @@
 package com.echocyan.codenest.framework.web;
 
+import cn.dev33.satoken.exception.NotLoginException;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.exception.ErrorCode;
@@ -26,6 +27,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BizException.class)
     public ResponseEntity<Result<Void>> handleBiz(BizException e) {
         return respond(e.getErrorCode(), e.getMessage());
+    }
+
+    /**
+     * 未携带 token、token 无效或已过期、缺少 Bearer 前缀，统一视为未登录。
+     */
+    @ExceptionHandler(NotLoginException.class)
+    public ResponseEntity<Result<Void>> handleNotLogin(NotLoginException e) {
+        return respond(CommonErrorCode.UNAUTHORIZED);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

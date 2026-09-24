@@ -10,6 +10,19 @@ spring:
     # 各模块独立编号（V1_、V2_……），允许低编号模块后补迁移
     out-of-order: true
 
+sa-token:
+  # 请求头为 Authorization: Bearer <uuid>
+  token-name: Authorization
+  token-prefix: Bearer
+  token-style: uuid
+  timeout: 604800
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  is-read-cookie: false
+  is-read-body: false
+  is-print: false
+
 mybatis-plus:
   global-config:
     banner: false

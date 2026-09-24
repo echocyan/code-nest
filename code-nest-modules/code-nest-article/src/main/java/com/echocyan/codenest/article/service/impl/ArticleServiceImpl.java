@@ -1,5 +1,6 @@
 package com.echocyan.codenest.article.service.impl;
 
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
@@ -144,14 +145,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size) {
-        Page<Article> result = lambdaQuery()
-                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
-                .eq(categoryId != null, Article::getCategoryId, categoryId)
-                // 经由 article_tag 的反向索引 idx_tag_article 找出文章；tagId 是 Long，拼接不会注入
-                .inSql(tagId != null, Article::getId, "SELECT article_id FROM article_tag WHERE tag_id = " + tagId)
-                .orderByDesc(Article::getPublishedAt)
-                .orderByDesc(Article::getId)
-                .page(new Page<>(page, size));
+        Page<Article> result = latestPublished(categoryId, tagId).page(new Page<>(page, size));
         return new PageResult<>(toItems(result.getRecords()), result.getTotal(), page, size);
     }
 
@@ -159,17 +153,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size) {
         // 转义 LIKE 通配符，MySQL 默认的转义字符是反斜杠
         String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        Page<Article> result = lambdaQuery()
-                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
-                .eq(categoryId != null, Article::getCategoryId, categoryId)
-                .inSql(tagId != null, Article::getId, "SELECT article_id FROM article_tag WHERE tag_id = " + tagId)
+        Page<Article> result = latestPublished(categoryId, tagId)
                 .and(match -> match
                         .like(Article::getTitle, escaped)
                         .or().like(Article::getSummary, escaped)
                         .or().apply("id IN (SELECT article_id FROM article_content WHERE content LIKE {0})",
                                 "%" + escaped + "%"))
-                .orderByDesc(Article::getPublishedAt)
-                .orderByDesc(Article::getId)
                 .page(new Page<>(page, size));
         return new PageResult<>(result.getRecords(), result.getTotal(), page, size);
     }
@@ -202,6 +191,22 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .orderByDesc(Article::getId)
                 .last("LIMIT " + (size + 1))
                 .list(), size);
+    }
+
+    /**
+     * 已发布文章的查询，可按分类、标签筛选，按发布时间倒序、同一秒发布的按 ID 倒序。
+     *
+     * @param categoryId 为 null 时不按分类筛选
+     * @param tagId      为 null 时不按标签筛选
+     */
+    private LambdaQueryChainWrapper<Article> latestPublished(Long categoryId, Long tagId) {
+        return lambdaQuery()
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .eq(categoryId != null, Article::getCategoryId, categoryId)
+                // 经由 article_tag 的反向索引 idx_tag_article 找出文章；tagId 是 Long，拼接不会注入
+                .inSql(tagId != null, Article::getId, "SELECT article_id FROM article_tag WHERE tag_id = " + tagId)
+                .orderByDesc(Article::getPublishedAt)
+                .orderByDesc(Article::getId);
     }
 
     /**

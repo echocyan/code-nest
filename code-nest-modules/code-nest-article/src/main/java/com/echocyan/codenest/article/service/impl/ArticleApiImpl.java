@@ -3,8 +3,11 @@ package com.echocyan.codenest.article.service.impl;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleState;
+import com.echocyan.codenest.article.api.CommentBrief;
 import com.echocyan.codenest.article.convert.ArticleConverter;
+import com.echocyan.codenest.article.convert.CommentConverter;
 import com.echocyan.codenest.article.service.ArticleService;
+import com.echocyan.codenest.article.service.CommentService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,8 @@ class ArticleApiImpl implements ArticleApi {
 
     private final ArticleService articleService;
     private final ArticleConverter articleConverter;
+    private final CommentService commentService;
+    private final CommentConverter commentConverter;
 
     @Override
     public Optional<ArticleState> findState(long articleId) {
@@ -41,5 +46,15 @@ class ArticleApiImpl implements ArticleApi {
         return articleService.listPublishedByAuthors(authorIds, cursor, limit).stream()
                 .map(articleConverter::toBrief)
                 .toList();
+    }
+
+    @Override
+    public Map<Long, CommentBrief> getCommentBriefs(Collection<Long> commentIds) {
+        if (commentIds.isEmpty()) {
+            return Map.of();
+        }
+        return commentService.listByIds(commentIds).stream()
+                .map(commentConverter::toBrief)
+                .collect(Collectors.toMap(CommentBrief::id, Function.identity()));
     }
 }

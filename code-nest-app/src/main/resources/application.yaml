@@ -6,6 +6,21 @@ spring:
       # 应用的工作目录是 code-nest-app（IDEA 与 spring-boot:run 默认如此），compose 文件在仓库根目录
       file: ../compose.yaml
       lifecycle-management: start-only
+  rabbitmq:
+    publisher-confirm-type: correlated
+    # 没有队列绑定的消息退回给生产者，按发送失败处理
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        # 本地重试 3 次，间隔 1s、2s、4s；之后拒绝消息，转入死信队列
+        retry:
+          enabled: true
+          max-retries: 3
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 4s
   flyway:
     # 各模块独立编号（V1_、V2_……），允许低编号模块后补迁移
     out-of-order: true

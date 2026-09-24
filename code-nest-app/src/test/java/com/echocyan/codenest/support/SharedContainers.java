@@ -14,7 +14,7 @@ import org.testcontainers.utility.DockerImageName;
  * 集成测试用的中间件容器，声明为静态字段：即使测试用到了多个 Spring 上下文（如不同的模式开关），
  * 同一个 JVM 里也只有一组容器。
  */
-final class SharedContainers {
+public final class SharedContainers {
 
     private static final String ES_IMAGE = "code-nest/elasticsearch-ik:9.4.5";
 
@@ -27,7 +27,7 @@ final class SharedContainers {
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:8.6").withExposedPorts(6379);
 
     @ServiceConnection
-    static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4.3.5-management");
+    public static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4.3.5-management");
 
     @ServiceConnection
     static final ElasticsearchContainer ELASTICSEARCH = new ElasticsearchContainer(elasticsearchImage())

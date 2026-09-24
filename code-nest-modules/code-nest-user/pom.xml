@@ -11,6 +11,10 @@
     <description>用户、认证</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.echocyan</groupId>
+            <artifactId>code-nest-counter</artifactId>
+        </dependency>
         <!-- 只用 BCrypt，不引入完整的 Spring Security -->
         <dependency>
             <groupId>org.springframework.security</groupId>

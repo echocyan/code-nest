@@ -12,6 +12,7 @@
     <description>业务模块的聚合与父 pom</description>
 
     <modules>
+        <module>code-nest-counter</module>
         <module>code-nest-user</module>
         <module>code-nest-article</module>
     </modules>

@@ -15,10 +15,15 @@ import com.echocyan.codenest.article.mapper.ArticleMapper;
 import com.echocyan.codenest.article.mapper.ArticleTagMapper;
 import com.echocyan.codenest.article.mapper.CategoryMapper;
 import com.echocyan.codenest.article.mapper.TagMapper;
+import com.echocyan.codenest.article.vo.ArticleCountsVO;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.util.DateTimes;
+import com.echocyan.codenest.counter.api.CounterApi;
+import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterTarget;
+import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.user.api.UserApi;
 import java.util.List;
 import java.util.Objects;
@@ -44,6 +49,7 @@ public class ArticleService {
     private final CategoryConverter categoryConverter;
     private final TagConverter tagConverter;
     private final UserApi userApi;
+    private final CounterApi counterApi;
 
     /**
      * 新建草稿。
@@ -94,7 +100,7 @@ public class ArticleService {
     }
 
     /**
-     * 发布草稿。已发布的文章重复发布不产生变化。
+     * 发布草稿，作者文章数 +1。已发布的文章重复发布不产生变化。
      *
      * @throws BizException 文章不存在、不是作者本人、版本冲突
      */
@@ -107,18 +113,22 @@ public class ArticleService {
         article.setStatus(ArticleStatus.PUBLISHED);
         article.setPublishedAt(DateTimes.now());
         updateOrConflict(article);
+        counterApi.increment(CounterMetric.USER_ARTICLE, userId, 1);
         return article;
     }
 
     /**
-     * 软删除文章。
+     * 软删除文章；删除的是已发布文章时，作者文章数 -1。
      *
      * @throws BizException 文章不存在、不是作者本人
      */
     @Transactional
     public void delete(long id, long userId) {
-        getOwned(id, userId);
-        articleMapper.deleteById(id);
+        Article article = getOwned(id, userId);
+        // 并发删除时只有一个请求真正删除成功，避免文章数重复扣减
+        if (articleMapper.deleteById(id) == 1 && article.getStatus() == ArticleStatus.PUBLISHED) {
+            counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
+        }
     }
 
     /**
@@ -198,7 +208,7 @@ public class ArticleService {
     }
 
     /**
-     * 文章详情。草稿只有作者本人能看到，对其他人表现为不存在。
+     * 文章详情。草稿只有作者本人能看到，对其他人表现为不存在；已发布的文章每次查看浏览量 +1。
      *
      * @param viewerId 当前访客，匿名时为 null
      * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
@@ -208,6 +218,9 @@ public class ArticleService {
         if (article == null
                 || article.getStatus() == ArticleStatus.DRAFT && !Objects.equals(article.getAuthorId(), viewerId)) {
             throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+        }
+        if (article.getStatus() == ArticleStatus.PUBLISHED) {
+            counterApi.increment(CounterMetric.ARTICLE_VIEW, id, 1);
         }
         String content = articleContentMapper.selectById(id).getContent();
         List<Long> tagIds = articleTagMapper.selectList(Wrappers.<ArticleTag>lambdaQuery()
@@ -228,6 +241,16 @@ public class ArticleService {
                 article.getVersion(),
                 categoryConverter.toVO(categoryMapper.selectById(article.getCategoryId())),
                 tagConverter.toVOs(tags),
-                userApi.getBriefs(List.of(article.getAuthorId())).get(article.getAuthorId()));
+                userApi.getBriefs(List.of(article.getAuthorId())).get(article.getAuthorId()),
+                countsOf(id));
+    }
+
+    private ArticleCountsVO countsOf(long id) {
+        Counts counts = counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id);
+        return new ArticleCountsVO(
+                counts.get(CounterMetric.ARTICLE_LIKE),
+                counts.get(CounterMetric.ARTICLE_FAVORITE),
+                counts.get(CounterMetric.ARTICLE_COMMENT),
+                counts.get(CounterMetric.ARTICLE_VIEW));
     }
 }

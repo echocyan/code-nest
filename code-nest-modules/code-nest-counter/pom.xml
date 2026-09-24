@@ -7,17 +7,6 @@
         <artifactId>code-nest-modules</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>code-nest-article</artifactId>
-    <description>文章、分类与标签、评论与回复、热榜</description>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.echocyan</groupId>
-            <artifactId>code-nest-counter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.echocyan</groupId>
-            <artifactId>code-nest-user</artifactId>
-        </dependency>
-    </dependencies>
+    <artifactId>code-nest-counter</artifactId>
+    <description>文章、用户、评论的计数</description>
 </project>

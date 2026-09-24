@@ -29,13 +29,14 @@ Blocked by:
 - interaction 模块只负责点赞和收藏。"当前用户是否点赞或收藏过"由 interaction 单独提供批量查询接口，文章详情接口里不带这个状态。
 - 模块依赖（全部依赖 framework 和 common，下面省略）：
   ```
-  user → 无；counter → 无
+  user → counter；counter → 无
   article → user, counter
   interaction → article, counter
   social → user, article, counter
   notification → user, article
   search → article, user
   ```
+  （03 号实现票追加 user → counter：用户主页 `GET /users/{id}` 需要展示粉丝、关注、文章、获赞四项计数。counter 不依赖任何业务模块，不会成环。）
 
 ### 建表约定
 - 不建物理外键。

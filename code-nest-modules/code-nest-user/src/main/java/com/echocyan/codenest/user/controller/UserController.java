@@ -3,7 +3,6 @@ package com.echocyan.codenest.user.controller;
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
-import com.echocyan.codenest.user.convert.UserConverter;
 import com.echocyan.codenest.user.dto.UpdateProfileRequest;
 import com.echocyan.codenest.user.service.UserService;
 import com.echocyan.codenest.user.vo.UserProfileVO;
@@ -25,12 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
-    private final UserConverter userConverter;
 
     @Operation(summary = "我的资料")
     @GetMapping("/me")
     public Result<UserProfileVO> me() {
-        return Result.ok(userConverter.toProfileVO(userService.getById(AuthContext.currentUserId())));
+        return Result.ok(userService.getProfile(AuthContext.currentUserId()));
     }
 
     @Operation(summary = "修改我的资料", description = "整体替换昵称、头像、简介；用户名不可修改")
@@ -41,9 +39,9 @@ public class UserController {
     }
 
     @SaIgnore
-    @Operation(summary = "用户主页")
+    @Operation(summary = "用户主页", description = "资料与粉丝数、关注数、文章数、获赞数")
     @GetMapping("/{id}")
     public Result<UserProfileVO> get(@PathVariable long id) {
-        return Result.ok(userConverter.toProfileVO(userService.getById(id)));
+        return Result.ok(userService.getProfile(id));
     }
 }

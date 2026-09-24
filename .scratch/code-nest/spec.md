@@ -189,7 +189,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - `code-nest-app`：启动类、配置、端到端集成测试。
     - `code-nest-loadtest`：造数程序、k6 脚本和结果，不打进应用 jar，也不受 ADR-0001 约束。
 - **业务模块依赖**（单向无环，全部依赖 framework 和 common）：
-    - user、counter 不依赖其他业务模块
+    - counter 不依赖其他业务模块
+    - user → counter（用户主页展示四项计数；03 号票实现时追加）
     - article → user、counter
     - interaction → article、counter
     - social → user、article、counter
@@ -274,9 +275,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **鉴权**：注册 `SaInterceptor`，所有接口默认要求登录，公开接口标 `@SaIgnore`。
     - 公开接口：文章详情和列表、分类和标签、作者文章、评论和回复列表、热榜、搜索、用户主页、粉丝和关注列表、注册、登录。
     - 资源归属（只能改删自己的内容）在业务代码里检查。
-- **取当前用户**：`AuthContext.currentUserId()` 和 `currentUserIdOrNull()` 只在 Controller 调用，userId 作为参数传入
+- **取当前用户**：`AuthContext.currentUserId()` 和 `currentUserIdOrNull()`（token 缺失或无效时返回 null）只在 Controller 调用，userId 作为参数传入
   Service。MQ 消费者从消息体里取 userId。登录、登出也经 `AuthContext.login(userId)` / `logout()` 完成，业务模块不直接接触 Sa-Token。
-  `currentUserIdOrNull()` 随首个调用方在 03 号票实现。
 - **Sa-Token 使用注意**：
     - loginId 里不能出现冒号。
     - MockMvc 测试需要挂上 Sa-Token 的上下文 Filter。

@@ -25,7 +25,7 @@ class ModuleBoundaryTest {
 
     /** 规格中约定的模块依赖：key 可以依赖 value 中的模块。 */
     private static final Map<String, Set<String>> ALLOWED_DEPENDENCIES = Map.of(
-            "user", Set.of(),
+            "user", Set.of("counter"),
             "counter", Set.of(),
             "article", Set.of("user", "counter"),
             "interaction", Set.of("article", "counter"),

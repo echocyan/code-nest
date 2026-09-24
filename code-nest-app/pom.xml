@@ -13,6 +13,10 @@
     <dependencies>
         <dependency>
             <groupId>com.echocyan</groupId>
+            <artifactId>code-nest-counter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.echocyan</groupId>
             <artifactId>code-nest-user</artifactId>
         </dependency>
         <dependency>

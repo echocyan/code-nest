@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 文章详情。
  *
- * @param author 作者简要信息
+ * @param author 作者简要信息；作者不存在时为 null
  */
 public record ArticleDetailVO(
         Long id,
@@ -23,5 +23,6 @@ public record ArticleDetailVO(
         Integer version,
         CategoryVO category,
         List<TagVO> tags,
-        UserBrief author) {
+        UserBrief author,
+        ArticleCountsVO counts) {
 }

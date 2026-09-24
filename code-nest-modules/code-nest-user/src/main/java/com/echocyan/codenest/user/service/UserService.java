@@ -2,10 +2,18 @@ package com.echocyan.codenest.user.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.echocyan.codenest.common.exception.BizException;
+import com.echocyan.codenest.counter.api.CounterApi;
+import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterTarget;
+import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.user.UserErrorCode;
+import com.echocyan.codenest.user.convert.UserConverter;
 import com.echocyan.codenest.user.dto.UpdateProfileRequest;
 import com.echocyan.codenest.user.entity.User;
 import com.echocyan.codenest.user.mapper.UserMapper;
+import com.echocyan.codenest.user.vo.UserCountsVO;
+import com.echocyan.codenest.user.vo.UserProfileVO;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,6 +26,8 @@ public class UserService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private final UserMapper userMapper;
+    private final UserConverter userConverter;
+    private final CounterApi counterApi;
 
     /**
      * 注册新用户，昵称默认等于用户名。用户名是否重复由唯一索引判定，并发注册同名时也只有一个成功。
@@ -59,6 +69,21 @@ public class UserService {
             throw new BizException(UserErrorCode.USER_NOT_FOUND);
         }
         return user;
+    }
+
+    /**
+     * 用户资料与四项计数。
+     *
+     * @throws BizException {@link UserErrorCode#USER_NOT_FOUND}
+     */
+    public UserProfileVO getProfile(long id) {
+        User user = getById(id);
+        Counts counts = counterApi.get(CounterTarget.USER, List.of(id)).get(id);
+        return userConverter.toProfileVO(user, new UserCountsVO(
+                counts.get(CounterMetric.USER_FOLLOWER),
+                counts.get(CounterMetric.USER_FOLLOWING),
+                counts.get(CounterMetric.USER_ARTICLE),
+                counts.get(CounterMetric.USER_LIKE_RECEIVED)));
     }
 
     /**

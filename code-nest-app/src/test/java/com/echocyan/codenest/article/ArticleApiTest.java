@@ -112,6 +112,55 @@ class ArticleApiTest extends IntegrationTest {
     }
 
     @Test
+    void everyViewOfAPublishedArticleCountsOnce() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String id = publish(author, createDraft(author, draft()));
+
+        client.get().uri(API + "/articles/{id}", id).exchange().expectStatus().isOk();
+
+        author.get().uri(API + "/articles/{id}", id)
+                .exchange()
+                .expectBody()
+                .jsonPath("$.data.counts.viewCount").isEqualTo(2)
+                .jsonPath("$.data.counts.likeCount").isEqualTo(0)
+                .jsonPath("$.data.counts.favoriteCount").isEqualTo(0)
+                .jsonPath("$.data.counts.commentCount").isEqualTo(0);
+    }
+
+    @Test
+    void authorsArticleCountTracksPublishedArticles() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String authorId = authorIdOf(author, createDraft(author, draft()));
+        String first = publish(author, createDraft(author, draft()));
+        publish(author, first);
+        String second = publish(author, createDraft(author, draft()));
+        expectArticleCount(authorId, 2);
+
+        author.delete().uri(API + "/articles/{id}", second).exchange().expectStatus().isOk();
+
+        expectArticleCount(authorId, 1);
+    }
+
+    private String authorIdOf(RestTestClient author, String articleId) {
+        AtomicReference<String> authorId = new AtomicReference<>();
+        author.get().uri(API + "/articles/{id}", articleId)
+                .exchange()
+                .expectBody().jsonPath("$.data.author.id").value(String.class, authorId::set);
+        return authorId.get();
+    }
+
+    private void expectArticleCount(String userId, int expected) {
+        client.get().uri(API + "/users/{id}", userId)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.counts.articleCount").isEqualTo(expected)
+                .jsonPath("$.data.counts.followerCount").isEqualTo(0)
+                .jsonPath("$.data.counts.followingCount").isEqualTo(0)
+                .jsonPath("$.data.counts.likeReceivedCount").isEqualTo(0);
+    }
+
+    @Test
     void onlyTheAuthorCanPublish() {
         String id = createDraft(withToken(register(uniqueUsername())), draft());
 

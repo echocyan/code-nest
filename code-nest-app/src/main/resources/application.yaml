@@ -10,6 +10,10 @@ spring:
     # 各模块独立编号（V1_、V2_……），允许低编号模块后补迁移
     out-of-order: true
 
+counter:
+  # sync-db：在调用方事务里直接更新计数表（基线）
+  mode: sync-db
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

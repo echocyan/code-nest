@@ -24,19 +24,18 @@ Blocked by:
 
    写入路径以及 Redis 与 MySQL 如何对账，由计数系统票决定。
 
-### 模块归属与依赖（修订工程结构票）
-- 新增 `code-nest-counter` 模块，负责所有计数表的读写。它不依赖任何业务模块，各业务模块通过 `CounterApi` 上报和读取计数。
+### 模块归属与依赖
+- `code-nest-counter` 模块负责所有计数表的读写。它不依赖任何业务模块，各业务模块通过 `CounterApi` 上报和读取计数。
 - interaction 模块只负责点赞和收藏。"当前用户是否点赞或收藏过"由 interaction 单独提供批量查询接口，文章详情接口里不带这个状态。
 - 模块依赖（全部依赖 framework 和 common，下面省略）：
   ```
-  user → counter；counter → 无
+  user → counter（用户主页展示计数）；counter → 无
   article → user, counter
   interaction → article, counter
   social → user, article, counter
   notification → user, article
   search → article, user
   ```
-  （03 号实现票追加 user → counter：用户主页 `GET /users/{id}` 需要展示粉丝、关注、文章、获赞四项计数。counter 不依赖任何业务模块，不会成环。）
 
 ### 建表约定
 - 不建物理外键。
@@ -53,9 +52,9 @@ user            id, username UK, password_hash, nickname, avatar_url, bio    （
 category        id, name UK, sort
 tag             id, name UK
 article         id, author_id, category_id, title, summary, cover_url, status, published_at, version, deleted
-                （version 由[搜索与数据同步](08-search-sync.md)追加：MyBatis-Plus @Version，每次编辑/发布/删除 +1，兼作 ES 外部版本号与编辑乐观锁）
+                （version：MyBatis-Plus @Version，每次编辑/发布/删除 +1，兼作编辑乐观锁与 ES 外部版本号，见[搜索与数据同步](08-search-sync.md)）
                 IDX(author_id, status, published_at), IDX(category_id, status, published_at)
-                IDX(status, published_at)（04 号实现票追加：不带筛选的最新文章列表需要）
+                IDX(status, published_at)（不带筛选的最新文章列表）
 article_content article_id PK, content MEDIUMTEXT
 article_tag     PK(article_id, tag_id), IDX(tag_id, article_id)
 comment         id, article_id, user_id, root_id, reply_to_user_id, content VARCHAR(1000), deleted

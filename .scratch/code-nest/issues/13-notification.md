@@ -45,5 +45,4 @@ Blocked by:
    - 已读有两个显式接口：`PUT /notifications/{id}/read` 标记单条，`PUT /notifications/read-all` 全部标记。打开列表不会自动标记已读。
 5. **列表与索引**：
    - 按 id 倒序做游标分页，返回 `CursorResult`；不按类型分 Tab；通知不设保留期。
-   - 索引调整为 `IDX(recipient_id, id)`（列表）和 `IDX(recipient_id, is_read)`（未读数），替换原来占位的 `IDX(recipient_id, is_read, id)`。原因是 `is_read` 夹在中间，列表按 id 排序时会产生 filesort。
-   - [领域与数据模型](03-domain-data-model.md) 的表结构已同步修订。
+   - 索引为 `IDX(recipient_id, id)`（列表）和 `IDX(recipient_id, is_read)`（未读数）。不用 `IDX(recipient_id, is_read, id)`：`is_read` 夹在中间，列表按 id 排序时会产生 filesort。

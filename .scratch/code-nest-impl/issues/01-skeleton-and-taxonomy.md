@@ -7,7 +7,7 @@
 Status: closed
 
 - [x] **Maven 结构**：父 pom、common、framework、modules 聚合（先建 article 模块）、app、loadtest（空壳）。依赖方向为 app → 业务模块 → framework → common。
-- [x] **依赖**：MyBatis-Plus 改用 `mybatis-plus-spring-boot4-starter`；配置 MapStruct 与 Lombok 注解处理器的先后顺序；引入 SpringDoc。
+- [x] **依赖**：MyBatis-Plus 用 `mybatis-plus-spring-boot4-starter`；配置 MapStruct 与 Lombok 注解处理器的先后顺序；引入 SpringDoc。
 - [x] **中间件环境**：根目录 compose 定义 mysql:8.4、redis:8.6（开启 AOF everysec）、rabbitmq:4.3.5-management、ES 9.4.5。ES 由一个装了 IK 9.4.5 插件的 Dockerfile 构建。`spring-boot-docker-compose` 以 `start-only` 模式拉起中间件，在 IDEA 里可以直接运行应用。
 - [x] **common**：`{code, message, data}` 返回体、`ErrorCode` 接口与通用错误码（0、90400/90401/90403/90404/90429/99999）、业务异常、`PageResult`、`CursorResult`。
 - [x] **framework 基础**：
@@ -25,9 +25,9 @@ Status: closed
 
 ## Comments
 
-- 实现于 `12ead28`，并按 code review 修正（见后续提交）。与规格的出入：
-  - ES 服务端与客户端统一为 9.4.5：原定服务端是 8.19.21，但 Boot 4.1.1 管理的客户端是 9.x，实测 9.x 客户端连 8.19 服务端会报 `media_type_header_exception`。经用户决定，服务端升级到 9.x，客户端直接用 Boot 的自动配置（Rest5Client 加独立的 `Jackson3JsonpMapper`，Web 层的 JSON 约定不会影响索引文档）。
+- 实现细节：
+  - ES 服务端与客户端都是 9.4.5，与 Boot 4.1.1 管理的客户端大版本一致（9.x 客户端连 8.x 服务端会报 `media_type_header_exception`）。客户端直接用 Boot 的自动配置（Rest5Client 加独立的 `Jackson3JsonpMapper`，Web 层的 JSON 约定不会影响索引文档）。
   - `spring.flyway.out-of-order: true`：每个模块独立编号，需要允许低编号模块在后面补迁移脚本。
   - 预置的分类和标签使用固定的小整数 ID，不用雪花 ID，便于造数和测试引用。
   - Spring MVC 自带的请求类异常（405、415、缺少请求头等）沿用各自的 HTTP 状态码，body 中的 code 为 90400，404 时为 90404。
-  - 模块依赖无环、framework/common 不依赖业务模块，由 Maven 模块依赖在编译期保证，不再用 ArchUnit 重复检查。ArchUnit 只检查 Maven 管不到的两点：跨模块只能用 `api` 包；即使通过传递依赖能访问到，也不能越过规格约定的依赖方向。
+  - 模块依赖无环、framework/common 不依赖业务模块，由 Maven 模块依赖在编译期保证，ArchUnit 不重复检查。ArchUnit 只检查 Maven 管不到的两点：跨模块只能用 `api` 包；即使通过传递依赖能访问到，也不能越过规格约定的依赖方向。

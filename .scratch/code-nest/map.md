@@ -14,7 +14,7 @@ Label: wayfinder:map
 - **分工**：全部代码由 Claude 编写，用户 review 与决策。
 - **技术栈**：Java 21、Maven、Spring Boot 4.1.1、MySQL、MyBatis-Plus、Redis、Sa-Token、RabbitMQ、Elasticsearch。
 - **压测镜像**：用户已同意使用 `grafana/k6`、`eclipse-temurin:21-jre`、`nginx`。
-- **中间件版本**：以用户本地 Docker 镜像为准——`mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（原定 8.19.21；Boot 4.1.1 管理的 9.x 客户端连不上 8.x 服务端，实现 01 号票时经用户同意统一升到 9.x）。IK 分词插件用对应版本：https://get.infini.cloud/elasticsearch/analysis-ik/9.4.5 。其他额外镜像/插件先问用户。不做逐项兼容性调研，兼容问题在实现中暴露再处理。
+- **中间件版本**：以用户本地 Docker 镜像为准——`mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（与 Boot 4.1.1 管理的 9.x 客户端一致）。IK 分词插件用对应版本：https://get.infini.cloud/elasticsearch/analysis-ik/9.4.5 。其他额外镜像/插件先问用户。不做逐项兼容性调研，兼容问题在实现中暴露再处理。
 - **形态**：纯后端 + OpenAPI 文档；Maven 多模块的模块化单体；本地 docker compose 一键起中间件；无 CI，但要有集成测试。
 - **业务范围**：用户、文章（标签/分类）、两级评论、点赞/收藏、关注 + Feed、通知、搜索、热榜。
 - **语言**：规格/票/ADR 用中文；代码标识符与 commit message 用英文；注释中文、克制。
@@ -58,7 +58,7 @@ Label: wayfinder:map
 - 自建热点 key 探测、用分布式锁防缓存击穿：[多级缓存与缓存治理](issues/09-multilevel-cache.md)已用 Caffeine 的 W-TinyLFU 和同 key 合并加载覆盖了这两类场景。
 - 日榜、周榜、总榜、分类榜，按事件实时更新热度：[热榜](issues/10-hot-list.md)只保留一个 7 天候选的定时重算榜单，这些都不做。
 - 全局接口总限流、登录失败锁定账号：[限流防刷](issues/11-rate-limit.md)只对具体的写操作和匿名接口限流。
-- Prometheus/Grafana 监控栈：[压测方案](issues/12-load-test.md)改用压测前后采集服务端状态差值。
+- Prometheus/Grafana 监控栈：[压测方案](issues/12-load-test.md)用压测前后采集的服务端状态差值代替。
 - 通知聚合、按类型分 Tab、通知定期清理：[通知模块](issues/13-notification.md)用去重防刷屏已经足够。
 - 图片上传与对象存储、注销账号、评论点赞、收藏夹：[领域与数据模型](issues/03-domain-data-model.md)里为控制业务复杂度删掉，都不带来技术亮点。
 - 自建号段发号器（如 Leaf）：[工程结构与测试基础设施](issues/02-project-structure.md)已选用 MyBatis-Plus 雪花 ID，发号器不是主打亮点。

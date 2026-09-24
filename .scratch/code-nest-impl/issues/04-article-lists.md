@@ -19,14 +19,14 @@ Status: closed
 
 - **排序**：
   - 最新文章按 `published_at` 倒序，同一秒发布的再按 ID 倒序。
-  - 作者文章、我的草稿、`listByAuthors` 以文章 ID 作游标，所以按文章 ID 倒序。雪花 ID 约等于创建时间，与 Feed 用 articleId 作 score 的做法一致；代价是很早建好、很晚才发布的草稿会排在靠后的位置。经用户确认保持这一做法，规格中的用户故事 25 已改为按文章 ID 倒序。
+  - 作者文章、我的草稿、`listByAuthors` 以文章 ID 作游标，所以按文章 ID 倒序。雪花 ID 约等于创建时间，与 Feed 用 articleId 作 score 的做法一致；代价是很早建好、很晚才发布的草稿会排在靠后的位置。
 - **`listByAuthors` 的测试**：查询写在 `ArticleService.listPublishedByAuthors`，门面 `ArticleApi.listByAuthors` 只负责把结果转成 `ArticleBrief`。`GET /users/{id}/articles` 复用同一个查询（只传一个作者），所以 HTTP 测试覆盖的是这个查询，没有覆盖门面里的转换。按"各模块的 `XxxApi` 不单独测试"的约定，门面不单独测试。
-- **对象转换**：列表项和详情都用 `ArticleConverter` 的多源映射（MapStruct）组装。审查时发现 03 号票的详情原来是手工拼的，一并改掉了。
+- **对象转换**：列表项和详情都用 `ArticleConverter` 的多源映射（MapStruct）组装。
 - **查询索引**：用 2 万篇文章做了 EXPLAIN。
   - 按分类筛选：走 `idx_category_status_published`，倒序扫描索引，没有 filesort。
   - 按标签筛选：先走 `article_tag` 的 `idx_tag_article` 取出文章 ID，再按主键回表，最后 filesort（标签下的文章数有限）。
   - 作者文章、草稿、`listByAuthors`：走 `idx_author_status_published`，因为按 ID 排序需要 filesort。单个作者的文章不多，可以接受；这也是 Feed pull 基线的一部分，留给压测对比。
-  - 发现一处缺口：不带筛选的最新文章（首页）原来全表扫描加 filesort。已用 `V2_003` 补上 `idx_status_published (status, published_at)`，补上之后倒序扫描索引，没有 filesort。领域数据模型票已同步。
+  - 不带筛选的最新文章（首页）：走 `idx_status_published (status, published_at)`（`V2_003`），倒序扫描索引，没有 filesort；没有这个索引时是全表扫描加 filesort。
 - **接口细节**：
   - `page` 从 1 开始；超过末页返回空列表，`total` 照常返回。
   - `size` 为 1–50；`page`、`size` 超出范围或不是数字都返回 400（90400）。

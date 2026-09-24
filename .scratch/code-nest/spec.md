@@ -75,7 +75,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 22. 作为作者，我希望自己的草稿只有自己能打开，其他人打开同一个 ID 得到 404，这样未完成的内容不会泄露。
 23. 作为读者，我希望每次打开文章都计入浏览量，这样文章有大致的阅读热度。
 24. 作为读者，我希望按分类或标签浏览最新发布的文章并按页翻阅，这样可以发现某个主题下的新内容。
-25. 作为读者，我希望查看某位作者发布的全部文章，按文章 ID 倒序（雪花 ID，约等于创建时间）、以文章 ID 作游标翻页，这样可以追着一个作者读。排序与 Feed 保持一致，都以 articleId 为准；很早建好、很晚才发布的文章会排在靠后的位置，这一点可以接受。
+25. 作为读者，我希望查看某位作者发布的全部文章，按创建时间倒序、游标翻页，这样可以追着一个作者读。
 26. 作为作者，我希望查看我的草稿列表，这样能找到未完成的文章继续写。
 27. 作为读者，我希望访问不存在的文章 ID 时快速得到 404，这样恶意枚举 ID 不会压垮数据库。
 
@@ -190,7 +190,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - `code-nest-loadtest`：造数程序、k6 脚本和结果，不打进应用 jar，也不受 ADR-0001 约束。
 - **业务模块依赖**（单向无环，全部依赖 framework 和 common）：
     - counter 不依赖其他业务模块
-    - user → counter（用户主页展示四项计数；03 号票实现时追加）
+    - user → counter
     - article → user、counter
     - interaction → article、counter
     - social → user、article、counter
@@ -213,7 +213,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - API 文档用 SpringDoc。
     - 对象转换用 MapStruct，配好它与 Lombok 注解处理器的先后顺序。
     - 密码哈希只引入 `spring-security-crypto`。
-- **中间件版本**：以用户本地镜像为准，即 `mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（原定 8.19.21，因 Boot 4 管理的 ES 客户端为 9.x 而统一升级）。ES
+- **中间件版本**：以用户本地镜像为准，即 `mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（与 Boot 4 管理的 ES 客户端大版本一致）。ES
   在官方镜像上安装 IK 9.4.5 插件。需要新增镜像或插件时先问用户。已同意的镜像有 `grafana/k6`、`eclipse-temurin:21-jre`、
   `nginx`。
 - **本地环境**：根目录的 compose 文件管理中间件，由 `spring-boot-docker-compose` 以 `start-only` 模式拉起并注入连接信息。
@@ -233,6 +233,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 字段为空时返回 `null`，不省略该字段。
 - **分页参数**：
     - 页码分页用 `page`（从 1 开始）加 `size`；游标分页用 `cursor` 加 `size`。
+    - 游标是上一页最后一条记录的雪花 ID。回复列表按 ID 正序，其余游标列表按 ID 倒序（即创建时间倒序）；作者文章列表与 Feed 都按文章 ID 排序。
     - `size` 默认 20，最大 50。
     - 各接口的翻页上限：搜索 `from + size ≤ 1000`；热榜 5 页；Feed 约 500 条。
 - **模块编号**：同时决定错误码号段和 Flyway 版本前缀：
@@ -274,7 +275,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 
 ### 认证与鉴权（见[认证与鉴权方案](issues/04-auth.md)、Sa-Token 调研笔记）
 
-- **token 格式**：通过 Sa-Token 配置改为 `Authorization: Bearer <uuid>`。
+- **token 格式**：通过 Sa-Token 配置为 `Authorization: Bearer <uuid>`。
     - token 有效期固定 7 天，没有活跃超时；允许多端登录，不共享 token。
     - 不从 cookie 或 body 读取 token。
 - **Session**：只存 loginId；不做角色，不实现 `StpInterface`。

@@ -16,30 +16,24 @@ Status: closed
   - 存储用 `sa-token-redis-template` 加 `commons-pool2`，不引入 Jackson 2。
   - Session 里只存用户 ID。
 - [x] **拦截与匿名访问**：注册 `SaInterceptor`，接口默认要求登录，公开接口标 `@SaIgnore`。未登录时返回 401 和错误码 90401。
-- [~] **`AuthContext`**：framework 提供 `currentUserId()` 和 `currentUserIdOrNull()`，只在 Controller 使用。
+- [x] **`AuthContext`**：framework 提供 `login(userId)`、`logout()`、`currentUserId()`，只在 Controller 使用，user 模块不直接接触 Sa-Token。
 - [x] **接口**：
   - `POST /auth/register`、`POST /auth/login`、`POST /auth/logout`（只让当前 token 失效，其他设备的 token 仍然有效）。
   - `GET /users/me`、`PUT /users/me`（可以修改昵称、头像 URL、简介，不能修改用户名）。
   - `GET /users/{id}`（匿名可访问，用户不存在时返回 404）。
-- [~] **`UserApi`**：提供按 ID 批量查询用户简要信息、判断用户是否存在，供后续模块使用。
-- [x] **测试基类**：提供 `loginAs(user)`。MockMvc 测试要挂上 Sa-Token 的上下文 Filter，或改用真实 HTTP。
+- [x] **测试基类**：提供 `register`、`login`（都调用真实接口并返回 token）和 `withToken(token)`，走真实 HTTP。
 - [x] **HTTP 测试**：覆盖注册、登录、登出、多端登录、401、参数校验、修改资料。
 
 ## Comments
 
-- 推迟到 03 号票的两项（标 `[~]`）：
-  - `AuthContext.currentUserIdOrNull()`：本票的接口都用不到。
-  - `UserApi`：本票没有调用方，按 TDD 写不出先失败的测试。
-  - 03 号票第一个用到它们（作者看自己的草稿、文章详情带作者信息），已转入 03 号票的验收项。
 - 实现细节：
   - 登录失败时，用户不存在和密码错误返回同一个错误码 10002（HTTP 401），不暴露用户名是否已注册。
   - 用户名重复返回 10001（HTTP 409），由唯一索引判定，并发注册同名时也只有一个成功。唯一性和登录都不区分大小写（MySQL 默认排序规则）。
-  - `AuthContext` 另加了 `login(userId)` 和 `logout()`，使 user 模块也不直接接触 Sa-Token。
-  - 错误码枚举 `UserErrorCode` 放在模块根包，这一约定已写入规格的"模块内分包"一节。
+  - 错误码枚举 `UserErrorCode` 放在模块根包。
   - 头像地址必须以 http:// 或 https:// 开头，防止存入 `javascript:` 之类的地址。
   - `PUT /users/me` 整体替换可修改的字段：没传的头像、简介会被清空；请求里的 username 会被忽略。
   - `SaInterceptor` 只挂在 `/api/v1/**` 上，而且只检查 Controller 方法。不存在的路径仍然返回 404，Swagger 和 Actuator 不受影响。
   - OpenAPI 文档声明了 Bearer 鉴权方案，写明了缺少前缀会被视为未登录。只有没标 `@SaIgnore` 的接口会被标注为需要登录，与拦截器的规则一致。
-  - 测试基类没有做成 `loginAs(user)`，而是提供 `register`、`login`（都返回 token）和 `withToken(token)`：多端登录的测试需要直接拿到 token。
+  - 测试基类不提供一步到位的 `loginAs`：多端登录的测试需要直接拿到 token。
   - 手动确认过登录态存在 Redis 中，key 前缀为 `Authorization:`。
 

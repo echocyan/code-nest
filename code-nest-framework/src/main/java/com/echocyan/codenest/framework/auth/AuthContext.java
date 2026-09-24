@@ -13,6 +13,7 @@ public final class AuthContext {
     /**
      * 以该用户身份登录当前设备。
      *
+     * @param userId 登录用户的 ID
      * @return 新签发的 token，客户端以 {@code Authorization: Bearer <token>} 携带
      */
     public static String login(long userId) {

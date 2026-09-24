@@ -198,6 +198,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **跨模块调用**：只能调用对方 `api` 包里的门面接口和 DTO。不联表；需要别的模块的数据时，由服务层批量调用对方的 API
   后组装。对外发布的事件类放在 `api/event/`。
 - **模块内分包**：`api/`（含 `api/event/`）、`controller/`、`service/`、`mapper/`、`entity/`、`dto/`、`vo/`、`convert/`。
+  模块的错误码枚举（如 `UserErrorCode`）放在模块根包；其他模块需要引用时再移入 `api/`。
 - **依赖选型**：
     - MyBatis-Plus 用 `mybatis-plus-spring-boot4-starter`。
     - Sa-Token 用 `sa-token-spring-boot4-starter`，存储用 `sa-token-redis-template` 加 `commons-pool2`，避开会引入 Jackson
@@ -274,7 +275,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 公开接口：文章详情和列表、分类和标签、作者文章、评论和回复列表、热榜、搜索、用户主页、粉丝和关注列表、注册、登录。
     - 资源归属（只能改删自己的内容）在业务代码里检查。
 - **取当前用户**：`AuthContext.currentUserId()` 和 `currentUserIdOrNull()` 只在 Controller 调用，userId 作为参数传入
-  Service。MQ 消费者从消息体里取 userId。
+  Service。MQ 消费者从消息体里取 userId。登录、登出也经 `AuthContext.login(userId)` / `logout()` 完成，业务模块不直接接触 Sa-Token。
+  `currentUserIdOrNull()` 随首个调用方在 03 号票实现。
 - **Sa-Token 使用注意**：
     - loginId 里不能出现冒号。
     - MockMvc 测试需要挂上 Sa-Token 的上下文 Filter。
@@ -511,7 +513,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **主要入口：HTTP 接口**。
     - 在 `code-nest-app` 里用 Testcontainers 启动 MySQL、Redis、RabbitMQ 和带 IK 的 ES，通过 `@ServiceConnection`
       注入连接信息，所有测试类共享同一组容器（singleton）。
-    - 测试基类提供 `loginAs(user)`：调用登录接口拿到 token，后续请求自动带上 Bearer 头。
+    - 测试基类提供 `register(username)`、`login(username)`（都调用真实接口并返回 token）和 `withToken(token)`（之后的请求自动带上 Bearer 头）。
+      不封装成一步到位的 `loginAs`，是因为多端登录等测试需要直接拿到 token。
     - 41 个接口都走真实 HTTP 测试，覆盖正常路径、权限（401/403/404）、参数校验、幂等（重复 PUT/DELETE）、限流（429 和
       `Retry-After`）。
     - 异步结果用 Awaitility 反复调接口直到出现，例如：点赞后计数变化、发布后可以搜到、发文后出现在粉丝的 Feed

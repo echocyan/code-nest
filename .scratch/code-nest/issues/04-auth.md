@@ -11,7 +11,7 @@ Blocked by: 01, 03
 ## Answer
 
 1. **登录方式**：只支持用户名加密码，注册成功后自动登录。
-   - 用户名 4–20 位，限字母、数字、下划线，唯一且注册后不可修改。
+   - 用户名 4–20 位，限字母、数字、下划线，唯一且注册后不可修改。唯一性不区分大小写（MySQL 默认排序规则），`Alice` 与 `alice` 视为同一个用户名，登录时也不区分大小写（实现 02 号票时确认）。
    - 密码 8–32 位，限可打印 ASCII 字符（BCrypt 最多只接受 72 字节，实现 02 号票时补充）。
    - 昵称默认等于用户名，之后可以修改。
 2. **密码存储**：用 BCrypt，只引入 `spring-security-crypto`，不引入完整的 Spring Security。
@@ -40,7 +40,7 @@ Blocked by: 01, 03
    - 公开接口：文章详情和列表、评论列表、搜索、热榜、用户主页、注册、登录。
    - 公开接口里需要识别当前用户时（例如作者看自己的草稿），用 `currentUserIdOrNull()`。
    - 未登录时抛出的 `NotLoginException` 由全局异常处理转成 401。
-7. **获取当前用户**：framework 模块提供 `AuthContext.currentUserId()` 和 `currentUserIdOrNull()`，内部调用 Sa-Token。
+7. **获取当前用户**：framework 模块提供 `AuthContext.currentUserId()` 和 `currentUserIdOrNull()`，内部调用 Sa-Token。实现时另加了 `login(userId)` 和 `logout()`，使业务模块完全不接触 Sa-Token。
    - 只有 Controller 调用这两个方法；Controller 把 userId 作为参数传给 Service，Service 层不接触 Sa-Token。
    - MQ 消费者从消息体里拿 userId，不需要模拟登录上下文。
-   - 集成测试基类封装 `loginAs(user)`：先调登录接口拿 token，之后的请求都带上 `Authorization: Bearer <token>`。
+   - 集成测试基类提供 `register`、`login`（返回 token）和 `withToken(token)`：先调接口拿 token，之后的请求都带上 `Authorization: Bearer <token>`（实现时由 `loginAs(user)` 调整而来，多端登录测试需要直接拿到 token）。

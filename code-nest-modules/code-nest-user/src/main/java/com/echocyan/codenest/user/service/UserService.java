@@ -49,6 +49,8 @@ public class UserService {
     }
 
     /**
+     * 按 ID 查询用户。
+     *
      * @throws BizException {@link UserErrorCode#USER_NOT_FOUND}
      */
     public User getById(long id) {

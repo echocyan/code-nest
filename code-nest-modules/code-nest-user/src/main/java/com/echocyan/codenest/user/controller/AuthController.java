@@ -29,16 +29,14 @@ public class AuthController {
     @Operation(summary = "注册", description = "注册成功后自动登录")
     @PostMapping("/register")
     public Result<LoginVO> register(@Valid @RequestBody RegisterRequest request) {
-        User user = userService.register(request.username(), request.password());
-        return Result.ok(new LoginVO(user.getId(), AuthContext.login(user.getId())));
+        return Result.ok(loginAs(userService.register(request.username(), request.password())));
     }
 
     @SaIgnore
     @Operation(summary = "登录", description = "之后的请求以 Authorization: Bearer <token> 携带凭证")
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
-        User user = userService.authenticate(request.username(), request.password());
-        return Result.ok(new LoginVO(user.getId(), AuthContext.login(user.getId())));
+        return Result.ok(loginAs(userService.authenticate(request.username(), request.password())));
     }
 
     @Operation(summary = "退出登录", description = "只让当前设备的 token 失效")
@@ -46,5 +44,9 @@ public class AuthController {
     public Result<Void> logout() {
         AuthContext.logout();
         return Result.ok();
+    }
+
+    private static LoginVO loginAs(User user) {
+        return new LoginVO(user.getId(), AuthContext.login(user.getId()));
     }
 }

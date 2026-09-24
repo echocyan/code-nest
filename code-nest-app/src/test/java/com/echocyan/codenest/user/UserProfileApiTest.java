@@ -1,5 +1,7 @@
 package com.echocyan.codenest.user;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.echocyan.codenest.support.IntegrationTest;
 import java.util.HashMap;
 import java.util.List;
@@ -55,7 +57,7 @@ class UserProfileApiTest extends IntegrationTest {
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.nickname").isEqualTo("n2")
-                .jsonPath("$.data").value(Map.class, data -> org.assertj.core.api.Assertions.assertThat(data)
+                .jsonPath("$.data").value(Map.class, data -> assertThat(data)
                         .containsEntry("avatarUrl", null)
                         .containsEntry("bio", null));
     }

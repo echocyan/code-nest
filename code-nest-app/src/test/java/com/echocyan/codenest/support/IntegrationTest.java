@@ -44,22 +44,14 @@ public abstract class IntegrationTest {
      * 用 {@link #PASSWORD} 注册一个用户，返回注册后自动登录得到的 token。
      */
     protected String register(String username) {
-        return extractToken(client.post().uri(API + "/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("username", username, "password", PASSWORD))
-                .exchange()
-                .expectStatus().isOk());
+        return authenticate("/auth/register", username);
     }
 
     /**
      * 用 {@link #PASSWORD} 登录，返回本次登录签发的 token（相当于一台新设备）。
      */
     protected String login(String username) {
-        return extractToken(client.post().uri(API + "/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("username", username, "password", PASSWORD))
-                .exchange()
-                .expectStatus().isOk());
+        return authenticate("/auth/login", username);
     }
 
     /**
@@ -69,9 +61,14 @@ public abstract class IntegrationTest {
         return client.mutate().defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token).build();
     }
 
-    private static String extractToken(RestTestClient.ResponseSpec response) {
+    private String authenticate(String path, String username) {
         AtomicReference<String> token = new AtomicReference<>();
-        response.expectBody().jsonPath("$.data.token").value(String.class, token::set);
+        client.post().uri(API + path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("username", username, "password", PASSWORD))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody().jsonPath("$.data.token").value(String.class, token::set);
         return token.get();
     }
 }

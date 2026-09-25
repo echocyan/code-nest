@@ -5,10 +5,12 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.exception.ErrorCode;
 import com.echocyan.codenest.common.result.Result;
+import com.echocyan.codenest.framework.ratelimit.RateLimitedException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -27,6 +29,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BizException.class)
     public ResponseEntity<Result<Void>> handleBiz(BizException e) {
         return respond(e.getErrorCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity<Result<Void>> handleRateLimited(RateLimitedException e) {
+        return ResponseEntity.status(e.getErrorCode().httpStatus())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(Result.fail(e.getErrorCode(), e.getMessage()));
     }
 
     /**

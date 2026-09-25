@@ -1,9 +1,12 @@
 package com.echocyan.codenest.social.controller;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
+
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
+import com.echocyan.codenest.framework.ratelimit.RateLimit;
 import com.echocyan.codenest.social.service.FollowService;
 import com.echocyan.codenest.social.vo.FollowUserVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +39,8 @@ public class FollowController {
     private final FollowService followService;
 
     @Operation(summary = "关注", description = "已关注时不产生变化")
+    @RateLimit(key = "follow-per-minute", limit = "${rate-limit.limits.follow-per-minute}", window = "1m",
+            dimension = USER)
     @PutMapping("/{id}/follow")
     public Result<Void> follow(@PathVariable long id) {
         followService.follow(AuthContext.currentUserId(), id);
@@ -43,6 +48,8 @@ public class FollowController {
     }
 
     @Operation(summary = "取关", description = "没关注过时不产生变化")
+    @RateLimit(key = "follow-per-minute", limit = "${rate-limit.limits.follow-per-minute}", window = "1m",
+            dimension = USER)
     @DeleteMapping("/{id}/follow")
     public Result<Void> unfollow(@PathVariable long id) {
         followService.unfollow(AuthContext.currentUserId(), id);

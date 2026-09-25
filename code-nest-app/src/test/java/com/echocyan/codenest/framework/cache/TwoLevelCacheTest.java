@@ -1,6 +1,7 @@
 package com.echocyan.codenest.framework.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 import com.echocyan.codenest.support.IntegrationTest;
@@ -16,11 +17,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * two-level 档的本地缓存失效广播、同 key 合并加载与布隆过滤器。单个应用上下文无法模拟两个实例，
- * 这里用同名的两个 {@link TwoLevelCache} 代表两个实例，它们各有一份本地缓存，只经 Redis Pub/Sub 互相通知。
+ * 这里另建一个 {@link TwoLevelCaches} 和它自己的订阅代表另一个实例，两边的本地缓存只经 Redis Pub/Sub 互相通知。
  */
 @TwoLevelCacheMode
 class TwoLevelCacheTest extends IntegrationTest {
@@ -33,18 +37,33 @@ class TwoLevelCacheTest extends IntegrationTest {
     @Autowired
     private StringRedisTemplate redis;
 
+    @Autowired
+    private JsonMapper jsonMapper;
+
+    @Autowired
+    private RedisConnectionFactory connectionFactory;
+
     @Test
-    void evictOnOneInstanceInvalidatesLocalCacheOfTheOther() {
+    void evictOnOneInstanceInvalidatesLocalCacheOfTheOther() throws Exception {
         String name = uniqueName();
         BloomFilter bloomFilter = bloomFilterOf(name, ID);
-        TwoLevelCache<String> first = caches.createTwoLevel(name, String.class, bloomFilter);
-        TwoLevelCache<String> second = caches.createTwoLevel(name, String.class, bloomFilter);
-        assertThat(first.get(ID, id -> "old")).isEqualTo("old");
-        assertThat(second.get(ID, id -> "new")).isEqualTo("old");
+        TwoLevelCaches otherInstance = new TwoLevelCaches(CacheMode.TWO_LEVEL, redis, jsonMapper);
+        RedisMessageListenerContainer otherSubscription = new CacheInvalidationConfig()
+                .cacheInvalidationListenerContainer(connectionFactory, otherInstance);
+        otherSubscription.afterPropertiesSet();
+        otherSubscription.start();
+        try {
+            TwoLevelCache<String> first = caches.createTwoLevel(name, String.class, bloomFilter);
+            TwoLevelCache<String> second = otherInstance.createTwoLevel(name, String.class, bloomFilter);
+            assertThat(first.get(ID, id -> "old")).isEqualTo("old");
+            assertThat(second.get(ID, id -> "new")).isEqualTo("old");
 
-        first.evict(ID);
+            first.evict(ID);
 
-        await().atMost(Duration.ofSeconds(5)).until(() -> "new".equals(second.get(ID, id -> "new")));
+            await().atMost(Duration.ofSeconds(5)).until(() -> "new".equals(second.get(ID, id -> "new")));
+        } finally {
+            otherSubscription.destroy();
+        }
     }
 
     @Test
@@ -99,6 +118,26 @@ class TwoLevelCacheTest extends IntegrationTest {
 
         assertThat(cache.get(ID, id -> "existing")).isEqualTo("existing");
         assertThat(cache.get(2, id -> "missing")).isNull();
+    }
+
+    @Test
+    void interruptedRebuildIsRedoneOnRestart() {
+        String name = uniqueName();
+        long secondBatch = 2;
+        assertThatThrownBy(() -> caches.bloomFilter(name).rebuildIfAbsent(afterId -> {
+            if (afterId == null) {
+                return List.of(ID);
+            }
+            throw new IllegalStateException("crashed while importing");
+        })).isInstanceOf(IllegalStateException.class);
+
+        BloomFilter restarted = caches.bloomFilter(name);
+        restarted.rebuildIfAbsent(afterId -> afterId == null ? List.of(ID) : afterId == ID ? List.of(secondBatch)
+                : List.of());
+        TwoLevelCache<String> cache = caches.createTwoLevel(name, String.class, restarted);
+
+        assertThat(cache.get(secondBatch, id -> "imported after restart")).isEqualTo("imported after restart");
+        assertThat(cache.get(3, id -> "missing")).isNull();
     }
 
     /**

@@ -29,14 +29,16 @@ Status: closed
   - 订阅由 `CacheInvalidationConfig` 只在 two-level 档装配的 `RedisMessageListenerContainer` 完成，`TwoLevelCaches` 按 key 前缀把消息分发给同名的本地缓存。本实例发出的广播也会收到，重复清除无害。
 - **布隆过滤器**（`BloomFilter`，key 为 `bf:<name>`）：
   - 用 Lua 调 `BF.RESERVE`、`BF.MADD`、`BF.EXISTS`，误判率 0.001，预计容量 100 万，超出后 Redis 自动扩容。
-  - 过滤器不存在时：`add` 什么也不做，查询一律放行，直到下次启动时重建。`add` 不自动建出只含新 ID 的过滤器，否则重启时会误以为已存在而跳过重建。
-  - `rebuildIfAbsent` 先 `BF.RESERVE`，已存在就跳过，多个实例同时启动时只有一个会导入。导入期间过滤器已存在但不完整，其他实例会把尚未导入的文章判定为不存在并返回 404。只在 Redis 数据丢失后的启动期间出现。
+  - 全量导入完成后才写入标记 `bf:<name>:ready`。过滤器或标记任一不存在时查询一律放行，不拦截。
+  - `rebuildIfAbsent` 在过滤器和标记都存在时跳过，否则分批导入全部 ID，最后写标记。导入期间不会误判；导入中断时标记不存在，下次启动会重新导入。多个实例同时启动时各自导入一遍，重复加入无害。
+  - `add` 在过滤器不存在时先删除标记，再按同样的参数新建过滤器。导入期间创建的文章不会漏掉；运行期间过滤器丢失时退回放行，直到下次启动重建。
+  - 已知局限：Redis 从较早的快照恢复时，过滤器和标记都在，但缺少快照之后创建的文章，它们会返回 404，需要手动删除标记后重启。
   - 各档都维护过滤器（创建时加入、启动时重建），只在 two-level 档读取。只在这一档维护的话，从别的档切过来时过滤器里会缺少期间创建的文章。
 - **接入**：
   - `ArticleCacheConfig` 注册 `articleBloomFilter`（`bf:article`），文章详情缓存改用 `createTwoLevel`。
   - `ArticleServiceImpl.create` 在写库的事务里加入 ID，事务回滚只会留下一个误判。
   - `ArticleBloomFilterLoader`（`SmartInitializingSingleton`）启动时按 `ArticleService.listIdsAfter` 每批 1000 个 ID 重建，包括草稿，不包括已删除的文章。
 - **测试**：
-  - `TwoLevelCacheTest`（`@TwoLevelCacheMode`）：用同名的两个 `TwoLevelCache` 代表两个实例，它们只经 Pub/Sub 互相通知。另外覆盖并发加载只执行一次、布隆过滤器拦截、过滤器被删除后再次 `rebuildIfAbsent` 会重建。各用例的缓存名和过滤器名都用 UUID 保证唯一。
+  - `TwoLevelCacheTest`（`@TwoLevelCacheMode`）：另建一个 `TwoLevelCaches` 和它自己的订阅容器代表另一个实例，两边的本地缓存只经 Pub/Sub 互相通知。另外覆盖：并发加载只执行一次；布隆过滤器拦截；过滤器被删除后，再次 `rebuildIfAbsent` 会重建；导入中断后，重启会重新导入。各用例的缓存名和过滤器名都用 UUID 保证唯一。
   - `@TwoLevelCacheMode` 的矩阵子类与 redis 档相同：`ArticleTwoLevelCacheApiTest`、`ArticleListTwoLevelCacheApiTest`、`CommentTwoLevelCacheApiTest`、`LikeAndFavoriteTwoLevelCacheApiTest`、`FollowTwoLevelCacheApiTest`、`FeedTwoLevelCacheApiTest`、`NotificationTwoLevelCacheApiTest`、`SearchTwoLevelCacheApiTest`。文章创建后能读到详情，依赖创建时加入了过滤器。
   - 所有档共用一个 Redis，`bf:article` 由最先启动的上下文重建，之后各档创建的文章都会加入。two-level 档的上下文会收到其他 two-level 上下文的失效广播，只会多清一次本地缓存。

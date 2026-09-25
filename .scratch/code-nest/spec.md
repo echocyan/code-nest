@@ -388,7 +388,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 这一步本身幂等，不加 `@IdempotentConsumer`。
     - 不用 Canal。
 - **索引**：真实索引名 `article_v{n}`，业务代码只通过别名 `article` 访问。写入用 ik_max_word，查询用 ik_smart。
-    - 字段：id、title、summary、content（Markdown 原文）、tags/categoryId/authorId（keyword）、publishedAt。
+    - 字段：id、title、summary、content（Markdown 原文）、tags（标签名）/tagIds/categoryId/authorId（keyword）、publishedAt。
     - 作者昵称和计数不进 ES。
 - **查询**：
     - `multi_match` 匹配 title^3、summary^1.5、content^1；关键词与标签名完全一致时额外加分。

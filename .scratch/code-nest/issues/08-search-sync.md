@@ -28,7 +28,7 @@ Blocked by: 03, 05
      |---|---|
      | `id` | long |
      | `title`、`summary`、`content` | text；content 直接存 Markdown 原文，不做清洗 |
-     | `tags`、`categoryId`、`authorId` | keyword |
+     | `tags`（标签名，小写归一化）、`tagIds`、`categoryId`、`authorId` | keyword |
      | `publishedAt` | date |
 
    - **不放进 ES 的数据**：

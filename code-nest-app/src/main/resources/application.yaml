@@ -55,6 +55,11 @@ search:
   # es：IK 分词、相关度排序、标签加权与高亮；文章经 MQ 同步到 ES，启动时别名不存在就建索引并全量导入
   mode: mysql-like
 
+cache:
+  # none：直接查数据库（基线）
+  # redis：文章详情、用户与文章的批量摘要经 Redis 缓存，写库提交后删除缓存，文章编辑、删除后经 MQ 再删一次
+  mode: none
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

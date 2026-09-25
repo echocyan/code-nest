@@ -48,7 +48,13 @@ public interface ArticleService extends IService<Article> {
     void delete(long id, long userId);
 
     /**
+     * 删除该文章的详情缓存和摘要缓存；有活跃事务时推迟到提交后执行。
+     */
+    void evictCache(long id);
+
+    /**
      * 文章详情。草稿只有作者本人能看到，对其他人表现为不存在；已发布的文章每次查看浏览量 +1。
+     * 元数据、正文、分类与标签经缓存读取，作者信息与计数每次另行组装。
      *
      * @param viewerId 当前访客，匿名时为 null
      * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND}

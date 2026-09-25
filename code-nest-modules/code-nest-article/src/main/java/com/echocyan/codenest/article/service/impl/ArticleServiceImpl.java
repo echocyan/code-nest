@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapp
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
+import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
 import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
@@ -38,6 +39,7 @@ import com.echocyan.codenest.counter.api.CounterSource;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.counter.api.IdCount;
+import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
@@ -70,6 +72,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final DomainEventPublisher eventPublisher;
+    private final TwoLevelCache<CachedArticleDetail> detailCache;
+    private final TwoLevelCache<ArticleBrief> briefCache;
 
     @Override
     @Transactional
@@ -100,6 +104,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         articleContentService.updateById(contentOf(id, request));
         articleTagService.replaceTags(id, tagIds);
+        evictCache(id);
         eventPublisher.publish(new ArticleUpdatedEvent(id, userId));
         return article;
     }
@@ -115,6 +120,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setPublishedAt(DateTimes.now());
         updateOrConflict(article);
         counterApi.increment(CounterMetric.USER_ARTICLE, userId, 1);
+        evictCache(id);
         eventPublisher.publish(new ArticlePublishedEvent(id, userId));
         return article;
     }
@@ -137,25 +143,34 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
         }
+        evictCache(id);
         eventPublisher.publish(new ArticleDeletedEvent(id, userId));
     }
 
     @Override
+    public void evictCache(long id) {
+        detailCache.evict(id);
+        briefCache.evict(id);
+    }
+
+    @Override
     public ArticleDetailVO getDetail(long id, Long viewerId) {
-        Article article = getById(id);
-        if (article == null
-                || article.getStatus() == ArticleStatus.DRAFT && !Objects.equals(article.getAuthorId(), viewerId)) {
+        CachedArticleDetail detail = detailCache.get(id, this::loadDetail);
+        if (detail == null) {
+            throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
+        }
+        Article article = detail.article();
+        if (article.getStatus() == ArticleStatus.DRAFT && !Objects.equals(article.getAuthorId(), viewerId)) {
             throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
         if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.ARTICLE_VIEW, id, 1);
         }
-        List<Tag> tags = tagService.listInOrder(articleTagService.listTagIds(id));
         return articleConverter.toDetailVO(
                 article,
-                articleContentService.getById(id).getContent(),
-                categoryConverter.toVO(categoryService.getById(article.getCategoryId())),
-                tagConverter.toVOs(tags),
+                detail.content(),
+                detail.category(),
+                detail.tags(),
                 userApi.getBriefs(List.of(article.getAuthorId())).get(article.getAuthorId()),
                 countsOf(id));
     }
@@ -284,6 +299,24 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                         authors.get(article.getAuthorId()),
                         countsVO(counts.get(article.getId()))))
                 .toList();
+    }
+
+    /**
+     * 从数据库加载详情中可缓存的部分。
+     *
+     * @return 文章不存在或已删除时为 null
+     */
+    private CachedArticleDetail loadDetail(long id) {
+        Article article = getById(id);
+        if (article == null) {
+            return null;
+        }
+        List<Tag> tags = tagService.listInOrder(articleTagService.listTagIds(id));
+        return new CachedArticleDetail(
+                article,
+                articleContentService.getById(id).getContent(),
+                categoryConverter.toVO(categoryService.getById(article.getCategoryId())),
+                tagConverter.toVOs(tags));
     }
 
     /**

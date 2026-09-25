@@ -1,5 +1,6 @@
 package com.echocyan.codenest.user.service.impl;
 
+import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.convert.UserConverter;
@@ -18,15 +19,13 @@ class UserApiImpl implements UserApi {
 
     private final UserService userService;
     private final UserConverter userConverter;
+    private final TwoLevelCache<UserBrief> briefCache;
 
     @Override
     public Map<Long, UserBrief> getBriefs(Collection<Long> userIds) {
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-        return userService.listByIds(userIds).stream()
+        return briefCache.getAll(userIds, ids -> userService.listByIds(ids).stream()
                 .map(userConverter::toBrief)
-                .collect(Collectors.toMap(UserBrief::id, Function.identity()));
+                .collect(Collectors.toMap(UserBrief::id, Function.identity())));
     }
 
     @Override

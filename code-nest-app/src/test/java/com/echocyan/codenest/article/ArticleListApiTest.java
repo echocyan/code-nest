@@ -6,12 +6,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
- * 各测试类共用一个数据库，每个测试用一个其他测试不用的标签隔离数据。
+ * 各测试类共用一个数据库，每个测试用一个其他测试不用的标签隔离数据。本类在每个缓存档下各跑一遍，
+ * 同一标签下可能已有另一档写入的文章，所以按发布时间倒序只断言开头的几篇，总数以测试前为基准。
  */
 class ArticleListApiTest extends ArticleTestSupport {
 
     @Test
     void latestArticlesAreFilteredByCategoryAndTagNewestFirst() {
+        long before = totalOf("/articles?categoryId=5&tagId=28");
         RestTestClient author = withToken(register(uniqueUsername()));
         String older = publish(author, createDraft(author, draftIn(5, 28)));
         createDraft(author, draftIn(5, 28));
@@ -23,16 +25,17 @@ class ArticleListApiTest extends ArticleTestSupport {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].id").isEqualTo(List.of(newer, older))
-                .jsonPath("$.data.total").isEqualTo(2);
+                .jsonPath("$.data.list[0:2].id").isEqualTo(List.of(newer, older))
+                .jsonPath("$.data.total").isEqualTo(before + 2);
         client.get().uri(API + "/articles?tagId=28")
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].id").isEqualTo(List.of(otherCategory, newer, older));
+                .jsonPath("$.data.list[0:3].id").isEqualTo(List.of(otherCategory, newer, older));
     }
 
     @Test
     void latestArticlesArePagedByPageNumber() {
+        long total = totalOf("/articles?tagId=27") + 3;
         RestTestClient author = withToken(register(uniqueUsername()));
         String first = publish(author, createDraft(author, draftIn(1, 27)));
         String second = publish(author, createDraft(author, draftIn(1, 27)));
@@ -42,18 +45,27 @@ class ArticleListApiTest extends ArticleTestSupport {
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.list[*].id").isEqualTo(List.of(third, second))
-                .jsonPath("$.data.total").isEqualTo(3)
+                .jsonPath("$.data.total").isEqualTo(total)
                 .jsonPath("$.data.page").isEqualTo(1)
                 .jsonPath("$.data.size").isEqualTo(2);
         client.get().uri(API + "/articles?tagId=27&page=2&size=2")
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].id").isEqualTo(List.of(first));
-        client.get().uri(API + "/articles?tagId=27&page=3&size=2")
+                .jsonPath("$.data.list[0].id").isEqualTo(first);
+        long pastLastPage = (total + 1) / 2 + 1;
+        client.get().uri(API + "/articles?tagId=27&page={page}&size=2", pastLastPage)
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.list").isEmpty()
-                .jsonPath("$.data.total").isEqualTo(3);
+                .jsonPath("$.data.total").isEqualTo(total);
+    }
+
+    private long totalOf(String uri) {
+        AtomicReference<Long> total = new AtomicReference<>();
+        client.get().uri(API + uri)
+                .exchange()
+                .expectBody().jsonPath("$.data.total").value(Long.class, total::set);
+        return total.get();
     }
 
     @Test

@@ -9,7 +9,7 @@ import java.util.Map;
 public interface UserApi {
 
     /**
-     * 批量查询用户简要信息。
+     * 批量查询用户简要信息。经缓存读取，用户修改资料后失效。
      *
      * @return 以用户 ID 为 key；不存在的用户不出现在结果中
      */

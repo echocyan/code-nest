@@ -36,7 +36,10 @@ counter:
 
 feed:
   # pull：读取时查出关注列表，对这些作者做一次 IN 查询（基线）
+  # push-pull：普通作者发文推送到粉丝的收件箱，大 V 的文章读取时从其发件箱拉取
   mode: pull
+  # 粉丝数不低于它的作者是大 V，发文不推送
+  big-author-threshold: 5000
 
 search:
   # mysql-like：LIKE '%kw%' 匹配标题、摘要、正文，按发布时间倒序（基线）

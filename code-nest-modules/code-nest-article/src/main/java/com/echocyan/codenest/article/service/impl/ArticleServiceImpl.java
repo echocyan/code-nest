@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
+import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.convert.TagConverter;
@@ -33,6 +35,7 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.util.Collection;
@@ -60,6 +63,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final TagConverter tagConverter;
     private final UserApi userApi;
     private final CounterApi counterApi;
+    private final DomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -104,6 +108,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setPublishedAt(DateTimes.now());
         updateOrConflict(article);
         counterApi.increment(CounterMetric.USER_ARTICLE, userId, 1);
+        eventPublisher.publish(new ArticlePublishedEvent(id, userId));
         return article;
     }
 
@@ -122,6 +127,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
         }
+        eventPublisher.publish(new ArticleDeletedEvent(id, userId));
     }
 
     @Override

@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 关注与取关。两者都幂等，只有真的插入或删除了一行才更新被关注者的粉丝数和关注者的关注数；关注成功时还会发出 {@code follow.created}。
+ * 关注与取关。两者都幂等，只有真的插入或删除了一行才更新被关注者的粉丝数和关注者的关注数；关注、取关成功时还会分别发出
+ * {@code follow.created}、{@code follow.deleted}。
  */
 public interface FollowService extends IService<Follow> {
 
@@ -45,6 +46,13 @@ public interface FollowService extends IService<Follow> {
      * followerId 关注的全部用户，只读 (follower_id, author_id) 唯一索引。
      */
     List<Long> listAllFollowedAuthorIds(long followerId);
+
+    /**
+     * 按粉丝 ID 升序分页取出某个作者的粉丝，走 (author_id, follower_id) 索引，供 Feed 推送使用。
+     *
+     * @param afterFollowerId 只返回 ID 大于它的粉丝；为 null 时从头开始
+     */
+    List<Long> listFollowerIds(long authorId, Long afterFollowerId, int limit);
 
     /**
      * 给定用户中 followerId 关注了的那些，走 (follower_id, author_id) 唯一索引。

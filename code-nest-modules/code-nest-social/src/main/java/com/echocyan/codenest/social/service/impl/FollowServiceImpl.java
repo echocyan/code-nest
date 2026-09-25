@@ -7,6 +7,7 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
+import com.echocyan.codenest.social.api.event.FollowDeletedEvent;
 import com.echocyan.codenest.social.SocialErrorCode;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.mapper.FollowMapper;
@@ -60,6 +61,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 .remove();
         if (removed) {
             countFollow(followerId, authorId, -1);
+            eventPublisher.publish(new FollowDeletedEvent(followerId, authorId));
         }
     }
 
@@ -90,6 +92,19 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 .eq(Follow::getFollowerId, followerId)
                 .list().stream()
                 .map(Follow::getAuthorId)
+                .toList();
+    }
+
+    @Override
+    public List<Long> listFollowerIds(long authorId, Long afterFollowerId, int limit) {
+        return lambdaQuery()
+                .select(Follow::getFollowerId)
+                .eq(Follow::getAuthorId, authorId)
+                .gt(afterFollowerId != null, Follow::getFollowerId, afterFollowerId)
+                .orderByAsc(Follow::getFollowerId)
+                .last("LIMIT " + limit)
+                .list().stream()
+                .map(Follow::getFollowerId)
                 .toList();
     }
 

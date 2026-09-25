@@ -33,14 +33,14 @@ public interface ArticleService extends IService<Article> {
     Article update(long id, long userId, int version, ArticleRequest request);
 
     /**
-     * 发布草稿，作者文章数 +1。已发布的文章重复发布不产生变化。
+     * 发布草稿，作者文章数 +1，并发出 {@code article.published}。已发布的文章重复发布不产生变化。
      *
      * @throws BizException 文章不存在、不是作者本人、版本冲突
      */
     Article publish(long id, long userId);
 
     /**
-     * 软删除文章；删除的是已发布文章时，作者文章数 -1。
+     * 软删除文章并发出 {@code article.deleted}；删除的是已发布文章时，作者文章数 -1。
      *
      * @throws BizException 文章不存在、不是作者本人、并发修改导致版本冲突
      */

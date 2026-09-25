@@ -22,7 +22,7 @@ public class SlidingWindowRateLimiter {
     /**
      * KEYS：各额度的 ZSet；ARGV：请求 ID，再依次为各额度的限额和窗口毫秒数。
      * 先清掉所有额度窗口外的记录并计数，全部有余量才给每个额度记下本次请求；
-     * 否则什么都不记，返回最晚腾出名额的那个额度还要等待的毫秒数。
+     * 否则什么都不记，返回最晚腾出名额的那个额度还要等待的毫秒数：通常就是等窗口中最早一条记录滑出。
      */
     private static final RedisScript<Long> ACQUIRE = RedisScript.of("""
             local time = redis.call('TIME')
@@ -32,9 +32,11 @@ public class SlidingWindowRateLimiter {
                 local limit = tonumber(ARGV[i * 2])
                 local window = tonumber(ARGV[i * 2 + 1])
                 redis.call('ZREMRANGEBYSCORE', key, '-inf', now - window)
-                if redis.call('ZCARD', key) >= limit then
-                    local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
-                    wait = math.max(wait, tonumber(oldest[2]) + window - now)
+                local count = redis.call('ZCARD', key)
+                if count >= limit then
+                    -- 调低限额后窗口内可能多于 limit 条，要等到只剩 limit - 1 条才有名额
+                    local freeing = redis.call('ZRANGE', key, count - limit, count - limit, 'WITHSCORES')
+                    wait = math.max(wait, tonumber(freeing[2]) + window - now)
                 end
             end
             if wait > 0 then

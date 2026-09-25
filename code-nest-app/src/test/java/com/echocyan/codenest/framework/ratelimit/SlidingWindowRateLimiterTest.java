@@ -65,6 +65,19 @@ class SlidingWindowRateLimiterTest extends IntegrationTest {
         assertThat(limiter.tryAcquire(both)).isGreaterThan(WINDOW.toMillis());
     }
 
+    @Test
+    void afterLimitIsLoweredWaitsUntilEnoughRecordsLeave() throws InterruptedException {
+        String key = uniqueKey();
+        assertThat(limiter.tryAcquire(List.of(new Quota(key, 2, WINDOW)))).isZero();
+        Thread.sleep(WINDOW.toMillis() / 2);
+        assertThat(limiter.tryAcquire(List.of(new Quota(key, 2, WINDOW)))).isZero();
+
+        // 限额调成 1：第一条滑出后仍有一条在窗口内，要等第二条也滑出
+        long wait = limiter.tryAcquire(List.of(new Quota(key, 1, WINDOW)));
+
+        assertThat(wait).isGreaterThan(WINDOW.toMillis() / 2).isLessThanOrEqualTo(WINDOW.toMillis());
+    }
+
     private static String uniqueKey() {
         return "test:" + UUID.randomUUID();
     }

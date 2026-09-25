@@ -33,6 +33,16 @@ class SearchEsApiTest extends SearchApiTest {
     private ElasticsearchClient elasticsearchClient;
 
     @Test
+    void chineseKeywordsAreSegmented() {
+        String keyword = uniqueKeyword();
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String id = publish(author, createDraft(author, withTitle(keyword + " 分布式事务的实现方案")));
+
+        // 标题里没有连续的"事务方案"，按 LIKE 搜不到，分词后"事务""方案"都能命中
+        eventually(() -> expectHits(keyword + " 事务方案", id));
+    }
+
+    @Test
     void titleMatchRanksAboveNewerContentMatch() {
         String keyword = uniqueKeyword();
         RestTestClient author = withToken(register(uniqueUsername()));
@@ -76,6 +86,9 @@ class SearchEsApiTest extends SearchApiTest {
                         .hasSizeBetween(80, 130)));
     }
 
+    /**
+     * 两个消费者先后读到新旧两个版本、旧版本后写入的竞态从 HTTP 上构造不出来，这里直接用旧版本写入索引，再读 ES 里的文档。
+     */
     @Test
     void staleWritesDoNotOverwriteNewerVersion() throws IOException {
         String before = uniqueKeyword();

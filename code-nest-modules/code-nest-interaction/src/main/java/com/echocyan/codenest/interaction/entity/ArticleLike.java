@@ -18,4 +18,7 @@ public class ArticleLike extends AuditableEntity {
     private Long userId;
 
     private Long articleId;
+
+    /** 被点赞文章的作者，用于按作者统计获赞数。 */
+    private Long authorId;
 }

@@ -58,14 +58,15 @@ article         id, author_id, category_id, title, summary, cover_url, status, p
 article_content article_id PK, content MEDIUMTEXT
 article_tag     PK(article_id, tag_id), IDX(tag_id, article_id)
 comment         id, article_id, user_id, root_id, reply_to_user_id, content VARCHAR(1000), deleted
-                IDX(article_id, root_id, id)
+                IDX(article_id, root_id, id), IDX(root_id)
 -- counter
 article_stat    article_id PK, like_count, favorite_count, comment_count, view_count
 user_stat       user_id PK, follower_count, following_count, article_count, like_received_count
 comment_stat    comment_id PK, reply_count
 -- interaction
-article_like    id, user_id, article_id, UK(user_id, article_id)
-favorite        id, user_id, article_id, UK(user_id, article_id), IDX(user_id, id)
+article_like    id, user_id, article_id, author_id（被点赞文章的作者，对账按它统计获赞数）
+                UK(user_id, article_id), IDX(article_id), IDX(author_id)
+favorite        id, user_id, article_id, UK(user_id, article_id), IDX(user_id, id), IDX(article_id)
 -- social
 follow          id, follower_id, author_id, UK(follower_id, author_id), IDX(author_id, follower_id)
                 IDX(author_id, id), IDX(follower_id, id)

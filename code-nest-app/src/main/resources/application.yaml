@@ -29,6 +29,15 @@ spring:
     # 各模块独立编号（V1_、V2_……），允许低编号模块后补迁移
     out-of-order: true
 
+management:
+  # 管理端点只在管理端口上提供，不经过 Sa-Token 鉴权，不能对外暴露
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,counter-reconcile
+
 counter:
   # sync-db：在调用方事务里直接更新计数表（基线）
   # redis-async：计数经 Outbox 投递，在 Redis 里原子累加，每 5 秒批量落回计数表

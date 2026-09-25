@@ -465,7 +465,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 批量查询文章摘要（走 Redis 缓存）。
     - `listByAuthors(authorIds, cursor, limit)`。
     - 按 id 游标遍历已发布文章；查询 `updated_at` 晚于某时间点的文章。
-    - 查询最近 7 天发布的文章 ID。
+    - 查询某个时间点之后发布的文章 ID 与发布时间（热榜候选集）。
     - 查询某篇文章的完整索引数据。
     - 批量查询评论摘要。
 - **CounterApi**：`increment` / `get` / `reset`。

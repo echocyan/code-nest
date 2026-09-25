@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -213,6 +214,26 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Override
     public List<Article> listUpdatedSinceIncludingDeleted(LocalDateTime since, Long afterId, int limit) {
         return baseMapper.selectUpdatedSinceIncludingDeleted(since, afterId == null ? 0 : afterId, limit);
+    }
+
+    @Override
+    public List<Article> listPublishedSince(LocalDateTime since) {
+        return lambdaQuery()
+                .select(Article::getId, Article::getPublishedAt)
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .ge(Article::getPublishedAt, since)
+                .list();
+    }
+
+    @Override
+    public List<ArticleItemVO> listPublishedItems(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Article> articles = listByIds(ids).stream()
+                .filter(article -> article.getStatus() == ArticleStatus.PUBLISHED)
+                .collect(Collectors.toMap(Article::getId, Function.identity()));
+        return toItems(ids.stream().map(articles::get).filter(Objects::nonNull).toList());
     }
 
     @Override

@@ -60,6 +60,15 @@ cache:
   # redis：文章详情、用户与文章的批量摘要经 Redis 缓存，写库提交后删除缓存，文章编辑、删除后经 MQ 再删一次
   mode: none
 
+hot:
+  # 热度 = (like·点赞 + favorite·收藏 + comment·评论 + view·浏览) / (发布小时数 + 2)^gravity
+  weight:
+    like: 3
+    favorite: 5
+    comment: 4
+    view: 0.1
+  gravity: 1.5
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

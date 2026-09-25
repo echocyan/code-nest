@@ -81,6 +81,12 @@ class ArticleApiImpl implements ArticleApi {
         return toSnapshots(articleService.listUpdatedSinceIncludingDeleted(since, afterId, limit));
     }
 
+    @Override
+    public Map<Long, LocalDateTime> getPublishedSince(LocalDateTime since) {
+        return articleService.listPublishedSince(since).stream()
+                .collect(Collectors.toMap(Article::getId, Article::getPublishedAt));
+    }
+
     /**
      * 批量补全正文与标签，保持传入顺序。
      */

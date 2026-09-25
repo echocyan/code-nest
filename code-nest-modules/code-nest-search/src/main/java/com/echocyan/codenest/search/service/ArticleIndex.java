@@ -8,6 +8,7 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.common.util.DateTimes;
+import com.echocyan.codenest.framework.lock.RedisLock;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -17,7 +18,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 /**
@@ -62,17 +60,9 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /** 锁的过期时间，要长于一次重建的耗时；实例崩溃时锁最迟在这之后释放。 */
     private static final Duration REBUILD_LOCK_TTL = Duration.ofHours(1);
 
-    /** KEYS：锁；ARGV：加锁时写入的 token。只释放自己持有的锁。 */
-    private static final RedisScript<Long> UNLOCK = RedisScript.of("""
-            if redis.call('GET', KEYS[1]) == ARGV[1] then
-                return redis.call('DEL', KEYS[1])
-            end
-            return 0
-            """, Long.class);
-
     private final ElasticsearchClient client;
     private final ArticleApi articleApi;
-    private final StringRedisTemplate redis;
+    private final RedisLock redisLock;
 
     @Override
     public void afterSingletonsInstantiated() {
@@ -93,11 +83,17 @@ public class ArticleIndex implements SmartInitializingSingleton {
      * @return 新索引名与导入、追补的文章数；已有重建在运行时为空
      */
     public Optional<RebuildResult> rebuild() {
-        String token = UUID.randomUUID().toString();
-        if (!Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(REBUILD_LOCK_KEY, token, REBUILD_LOCK_TTL))) {
+        Optional<RebuildResult> result = redisLock.tryRun(REBUILD_LOCK_KEY, REBUILD_LOCK_TTL, this::rebuildLocked);
+        if (result.isEmpty()) {
             log.info("Search index rebuild is already running, skipped");
-            return Optional.empty();
         }
+        return result;
+    }
+
+    /**
+     * 持有重建锁时执行 {@link #rebuild()} 的各步。
+     */
+    private RebuildResult rebuildLocked() {
         try {
             // updated_at 是秒级 DATETIME，写入时四舍五入；向下取整到秒，不漏掉开始那一秒内的变更
             LocalDateTime startedAt = DateTimes.now().truncatedTo(ChronoUnit.SECONDS);
@@ -117,11 +113,9 @@ public class ArticleIndex implements SmartInitializingSingleton {
             }
             log.info("Rebuilt search index {}: imported {}, caught up {}, deleted {}", index, imported, caughtUp,
                     oldIndices);
-            return Optional.of(new RebuildResult(index, imported, caughtUp));
+            return new RebuildResult(index, imported, caughtUp);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        } finally {
-            redis.execute(UNLOCK, List.of(REBUILD_LOCK_KEY), token);
         }
     }
 

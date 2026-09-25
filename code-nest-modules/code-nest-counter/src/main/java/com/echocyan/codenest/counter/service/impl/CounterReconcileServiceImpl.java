@@ -6,16 +6,14 @@ import com.echocyan.codenest.counter.api.CounterSource;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.counter.service.CounterReconcileService;
+import com.echocyan.codenest.framework.lock.RedisLock;
 import java.time.Duration;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -40,27 +38,19 @@ class CounterReconcileServiceImpl implements CounterReconcileService {
     /** 锁的过期时间，要长于一次对账的耗时；实例崩溃时锁最迟在这之后释放。 */
     private static final Duration LOCK_TTL = Duration.ofHours(1);
 
-    /** KEYS：锁；ARGV：加锁时写入的 token。只释放自己持有的锁。 */
-    private static final RedisScript<Long> UNLOCK = RedisScript.of("""
-            if redis.call('GET', KEYS[1]) == ARGV[1] then
-                return redis.call('DEL', KEYS[1])
-            end
-            return 0
-            """, Long.class);
-
     private final CounterApi counterApi;
     private final CounterTables counterTables;
-    private final StringRedisTemplate redis;
+    private final RedisLock redisLock;
     private final Map<CounterMetric, CounterSource> sources = new EnumMap<>(CounterMetric.class);
 
     /**
      * @throws IllegalStateException 同一个指标有多个来源
      */
-    CounterReconcileServiceImpl(CounterApi counterApi, CounterTables counterTables, StringRedisTemplate redis,
+    CounterReconcileServiceImpl(CounterApi counterApi, CounterTables counterTables, RedisLock redisLock,
                                 List<CounterSource> sources) {
         this.counterApi = counterApi;
         this.counterTables = counterTables;
-        this.redis = redis;
+        this.redisLock = redisLock;
         sources.forEach(source -> source.metrics().forEach(metric -> {
             if (this.sources.putIfAbsent(metric, source) != null) {
                 throw new IllegalStateException("计数指标有多个对账来源: " + metric);
@@ -70,19 +60,16 @@ class CounterReconcileServiceImpl implements CounterReconcileService {
 
     @Override
     public Optional<Map<CounterMetric, Long>> reconcile() {
-        String token = UUID.randomUUID().toString();
-        if (!Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(LOCK_KEY, token, LOCK_TTL))) {
-            log.info("Counter reconciliation is already running on another instance, skipped");
-            return Optional.empty();
-        }
-        try {
+        Optional<Map<CounterMetric, Long>> result = redisLock.tryRun(LOCK_KEY, LOCK_TTL, () -> {
             Map<CounterMetric, Long> corrected = new EnumMap<>(CounterMetric.class);
             sources.forEach((metric, source) -> corrected.put(metric, reconcile(metric, source)));
             log.info("Counter reconciliation finished, corrected: {}", corrected);
-            return Optional.of(corrected);
-        } finally {
-            redis.execute(UNLOCK, List.of(LOCK_KEY), token);
+            return corrected;
+        });
+        if (result.isEmpty()) {
+            log.info("Counter reconciliation is already running on another instance, skipped");
         }
+        return result;
     }
 
     /**

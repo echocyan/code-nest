@@ -9,6 +9,7 @@ import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.framework.lock.RedisLock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -16,13 +17,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
-import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -49,22 +48,15 @@ class HotArticleServiceImpl implements HotArticleService {
     /** 一次批量读取计数的文章数。 */
     private static final int BATCH = 500;
 
-    /** KEYS：锁；ARGV：加锁时写入的 token。只释放自己持有的锁。 */
-    private static final RedisScript<Long> UNLOCK = RedisScript.of("""
-            if redis.call('GET', KEYS[1]) == ARGV[1] then
-                return redis.call('DEL', KEYS[1])
-            end
-            return 0
-            """, Long.class);
-
     private final ArticleApi articleApi;
     private final ArticleService articleService;
     private final CounterApi counterApi;
     private final StringRedisTemplate redis;
+    private final RedisLock redisLock;
     private final HotFormula formula;
 
     HotArticleServiceImpl(ArticleApi articleApi, ArticleService articleService, CounterApi counterApi,
-                          StringRedisTemplate redis,
+                          StringRedisTemplate redis, RedisLock redisLock,
                           @Value("${hot.weight.like}") double likeWeight,
                           @Value("${hot.weight.favorite}") double favoriteWeight,
                           @Value("${hot.weight.comment}") double commentWeight,
@@ -74,6 +66,7 @@ class HotArticleServiceImpl implements HotArticleService {
         this.articleService = articleService;
         this.counterApi = counterApi;
         this.redis = redis;
+        this.redisLock = redisLock;
         this.formula = new HotFormula(likeWeight, favoriteWeight, commentWeight, viewWeight, gravity);
     }
 
@@ -87,22 +80,8 @@ class HotArticleServiceImpl implements HotArticleService {
 
     @Override
     public void refresh() {
-        String token = UUID.randomUUID().toString();
-        if (!Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(LOCK_KEY, token, LOCK_TTL))) {
+        if (!redisLock.tryRun(LOCK_KEY, LOCK_TTL, this::recompute)) {
             log.debug("Hot list is being refreshed on another instance, skipped");
-            return;
-        }
-        try {
-            Set<TypedTuple<String>> top = top(DateTimes.now());
-            if (top.isEmpty()) {
-                redis.delete(KEY);
-                return;
-            }
-            redis.delete(TMP_KEY);
-            redis.opsForZSet().add(TMP_KEY, top);
-            redis.rename(TMP_KEY, KEY);
-        } finally {
-            redis.execute(UNLOCK, List.of(LOCK_KEY), token);
         }
     }
 
@@ -113,6 +92,20 @@ class HotArticleServiceImpl implements HotArticleService {
         Long total = redis.opsForZSet().zCard(KEY);
         List<Long> ids = members == null ? List.of() : members.stream().map(Long::valueOf).toList();
         return new PageResult<>(articleService.listPublishedItems(ids), total == null ? 0 : total, page, PAGE_SIZE);
+    }
+
+    /**
+     * 重算榜单并原子替换；没有候选时清空榜单。
+     */
+    private void recompute() {
+        Set<TypedTuple<String>> top = top(DateTimes.now());
+        if (top.isEmpty()) {
+            redis.delete(KEY);
+            return;
+        }
+        redis.delete(TMP_KEY);
+        redis.opsForZSet().add(TMP_KEY, top);
+        redis.rename(TMP_KEY, KEY);
     }
 
     /**

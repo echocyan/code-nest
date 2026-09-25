@@ -1,6 +1,7 @@
 package com.echocyan.codenest.article.api;
 
 import com.echocyan.codenest.common.result.PageResult;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,16 @@ public interface ArticleApi {
      * @param limit   最多返回的条数
      */
     List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit);
+
+    /**
+     * 一批在给定时间及之后更新过的文章的完整内容，草稿和已删除的文章也返回，按文章 ID 正序，以文章 ID 作游标。
+     * 用于重建搜索索引后追补重建期间的变更。
+     *
+     * @param since   只返回 {@code updated_at} 不早于它的文章
+     * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
+     * @param limit   最多返回的条数
+     */
+    List<ArticleSnapshot> listSnapshotsUpdatedSince(LocalDateTime since, Long afterId, int limit);
 
     /**
      * 批量查询评论或回复的摘要，不检查所属文章的状态。

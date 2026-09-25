@@ -36,7 +36,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,counter-reconcile
+        include: health,counter-reconcile,search-rebuild
 
 counter:
   # sync-db：在调用方事务里直接更新计数表（基线）

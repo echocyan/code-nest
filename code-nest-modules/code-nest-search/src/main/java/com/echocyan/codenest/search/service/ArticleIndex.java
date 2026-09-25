@@ -7,16 +7,26 @@ import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
+import com.echocyan.codenest.common.util.DateTimes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,6 +37,8 @@ import org.springframework.stereotype.Component;
  * <p>
  * 启动时如果别名不存在，就新建索引并从 article 模块全量导入。这一步在所有单例创建完、MQ 消费者启动前完成，
  * 消费者不会写入不存在的别名。
+ * <p>
+ * {@link #rebuild()} 零停机重建：导入期间读写仍走旧索引，切换别名是原子的，切换后再追补导入期间的变更。
  */
 @Slf4j
 @Component
@@ -45,13 +57,71 @@ public class ArticleIndex implements SmartInitializingSingleton {
 
     private static final int VERSION_CONFLICT = 409;
 
+    private static final String REBUILD_LOCK_KEY = "search:rebuild:lock";
+
+    /** 锁的过期时间，要长于一次重建的耗时；实例崩溃时锁最迟在这之后释放。 */
+    private static final Duration REBUILD_LOCK_TTL = Duration.ofHours(1);
+
+    /** KEYS：锁；ARGV：加锁时写入的 token。只释放自己持有的锁。 */
+    private static final RedisScript<Long> UNLOCK = RedisScript.of("""
+            if redis.call('GET', KEYS[1]) == ARGV[1] then
+                return redis.call('DEL', KEYS[1])
+            end
+            return 0
+            """, Long.class);
+
     private final ElasticsearchClient client;
     private final ArticleApi articleApi;
+    private final StringRedisTemplate redis;
 
     @Override
     public void afterSingletonsInstantiated() {
-        if (createIfAbsent()) {
-            importAll();
+        createIfAbsent().ifPresent(this::importAll);
+    }
+
+    /**
+     * 重建索引：
+     * <ol>
+     *     <li>新建下一版本的索引，按文章 ID 游标分批全量导入，刷新后使其可搜；</li>
+     *     <li>在一个请求里把别名从旧索引移到新索引；</li>
+     *     <li>把 {@code updated_at} 不早于重建开始时间的文章按最新状态写入新索引。导入期间的变更由消费者写进了旧索引，
+     *     新索引里可能是旧版本；外部版本号保证重复写入无害；</li>
+     *     <li>删除旧索引。</li>
+     * </ol>
+     * 多实例之间用 Redis 锁互斥，同一时刻只有一个重建在运行。
+     *
+     * @return 新索引名与导入、追补的文章数；已有重建在运行时为空
+     */
+    public Optional<RebuildResult> rebuild() {
+        String token = UUID.randomUUID().toString();
+        if (!Boolean.TRUE.equals(redis.opsForValue().setIfAbsent(REBUILD_LOCK_KEY, token, REBUILD_LOCK_TTL))) {
+            log.info("Search index rebuild is already running, skipped");
+            return Optional.empty();
+        }
+        try {
+            // updated_at 是秒级 DATETIME，写入时四舍五入；向下取整到秒，不漏掉开始那一秒内的变更
+            LocalDateTime startedAt = DateTimes.now().truncatedTo(ChronoUnit.SECONDS);
+            Set<String> oldIndices = client.indices().getAlias(get -> get.name(ALIAS)).aliases().keySet();
+            String index = INDEX_PREFIX + nextVersion();
+            create(index, false);
+            long imported = importAll(index);
+            client.indices().refresh(refresh -> refresh.index(index));
+            client.indices().updateAliases(update -> {
+                oldIndices.forEach(old -> update.actions(action -> action
+                        .remove(remove -> remove.index(old).alias(ALIAS))));
+                return update.actions(action -> action.add(add -> add.index(index).alias(ALIAS)));
+            });
+            long caughtUp = catchUp(startedAt);
+            if (!oldIndices.isEmpty()) {
+                client.indices().delete(delete -> delete.index(List.copyOf(oldIndices)));
+            }
+            log.info("Rebuilt search index {}: imported {}, caught up {}, deleted {}", index, imported, caughtUp,
+                    oldIndices);
+            return Optional.of(new RebuildResult(index, imported, caughtUp));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } finally {
+            redis.execute(UNLOCK, List.of(REBUILD_LOCK_KEY), token);
         }
     }
 
@@ -59,13 +129,15 @@ public class ArticleIndex implements SmartInitializingSingleton {
      * 按文章的最新状态同步：已发布就写入，已删除或是草稿就删除。
      */
     public void sync(long articleId) {
-        articleApi.findSnapshot(articleId).ifPresent(snapshot -> {
-            if (snapshot.searchable()) {
-                save(snapshot);
-            } else {
-                remove(snapshot.id(), snapshot.version());
-            }
-        });
+        articleApi.findSnapshot(articleId).ifPresent(this::sync);
+    }
+
+    private void sync(ArticleSnapshot snapshot) {
+        if (snapshot.searchable()) {
+            save(snapshot);
+        } else {
+            remove(snapshot.id(), snapshot.version());
+        }
     }
 
     /**
@@ -95,22 +167,34 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /**
      * 别名不存在时新建下一版本的索引并挂上别名。
      *
-     * @return 是否新建了索引
+     * @return 新建的索引名；别名已存在时为空
      */
-    private boolean createIfAbsent() {
+    private Optional<String> createIfAbsent() {
         try {
             if (client.indices().existsAlias(exists -> exists.name(ALIAS)).value()) {
-                return false;
+                return Optional.empty();
             }
             String index = INDEX_PREFIX + nextVersion();
-            try (InputStream mapping = new ClassPathResource(MAPPING).getInputStream()) {
-                client.indices().create(create -> create.withJson(mapping).index(index).aliases(ALIAS, alias -> alias));
-            }
-            log.info("Created search index {} with alias {}", index, ALIAS);
-            return true;
+            create(index, true);
+            return Optional.of(index);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * 按 mapping 新建索引。
+     *
+     * @param withAlias 是否同时挂上别名
+     */
+    private void create(String index, boolean withAlias) throws IOException {
+        try (InputStream mapping = new ClassPathResource(MAPPING).getInputStream()) {
+            client.indices().create(create -> {
+                create.withJson(mapping).index(index);
+                return withAlias ? create.aliases(ALIAS, alias -> alias) : create;
+            });
+        }
+        log.info("Created search index {}{}", index, withAlias ? " with alias " + ALIAS : "");
     }
 
     /**
@@ -124,34 +208,58 @@ public class ArticleIndex implements SmartInitializingSingleton {
     }
 
     /**
-     * 按文章 ID 游标分批读取全部已发布文章，用 bulk 写入。
+     * 按文章 ID 游标分批读取全部已发布文章，用 bulk 写入给定的索引。
+     *
+     * @return 导入的文章数
      */
-    private void importAll() {
+    private long importAll(String index) {
+        long total = forEachBatch(articleApi::listPublishedSnapshots, batch -> saveAll(index, batch));
+        log.info("Imported {} published articles into search index {}", total, index);
+        return total;
+    }
+
+    /**
+     * 把 {@code updated_at} 不早于 since 的文章按最新状态逐篇写入或删除，经别名写入。
+     *
+     * @return 处理的文章数
+     */
+    private long catchUp(LocalDateTime since) {
+        return forEachBatch((afterId, limit) -> articleApi.listSnapshotsUpdatedSince(since, afterId, limit),
+                batch -> batch.forEach(this::sync));
+    }
+
+    /**
+     * 以文章 ID 作游标，每批 {@value #IMPORT_BATCH_SIZE} 篇，读完为止。
+     *
+     * @param reader 按 (afterId, limit) 读取一批，afterId 为 null 表示从头开始
+     * @return 读到的文章总数
+     */
+    private long forEachBatch(BiFunction<Long, Integer, List<ArticleSnapshot>> reader,
+                              Consumer<List<ArticleSnapshot>> handler) {
         long total = 0;
         Long cursor = null;
         List<ArticleSnapshot> batch;
         do {
-            batch = articleApi.listPublishedSnapshots(cursor, IMPORT_BATCH_SIZE);
+            batch = reader.apply(cursor, IMPORT_BATCH_SIZE);
             if (!batch.isEmpty()) {
-                saveAll(batch);
+                handler.accept(batch);
                 total += batch.size();
                 cursor = batch.getLast().id();
             }
         } while (batch.size() == IMPORT_BATCH_SIZE);
-        log.info("Imported {} published articles into search index", total);
+        return total;
     }
 
     /**
      * 批量写入；个别文章版本冲突时忽略，其他失败直接抛出。
      */
-    private void saveAll(List<ArticleSnapshot> snapshots) {
+    private void saveAll(String indexName, List<ArticleSnapshot> snapshots) {
         BulkResponse response;
         try {
             response = client.bulk(bulk -> {
                 for (ArticleSnapshot snapshot : snapshots) {
                     bulk.operations(operation -> operation.index(index -> index
-                            .index(ALIAS)
-                            .requireAlias(true)
+                            .index(indexName)
                             .id(String.valueOf(snapshot.id()))
                             .version((long) snapshot.version())
                             .versionType(VersionType.External)
@@ -183,6 +291,16 @@ public class ArticleIndex implements SmartInitializingSingleton {
 
     private interface EsCall {
         void run() throws IOException;
+    }
+
+    /**
+     * 一次重建的结果。
+     *
+     * @param index     新索引名
+     * @param imported  全量导入的已发布文章数
+     * @param caughtUp  重建期间有变更、导入后又按最新状态写入或删除的文章数
+     */
+    public record RebuildResult(String index, long imported, long caughtUp) {
     }
 
     /**

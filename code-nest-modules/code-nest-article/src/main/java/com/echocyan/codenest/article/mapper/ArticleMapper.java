@@ -3,6 +3,7 @@ package com.echocyan.codenest.article.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.counter.api.IdCount;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -25,4 +26,14 @@ public interface ArticleMapper extends BaseMapper<Article> {
      */
     @Select("SELECT * FROM article WHERE id = #{id}")
     Article selectByIdIncludingDeleted(long id);
+
+    /**
+     * {@code updated_at} 不早于 since、ID 大于 afterId 的文章，已删除的也返回，按 ID 正序。
+     */
+    @Select("""
+            SELECT * FROM article
+            WHERE updated_at >= #{since} AND id > #{afterId}
+            ORDER BY id LIMIT #{limit}
+            """)
+    List<Article> selectUpdatedSinceIncludingDeleted(LocalDateTime since, long afterId, int limit);
 }

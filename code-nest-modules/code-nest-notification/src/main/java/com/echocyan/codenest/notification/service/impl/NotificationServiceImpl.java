@@ -15,24 +15,62 @@ import com.echocyan.codenest.notification.service.NotificationService;
 import com.echocyan.codenest.notification.vo.NotificationVO;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Notification>
         implements NotificationService {
 
-    /** 文章、评论或回复已被删除时显示的内容。 */
+    /**
+     * 文章、评论或回复已被删除时显示的内容。
+     */
     private static final String DELETED_CONTENT = "该内容已删除";
 
     private final UserApi userApi;
     private final ArticleApi articleApi;
+
+    /**
+     * 文章已删除时，它下面的评论也按已删除展示。
+     */
+    private static NotificationVO toVO(Notification notification, Map<Long, UserBrief> actors,
+                                       Map<Long, ArticleBrief> articles, Map<Long, CommentBrief> comments) {
+        ArticleBrief article = null;
+        String articleTitle = null;
+        if (notification.getArticleId() != null) {
+            article = articles.get(notification.getArticleId());
+            articleTitle = article == null ? DELETED_CONTENT : article.title();
+        }
+        String commentSummary = null;
+        if (notification.getCommentId() != null) {
+            CommentBrief comment = comments.get(notification.getCommentId());
+            commentSummary = article == null || comment == null ? DELETED_CONTENT : comment.summary();
+        }
+        return new NotificationVO(
+                notification.getId(),
+                notification.getType(),
+                actors.get(notification.getActorId()),
+                notification.getArticleId(),
+                articleTitle,
+                notification.getCommentId(),
+                commentSummary,
+                notification.getIsRead(),
+                notification.getCreatedAt());
+    }
+
+    /**
+     * 本页通知里某一列非空的 ID，去重。
+     */
+    private static List<Long> ids(List<Notification> page, Function<Notification, Long> column) {
+        return page.stream().map(column).filter(Objects::nonNull).distinct().toList();
+    }
 
     @Override
     public void send(Notification notification) {
@@ -95,40 +133,5 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
                 .eq(Notification::getRecipientId, recipientId)
                 .eq(Notification::getIsRead, false)
                 .update(new Notification());
-    }
-
-    /**
-     * 文章已删除时，它下面的评论也按已删除展示。
-     */
-    private static NotificationVO toVO(Notification notification, Map<Long, UserBrief> actors,
-                                       Map<Long, ArticleBrief> articles, Map<Long, CommentBrief> comments) {
-        ArticleBrief article = null;
-        String articleTitle = null;
-        if (notification.getArticleId() != null) {
-            article = articles.get(notification.getArticleId());
-            articleTitle = article == null ? DELETED_CONTENT : article.title();
-        }
-        String commentSummary = null;
-        if (notification.getCommentId() != null) {
-            CommentBrief comment = comments.get(notification.getCommentId());
-            commentSummary = article == null || comment == null ? DELETED_CONTENT : comment.summary();
-        }
-        return new NotificationVO(
-                notification.getId(),
-                notification.getType(),
-                actors.get(notification.getActorId()),
-                notification.getArticleId(),
-                articleTitle,
-                notification.getCommentId(),
-                commentSummary,
-                notification.getIsRead(),
-                notification.getCreatedAt());
-    }
-
-    /**
-     * 本页通知里某一列非空的 ID，去重。
-     */
-    private static List<Long> ids(List<Notification> page, Function<Notification, Long> column) {
-        return page.stream().map(column).filter(Objects::nonNull).distinct().toList();
     }
 }

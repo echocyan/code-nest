@@ -1,16 +1,17 @@
 package com.echocyan.codenest.framework.cache;
 
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 按 {@code cache.mode} 创建 {@link TwoLevelCache}。每个缓存在所属模块里注册为一个 Bean：
@@ -27,14 +28,18 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class TwoLevelCaches implements MessageListener {
 
-    /** 本地缓存失效广播的频道，消息内容是被删除的 Redis key。 */
+    /**
+     * 本地缓存失效广播的频道，消息内容是被删除的 Redis key。
+     */
     static final String INVALIDATE_CHANNEL = "cache:invalidate";
 
     private final CacheMode mode;
     private final StringRedisTemplate redis;
     private final JsonMapper jsonMapper;
 
-    /** 带本地缓存的实例，以 Redis key 前缀为 key。 */
+    /**
+     * 带本地缓存的实例，以 Redis key 前缀为 key。
+     */
     private final Map<String, List<TwoLevelCache<?>>> localCaches = new ConcurrentHashMap<>();
 
     public TwoLevelCaches(@Value("${cache.mode}") CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper) {

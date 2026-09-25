@@ -18,11 +18,7 @@ import com.echocyan.codenest.article.entity.ArticleContent;
 import com.echocyan.codenest.article.entity.Category;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.ArticleMapper;
-import com.echocyan.codenest.article.service.ArticleContentService;
-import com.echocyan.codenest.article.service.ArticleService;
-import com.echocyan.codenest.article.service.ArticleTagService;
-import com.echocyan.codenest.article.service.CategoryService;
-import com.echocyan.codenest.article.service.TagService;
+import com.echocyan.codenest.article.service.*;
 import com.echocyan.codenest.article.vo.ArticleCountsVO;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
 import com.echocyan.codenest.article.vo.ArticleItemVO;
@@ -31,37 +27,31 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.PageResult;
-import com.echocyan.codenest.common.util.Texts;
 import com.echocyan.codenest.common.util.DateTimes;
-import com.echocyan.codenest.counter.api.CounterApi;
-import com.echocyan.codenest.counter.api.CounterMetric;
-import com.echocyan.codenest.counter.api.CounterSource;
-import com.echocyan.codenest.counter.api.CounterTarget;
-import com.echocyan.codenest.counter.api.Counts;
-import com.echocyan.codenest.counter.api.IdCount;
+import com.echocyan.codenest.common.util.Texts;
+import com.echocyan.codenest.counter.api.*;
 import com.echocyan.codenest.framework.cache.BloomFilter;
 import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService,
         CounterSource {
 
-    /** 自动摘要截取的正文字符数。 */
+    /**
+     * 自动摘要截取的正文字符数。
+     */
     private static final int AUTO_SUMMARY_LENGTH = 100;
 
     private final ArticleContentService articleContentService;
@@ -77,6 +67,47 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final TwoLevelCache<CachedArticleDetail> detailCache;
     private final TwoLevelCache<ArticleBrief> briefCache;
     private final BloomFilter articleBloomFilter;
+
+    private static ArticleCountsVO countsVO(Counts counts) {
+        return new ArticleCountsVO(
+                counts.get(CounterMetric.ARTICLE_LIKE),
+                counts.get(CounterMetric.ARTICLE_FAVORITE),
+                counts.get(CounterMetric.ARTICLE_COMMENT),
+                counts.get(CounterMetric.ARTICLE_VIEW));
+    }
+
+    /**
+     * 请求中可由作者修改的字段。
+     */
+    private static Article articleOf(ArticleRequest request) {
+        Article article = new Article();
+        article.setTitle(request.title());
+        article.setSummary(summaryOf(request));
+        article.setCoverUrl(request.coverUrl());
+        article.setCategoryId(request.categoryId());
+        return article;
+    }
+
+    private static ArticleContent contentOf(long articleId, ArticleRequest request) {
+        ArticleContent content = new ArticleContent();
+        content.setArticleId(articleId);
+        content.setContent(request.content());
+        return content;
+    }
+
+    /**
+     * 作者填写的摘要；没填时截取正文开头。
+     */
+    private static String summaryOf(ArticleRequest request) {
+        if (request.summary() != null && !request.summary().isBlank()) {
+            return request.summary();
+        }
+        return Texts.head(request.content().strip(), AUTO_SUMMARY_LENGTH);
+    }
+
+    private static List<Long> tagIdsOf(ArticleRequest request) {
+        return request.tagIds() == null ? List.of() : request.tagIds().stream().distinct().toList();
+    }
 
     @Override
     @Transactional
@@ -327,8 +358,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         Map<Long, CategoryVO> categories = categoryService.listByIds(
                         articles.stream().map(Article::getCategoryId).distinct().toList()).stream()
                 .collect(Collectors.toMap(Category::getId, categoryConverter::toVO));
-        Map<Long, UserBrief> authors = userApi.getBriefs(articles.stream().map(Article::getAuthorId).distinct().toList());
-        Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE, articles.stream().map(Article::getId).toList());
+        Map<Long, UserBrief> authors =
+                userApi.getBriefs(articles.stream().map(Article::getAuthorId).distinct().toList());
+        Map<Long, Counts> counts =
+                counterApi.get(CounterTarget.ARTICLE, articles.stream().map(Article::getId).toList());
         return articles.stream()
                 .map(article -> articleConverter.toItemVO(
                         article,
@@ -397,46 +430,5 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     private ArticleCountsVO countsOf(long id) {
         return countsVO(counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id));
-    }
-
-    private static ArticleCountsVO countsVO(Counts counts) {
-        return new ArticleCountsVO(
-                counts.get(CounterMetric.ARTICLE_LIKE),
-                counts.get(CounterMetric.ARTICLE_FAVORITE),
-                counts.get(CounterMetric.ARTICLE_COMMENT),
-                counts.get(CounterMetric.ARTICLE_VIEW));
-    }
-
-    /**
-     * 请求中可由作者修改的字段。
-     */
-    private static Article articleOf(ArticleRequest request) {
-        Article article = new Article();
-        article.setTitle(request.title());
-        article.setSummary(summaryOf(request));
-        article.setCoverUrl(request.coverUrl());
-        article.setCategoryId(request.categoryId());
-        return article;
-    }
-
-    private static ArticleContent contentOf(long articleId, ArticleRequest request) {
-        ArticleContent content = new ArticleContent();
-        content.setArticleId(articleId);
-        content.setContent(request.content());
-        return content;
-    }
-
-    /**
-     * 作者填写的摘要；没填时截取正文开头。
-     */
-    private static String summaryOf(ArticleRequest request) {
-        if (request.summary() != null && !request.summary().isBlank()) {
-            return request.summary();
-        }
-        return Texts.head(request.content().strip(), AUTO_SUMMARY_LENGTH);
-    }
-
-    private static List<Long> tagIdsOf(ArticleRequest request) {
-        return request.tagIds() == null ? List.of() : request.tagIds().stream().distinct().toList();
     }
 }

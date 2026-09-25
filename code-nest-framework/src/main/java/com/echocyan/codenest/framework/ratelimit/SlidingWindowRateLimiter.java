@@ -1,13 +1,14 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * 滑动窗口日志限流：每个额度一个 ZSet，member 是请求 ID，score 是请求时间（毫秒）。
@@ -52,12 +53,6 @@ public class SlidingWindowRateLimiter {
     private final StringRedisTemplate redis;
 
     /**
-     * 一个额度：{@code key} 在 {@code window} 内最多 {@code limit} 次请求。
-     */
-    public record Quota(String key, int limit, Duration window) {
-    }
-
-    /**
      * 原子地检查一组额度：全部有余量时给每个额度记一次请求。
      *
      * @return 0 表示放行；否则为被拒绝后至少要等待的毫秒数
@@ -73,5 +68,11 @@ public class SlidingWindowRateLimiter {
             args.add(String.valueOf(quota.window().toMillis()));
         }
         return redis.execute(ACQUIRE, keys, args.toArray());
+    }
+
+    /**
+     * 一个额度：{@code key} 在 {@code window} 内最多 {@code limit} 次请求。
+     */
+    public record Quota(String key, int limit, Duration window) {
     }
 }

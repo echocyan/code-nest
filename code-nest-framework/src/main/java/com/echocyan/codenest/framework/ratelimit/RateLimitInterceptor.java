@@ -4,12 +4,6 @@ import com.echocyan.codenest.framework.auth.AuthContext;
 import com.echocyan.codenest.framework.ratelimit.SlidingWindowRateLimiter.Quota;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.lang.reflect.Method;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -17,6 +11,13 @@ import org.springframework.core.env.Environment;
 import org.springframework.dao.DataAccessException;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+import java.lang.reflect.Method;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 执行 {@link RateLimit}。注册在 Sa-Token 拦截器之后，登录校验通过后才计数，按用户限流时能拿到用户 ID。
@@ -31,7 +32,9 @@ class RateLimitInterceptor implements HandlerInterceptor {
     private final Environment environment;
     private final Set<String> trustedProxies;
 
-    /** 各方法解析好占位符的额度，方法上没有 {@link RateLimit} 时为空列表。 */
+    /**
+     * 各方法解析好占位符的额度，方法上没有 {@link RateLimit} 时为空列表。
+     */
     private final Map<Method, List<Rule>> rules = new ConcurrentHashMap<>();
 
     RateLimitInterceptor(SlidingWindowRateLimiter limiter, Environment environment, RateLimitProperties properties) {

@@ -7,7 +7,9 @@ import com.echocyan.codenest.common.exception.ErrorCode;
  */
 public enum SearchErrorCode implements ErrorCode {
 
-    /** 翻页超过 {@code from + size ≤ 1000} 的上限。 */
+    /**
+     * 翻页超过 {@code from + size ≤ 1000} 的上限。
+     */
     PAGE_TOO_DEEP(60001, "搜索结果最多翻到第 1000 条", 400);
 
     private final int code;

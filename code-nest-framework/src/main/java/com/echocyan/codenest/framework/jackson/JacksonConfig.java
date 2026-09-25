@@ -1,10 +1,6 @@
 package com.echocyan.codenest.framework.jackson;
 
 import com.echocyan.codenest.common.util.DateTimes;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.core.JsonGenerator;
@@ -15,6 +11,11 @@ import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.ValueSerializer;
 import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.ser.std.ToStringSerializer;
+
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /**
  * JSON 约定：包装类型 Long（ID）输出为字符串，避免前端精度丢失；基本类型 long（计数、总数）仍为数字。

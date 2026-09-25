@@ -1,14 +1,9 @@
 package com.echocyan.codenest.framework.mq;
 
+import org.springframework.amqp.core.*;
+
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.Declarable;
-import org.springframework.amqp.core.Declarables;
-import org.springframework.amqp.core.DirectExchange;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.core.TopicExchange;
 
 /**
  * 消息拓扑：所有事件发往 topic 交换机 {@link #EXCHANGE}，重试耗尽的消息经 {@link #DEAD_LETTER_EXCHANGE}
@@ -43,7 +38,8 @@ public final class EventQueues {
                 .build();
         Queue dead = QueueBuilder.durable(deadLetterQueue).classic().build();
         List<Declarable> declarables = new ArrayList<>(List.of(main, dead,
-                new Binding(deadLetterQueue, Binding.DestinationType.QUEUE, DEAD_LETTER_EXCHANGE, deadLetterQueue, null)));
+                new Binding(deadLetterQueue, Binding.DestinationType.QUEUE, DEAD_LETTER_EXCHANGE, deadLetterQueue,
+                        null)));
         for (String routingKey : routingKeys) {
             declarables.add(new Binding(queue, Binding.DestinationType.QUEUE, EXCHANGE, routingKey, null));
         }

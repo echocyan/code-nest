@@ -10,20 +10,17 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.framework.lock.RedisLock;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 榜单存在 ZSet {@code hot:articles} 中，member 为文章 ID，score 为热度。重算时先写入临时 key，
@@ -39,13 +36,19 @@ class HotArticleServiceImpl implements HotArticleService {
 
     private static final String LOCK_KEY = "hot:lock";
 
-    /** 锁的过期时间，短于重算间隔；实例崩溃时锁最迟在这之后释放，不影响下一轮。 */
+    /**
+     * 锁的过期时间，短于重算间隔；实例崩溃时锁最迟在这之后释放，不影响下一轮。
+     */
     private static final Duration LOCK_TTL = Duration.ofSeconds(240);
 
-    /** 候选集：最近这段时间内发布的文章。 */
+    /**
+     * 候选集：最近这段时间内发布的文章。
+     */
     private static final Duration CANDIDATE_WINDOW = Duration.ofDays(7);
 
-    /** 一次批量读取计数的文章数。 */
+    /**
+     * 一次批量读取计数的文章数。
+     */
     private static final int BATCH = 500;
 
     private final ArticleApi articleApi;

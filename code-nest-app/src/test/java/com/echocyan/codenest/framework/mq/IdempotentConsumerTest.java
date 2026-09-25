@@ -1,21 +1,22 @@
 package com.echocyan.codenest.framework.mq;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-
 import com.echocyan.codenest.support.IntegrationTest;
 import com.echocyan.codenest.support.probe.MqProbe;
 import com.echocyan.codenest.support.probe.MqProbe.ProbeEvent;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 class IdempotentConsumerTest extends IntegrationTest {
 
@@ -24,6 +25,10 @@ class IdempotentConsumerTest extends IntegrationTest {
 
     @Autowired
     private MqProbe probe;
+
+    private static String nonce() {
+        return UUID.randomUUID().toString();
+    }
 
     @Test
     void processesSameMessageIdOnlyOnce() {
@@ -70,10 +75,6 @@ class IdempotentConsumerTest extends IntegrationTest {
         // 首次处理加 3 次重试
         assertThat(probe.attempts(nonce)).isEqualTo(4);
         assertThat(new String(dead.get().getBody(), StandardCharsets.UTF_8)).contains(nonce);
-    }
-
-    private static String nonce() {
-        return UUID.randomUUID().toString();
     }
 
     /**

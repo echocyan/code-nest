@@ -1,11 +1,12 @@
 package com.echocyan.codenest.social;
 
 import com.echocyan.codenest.support.IntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.client.RestTestClient;
 
 class FollowApiTest extends IntegrationTest {
 

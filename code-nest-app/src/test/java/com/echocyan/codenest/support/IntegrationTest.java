@@ -1,11 +1,5 @@
 package com.echocyan.codenest.support;
 
-import static org.awaitility.Awaitility.await;
-
-import java.time.Duration;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.awaitility.core.ThrowingRunnable;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +11,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.awaitility.Awaitility.await;
 
 /**
  * HTTP 集成测试基类：真实端口 + 真实中间件容器。子类通过 {@link #client} 匿名调用接口，
@@ -32,19 +33,9 @@ public abstract class IntegrationTest {
     protected static final String API = "/api/v1";
 
     protected static final String PASSWORD = "Passw0rd!";
-
+    protected RestTestClient client;
     @LocalServerPort
     private int port;
-
-    protected RestTestClient client;
-
-    @BeforeEach
-    void setUpClient() {
-        // HttpClient 默认会按 Retry-After 自动重试 429，测试需要直接看到 429
-        var requestFactory = new HttpComponentsClientHttpRequestFactory(
-                HttpClients.custom().disableAutomaticRetries().build());
-        client = RestTestClient.bindToServer(requestFactory).baseUrl("http://localhost:" + port).build();
-    }
 
     /**
      * 反复执行断言，直到通过或超时。计数在 redis-async 档异步生效，断言计数时用它等计数最终生效。
@@ -58,6 +49,14 @@ public abstract class IntegrationTest {
      */
     protected static String uniqueUsername() {
         return "u" + UUID.randomUUID().toString().replace("-", "").substring(0, 15);
+    }
+
+    @BeforeEach
+    void setUpClient() {
+        // HttpClient 默认会按 Retry-After 自动重试 429，测试需要直接看到 429
+        var requestFactory = new HttpComponentsClientHttpRequestFactory(
+                HttpClients.custom().disableAutomaticRetries().build());
+        client = RestTestClient.bindToServer(requestFactory).baseUrl("http://localhost:" + port).build();
     }
 
     /**

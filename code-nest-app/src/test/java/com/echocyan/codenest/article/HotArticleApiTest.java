@@ -1,15 +1,16 @@
 package com.echocyan.codenest.article;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.article.service.HotArticleService;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 热榜：手动触发一次重算后匿名读取。所有测试共用一个库，榜单里还有其他测试的文章，只断言本测试文章之间的相对位置；

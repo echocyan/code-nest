@@ -1,7 +1,5 @@
 package com.echocyan.codenest.social.controller;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
@@ -14,18 +12,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
 
 @Tag(name = "关注")
 @RestController
@@ -33,7 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FollowController {
 
-    /** 一次最多查询的用户数，与列表页的最大 size 一致。 */
+    /**
+     * 一次最多查询的用户数，与列表页的最大 size 一致。
+     */
     private static final int MAX_IDS = 50;
 
     private final FollowService followService;
@@ -74,7 +71,8 @@ public class FollowController {
         return Result.ok(followService.listFollowings(id, cursor, size));
     }
 
-    @Operation(summary = "批量查询关注状态", description = "以用户 ID 为 key，值为是否已关注；ids 最多 " + MAX_IDS + " 个")
+    @Operation(summary = "批量查询关注状态", description = "以用户 ID 为 key，值为是否已关注；ids 最多 " + MAX_IDS
+            + " 个")
     @GetMapping("/follow-states")
     public Result<Map<Long, Boolean>> followStates(@RequestParam @Size(max = MAX_IDS) List<Long> ids) {
         Set<Long> followed = followService.listFollowedAuthorIds(AuthContext.currentUserId(), ids);

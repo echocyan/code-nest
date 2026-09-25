@@ -1,10 +1,6 @@
 package com.echocyan.codenest.framework.mq;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 标在 {@code @RabbitListener} 方法上，保证同一条消息在同一个消费队列上只处理一次。

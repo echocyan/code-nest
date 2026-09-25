@@ -8,13 +8,19 @@ import com.echocyan.codenest.common.result.PageResult;
  */
 public interface HotArticleService {
 
-    /** 榜单容量。 */
+    /**
+     * 榜单容量。
+     */
     int CAPACITY = 100;
 
-    /** 每页条数。 */
+    /**
+     * 每页条数。
+     */
     int PAGE_SIZE = 20;
 
-    /** 最大页码，{@code CAPACITY / PAGE_SIZE}。 */
+    /**
+     * 最大页码，{@code CAPACITY / PAGE_SIZE}。
+     */
     int MAX_PAGE = 5;
 
     /**

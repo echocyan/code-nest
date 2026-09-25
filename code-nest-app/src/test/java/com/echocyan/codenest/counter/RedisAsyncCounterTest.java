@@ -1,19 +1,11 @@
 package com.echocyan.codenest.counter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-
 import com.echocyan.codenest.article.ArticleTestSupport;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.event.CounterChangedEvent;
 import com.echocyan.codenest.support.RedisAsyncCounter;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -23,6 +15,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * redis-async 档的消费、落库与懒加载。落库每 5 秒一次，等待落库的断言留足时间。
@@ -43,6 +44,13 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    /**
+     * 不存在于任何表中的对象 ID，计数从 0 开始。
+     */
+    private static long randomId() {
+        return ThreadLocalRandom.current().nextLong(1L << 60, Long.MAX_VALUE);
+    }
 
     @Test
     void flushedCountsMatchTheRelationTable() {
@@ -126,7 +134,8 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
     }
 
     private long replies(long commentId) {
-        return counterApi.get(CounterTarget.COMMENT, List.of(commentId)).get(commentId).get(CounterMetric.COMMENT_REPLY);
+        return counterApi.get(CounterTarget.COMMENT, List.of(commentId)).get(commentId)
+                .get(CounterMetric.COMMENT_REPLY);
     }
 
     private long stat(String table, String column, String idColumn, String id) {
@@ -150,10 +159,5 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
                 .setContentType(MessageProperties.CONTENT_TYPE_JSON)
                 .build();
         rabbitTemplate.send("", "counter.update", message);
-    }
-
-    /** 不存在于任何表中的对象 ID，计数从 0 开始。 */
-    private static long randomId() {
-        return ThreadLocalRandom.current().nextLong(1L << 60, Long.MAX_VALUE);
     }
 }

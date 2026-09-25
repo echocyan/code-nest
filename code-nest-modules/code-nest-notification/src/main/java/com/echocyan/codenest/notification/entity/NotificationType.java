@@ -7,13 +7,21 @@ import com.baomidou.mybatisplus.annotation.EnumValue;
  */
 public enum NotificationType {
 
-    /** 文章被点赞，关联文章。 */
+    /**
+     * 文章被点赞，关联文章。
+     */
     LIKE(1),
-    /** 文章被评论，关联文章与评论。 */
+    /**
+     * 文章被评论，关联文章与评论。
+     */
     COMMENT(2),
-    /** 自己被回复，关联文章与回复。 */
+    /**
+     * 自己被回复，关联文章与回复。
+     */
     REPLY(3),
-    /** 自己被关注，不关联内容。 */
+    /**
+     * 自己被关注，不关联内容。
+     */
     FOLLOW(4);
 
     @EnumValue

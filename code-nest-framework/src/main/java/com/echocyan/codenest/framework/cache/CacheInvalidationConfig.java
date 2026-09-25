@@ -17,7 +17,7 @@ class CacheInvalidationConfig {
 
     @Bean
     RedisMessageListenerContainer cacheInvalidationListenerContainer(RedisConnectionFactory connectionFactory,
-            TwoLevelCaches caches) {
+                                                                     TwoLevelCaches caches) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(caches, new ChannelTopic(TwoLevelCaches.INVALIDATE_CHANNEL));

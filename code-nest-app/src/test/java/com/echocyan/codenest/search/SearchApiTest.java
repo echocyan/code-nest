@@ -1,17 +1,38 @@
 package com.echocyan.codenest.search;
 
 import com.echocyan.codenest.article.ArticleTestSupport;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
  * 各测试类共用一个数据库，每个测试用一个随机关键词隔离数据。es 档下文章异步同步到索引，搜索结果用
  * {@link #eventually} 等待；两档要求搜到同一批文章，需要确定顺序时按 LATEST 排序。
  */
 class SearchApiTest extends ArticleTestSupport {
+
+    protected static String uniqueKeyword() {
+        return "kw" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
+    protected static Map<String, Object> withTitle(String title) {
+        return with("title", title);
+    }
+
+    protected static Map<String, Object> withTitle(String title, int categoryId, int tagId) {
+        Map<String, Object> body = draftIn(categoryId, tagId);
+        body.put("title", title);
+        return body;
+    }
+
+    protected static Map<String, Object> with(String field, String value) {
+        Map<String, Object> body = draft();
+        body.put(field, value);
+        return body;
+    }
 
     @Test
     void matchesTitleSummaryOrContentOfPublishedArticlesOnly() {
@@ -139,25 +160,5 @@ class SearchApiTest extends ArticleTestSupport {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(articleIds));
-    }
-
-    protected static String uniqueKeyword() {
-        return "kw" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-    }
-
-    protected static Map<String, Object> withTitle(String title) {
-        return with("title", title);
-    }
-
-    protected static Map<String, Object> withTitle(String title, int categoryId, int tagId) {
-        Map<String, Object> body = draftIn(categoryId, tagId);
-        body.put("title", title);
-        return body;
-    }
-
-    protected static Map<String, Object> with(String field, String value) {
-        Map<String, Object> body = draft();
-        body.put(field, value);
-        return body;
     }
 }

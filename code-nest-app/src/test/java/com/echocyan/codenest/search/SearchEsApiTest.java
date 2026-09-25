@@ -1,16 +1,18 @@
 package com.echocyan.codenest.search;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doAnswer;
-
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.GetResponse;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.search.service.ArticleIndex;
 import com.echocyan.codenest.support.EsSearch;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.test.web.servlet.client.RestTestClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * 在 es 档下运行 {@link SearchApiTest} 的全部测试，另外断言只有 es 档才有的相关度排序、标签加权、高亮、乱序写入，
@@ -34,7 +35,9 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 @EsSearch
 class SearchEsApiTest extends SearchApiTest {
 
-    /** 重建读完每一批待导入的文章后调用它，用来在导入与切换别名之间插入操作。 */
+    /**
+     * 重建读完每一批待导入的文章后调用它，用来在导入与切换别名之间插入操作。
+     */
     private volatile Consumer<List<ArticleSnapshot>> onImportBatch = batch -> {
     };
 

@@ -1,7 +1,5 @@
 package com.echocyan.codenest.user.controller;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
-
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
@@ -20,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
+
 @Tag(name = "认证")
 @RestController
 @RequestMapping("/auth")
@@ -27,6 +27,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
+
+    private static LoginVO loginAs(User user) {
+        return new LoginVO(user.getId(), AuthContext.login(user.getId()));
+    }
 
     @SaIgnore
     @Operation(summary = "注册", description = "注册成功后自动登录")
@@ -50,9 +54,5 @@ public class AuthController {
     public Result<Void> logout() {
         AuthContext.logout();
         return Result.ok();
-    }
-
-    private static LoginVO loginAs(User user) {
-        return new LoginVO(user.getId(), AuthContext.login(user.getId()));
     }
 }

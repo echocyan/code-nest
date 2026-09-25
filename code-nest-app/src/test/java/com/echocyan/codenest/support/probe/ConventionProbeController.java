@@ -8,15 +8,10 @@ import com.echocyan.codenest.common.result.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.web.bind.annotation.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 仅存在于测试类路径，用来从 HTTP 层验证 framework 的 Web 约定。
@@ -26,17 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/probe")
 public class ConventionProbeController {
 
-    public enum Status { DRAFT, PUBLISHED }
-
-    public record Sample(Long id, LocalDateTime at, Status status, String nothing) {
-    }
-
-    public record NameBody(@NotBlank String name, LocalDateTime at) {
-    }
-
     @GetMapping("/sample")
     public Result<Sample> sample() {
-        return Result.ok(new Sample(1234567890123456789L, LocalDateTime.of(2026, 9, 23, 10, 0), Status.PUBLISHED, null));
+        return Result.ok(
+                new Sample(1234567890123456789L, LocalDateTime.of(2026, 9, 23, 10, 0), Status.PUBLISHED, null));
     }
 
     @PostMapping("/echo")
@@ -67,5 +55,13 @@ public class ConventionProbeController {
     @GetMapping("/boom")
     public Result<Void> boom() {
         throw new IllegalStateException("boom");
+    }
+
+    public enum Status {DRAFT, PUBLISHED}
+
+    public record Sample(Long id, LocalDateTime at, Status status, String nothing) {
+    }
+
+    public record NameBody(@NotBlank String name, LocalDateTime at) {
     }
 }

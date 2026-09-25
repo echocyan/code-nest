@@ -17,6 +17,8 @@ public class MqConsumeRecord extends AuditableEntity {
 
     private String messageId;
 
-    /** 消费队列名。 */
+    /**
+     * 消费队列名。
+     */
     private String consumer;
 }

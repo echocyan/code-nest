@@ -1,15 +1,16 @@
 package com.echocyan.codenest.user;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.support.IntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.RestTestClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class UserProfileApiTest extends IntegrationTest {
 
@@ -66,7 +67,8 @@ class UserProfileApiTest extends IntegrationTest {
     void profileEditIsValidated() {
         RestTestClient me = withToken(register(uniqueUsername()));
         Map<String, Object> blankNickname = new HashMap<>(Map.of("nickname", " "));
-        Map<String, Object> longNickname = new HashMap<>(Map.of("nickname", "一二三四五六七八九十一二三四五六七八九十一"));
+        Map<String, Object> longNickname =
+                new HashMap<>(Map.of("nickname", "一二三四五六七八九十一二三四五六七八九十一"));
         Map<String, Object> longBio = new HashMap<>(Map.of("nickname", "ok", "bio", "x".repeat(201)));
         Map<String, Object> scriptAvatar = new HashMap<>(Map.of("nickname", "ok", "avatarUrl", "javascript:alert(1)"));
 

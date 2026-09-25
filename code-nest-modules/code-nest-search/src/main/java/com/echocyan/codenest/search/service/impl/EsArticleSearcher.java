@@ -17,15 +17,16 @@ import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.dto.SearchSort;
 import com.echocyan.codenest.search.service.ArticleIndex;
 import com.echocyan.codenest.search.service.ArticleSearcher;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
 
 /**
  * 优化实现：在 {@link ArticleIndex} 中用 IK 分词检索，按相关度排序并高亮。
@@ -41,14 +42,55 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class EsArticleSearcher implements ArticleSearcher {
 
-    /** 标签名命中时的加权。 */
+    /**
+     * 标签名命中时的加权。
+     */
     private static final float TAG_BOOST = 5;
 
-    /** 正文高亮片段的长度（字符数）。 */
+    /**
+     * 正文高亮片段的长度（字符数）。
+     */
     private static final int CONTENT_FRAGMENT_SIZE = 100;
 
     private final ElasticsearchClient client;
     private final ArticleApi articleApi;
+
+    private static BoolQuery.Builder matching(BoolQuery.Builder bool, String keyword) {
+        return bool
+                .must(must -> must.multiMatch(match -> match
+                        .query(keyword)
+                        .fields("title^3", "summary^1.5", "content")
+                        .operator(Operator.And)))
+                .should(should -> should.term(term -> term.field("tags").value(keyword).boost(TAG_BOOST)));
+    }
+
+    private static BoolQuery.Builder filtered(BoolQuery.Builder bool, Long categoryId, Long tagId) {
+        if (categoryId != null) {
+            bool.filter(filter -> filter.term(term -> term.field("categoryId").value(categoryId)));
+        }
+        if (tagId != null) {
+            bool.filter(filter -> filter.term(term -> term.field("tagIds").value(tagId)));
+        }
+        return bool;
+    }
+
+    /**
+     * 同分或同一时间发布时，依次按发布时间、ID 倒序，保证翻页稳定。
+     */
+    private static List<SortOptions> sortOf(SearchSort sort) {
+        List<SortOptions> options = new ArrayList<>();
+        if (sort == SearchSort.RELEVANCE) {
+            options.add(SortOptions.of(option -> option.score(score -> score.order(SortOrder.Desc))));
+        }
+        options.add(SortOptions.of(option -> option.field(field -> field.field("publishedAt").order(SortOrder.Desc))));
+        options.add(SortOptions.of(option -> option.field(field -> field.field("id").order(SortOrder.Desc))));
+        return options;
+    }
+
+    private static String highlightOf(co.elastic.clients.elasticsearch.core.search.Hit<Void> hit, String field) {
+        List<String> fragments = hit.highlight().get(field);
+        return fragments == null || fragments.isEmpty() ? null : fragments.getFirst();
+    }
 
     @Override
     public PageResult<Hit> search(String keyword, Long categoryId, Long tagId, SearchSort sort, long page,
@@ -88,42 +130,5 @@ class EsArticleSearcher implements ArticleSearcher {
         }
         long total = Objects.requireNonNull(response.hits().total()).value();
         return new PageResult<>(list, total, page, size);
-    }
-
-    private static BoolQuery.Builder matching(BoolQuery.Builder bool, String keyword) {
-        return bool
-                .must(must -> must.multiMatch(match -> match
-                        .query(keyword)
-                        .fields("title^3", "summary^1.5", "content")
-                        .operator(Operator.And)))
-                .should(should -> should.term(term -> term.field("tags").value(keyword).boost(TAG_BOOST)));
-    }
-
-    private static BoolQuery.Builder filtered(BoolQuery.Builder bool, Long categoryId, Long tagId) {
-        if (categoryId != null) {
-            bool.filter(filter -> filter.term(term -> term.field("categoryId").value(categoryId)));
-        }
-        if (tagId != null) {
-            bool.filter(filter -> filter.term(term -> term.field("tagIds").value(tagId)));
-        }
-        return bool;
-    }
-
-    /**
-     * 同分或同一时间发布时，依次按发布时间、ID 倒序，保证翻页稳定。
-     */
-    private static List<SortOptions> sortOf(SearchSort sort) {
-        List<SortOptions> options = new ArrayList<>();
-        if (sort == SearchSort.RELEVANCE) {
-            options.add(SortOptions.of(option -> option.score(score -> score.order(SortOrder.Desc))));
-        }
-        options.add(SortOptions.of(option -> option.field(field -> field.field("publishedAt").order(SortOrder.Desc))));
-        options.add(SortOptions.of(option -> option.field(field -> field.field("id").order(SortOrder.Desc))));
-        return options;
-    }
-
-    private static String highlightOf(co.elastic.clients.elasticsearch.core.search.Hit<Void> hit, String field) {
-        List<String> fragments = hit.highlight().get(field);
-        return fragments == null || fragments.isEmpty() ? null : fragments.getFirst();
     }
 }

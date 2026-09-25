@@ -1,7 +1,5 @@
 package com.echocyan.codenest.framework.mq;
 
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.aop.Advice;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -18,6 +16,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 消息可靠性底座的公共配置。本地重试次数与间隔在 {@code spring.rabbitmq.listener.simple.retry} 中配置，

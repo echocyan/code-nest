@@ -3,13 +3,14 @@ package com.echocyan.codenest.support.probe;
 import com.echocyan.codenest.framework.mq.DomainEvent;
 import com.echocyan.codenest.framework.mq.EventQueues;
 import com.echocyan.codenest.framework.mq.IdempotentConsumer;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 仅存在于测试类路径，用来验证 framework 的消息可靠性底座：
@@ -21,18 +22,17 @@ public class MqProbe {
     public static final String INBOX = "probe.inbox";
 
     public static final String CONSUMER = "probe.consumer";
-
-    @DomainEvent("probe.happened")
-    public record ProbeEvent(String nonce) {
-    }
-
-    /** 每个 nonce 还要失败的次数。 */
+    /**
+     * 每个 nonce 还要失败的次数。
+     */
     private final Map<String, AtomicInteger> pendingFailures = new ConcurrentHashMap<>();
-
-    /** 每个 nonce 被调用的次数，包括失败的调用。 */
+    /**
+     * 每个 nonce 被调用的次数，包括失败的调用。
+     */
     private final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
-
-    /** 每个 nonce 被成功处理的次数。 */
+    /**
+     * 每个 nonce 被成功处理的次数。
+     */
     private final Map<String, AtomicInteger> processed = new ConcurrentHashMap<>();
 
     @Bean
@@ -46,6 +46,10 @@ public class MqProbe {
     @Bean
     static Declarables probeConsumerQueue() {
         return EventQueues.declare(CONSUMER);
+    }
+
+    private static AtomicInteger counter(Map<String, AtomicInteger> counters, String nonce) {
+        return counters.computeIfAbsent(nonce, key -> new AtomicInteger());
     }
 
     @RabbitListener(queues = CONSUMER)
@@ -74,7 +78,7 @@ public class MqProbe {
         return counter(processed, nonce).get();
     }
 
-    private static AtomicInteger counter(Map<String, AtomicInteger> counters, String nonce) {
-        return counters.computeIfAbsent(nonce, key -> new AtomicInteger());
+    @DomainEvent("probe.happened")
+    public record ProbeEvent(String nonce) {
     }
 }

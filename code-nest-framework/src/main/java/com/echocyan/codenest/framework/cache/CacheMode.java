@@ -5,12 +5,18 @@ package com.echocyan.codenest.framework.cache;
  */
 public enum CacheMode {
 
-    /** 不缓存，每次都执行加载函数（基线）。 */
+    /**
+     * 不缓存，每次都执行加载函数（基线）。
+     */
     NONE,
 
-    /** 只用 Redis 一级缓存。 */
+    /**
+     * 只用 Redis 一级缓存。
+     */
     REDIS,
 
-    /** Caffeine 本地缓存加 Redis，只用于经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存。 */
+    /**
+     * Caffeine 本地缓存加 Redis，只用于经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存。
+     */
     TWO_LEVEL
 }

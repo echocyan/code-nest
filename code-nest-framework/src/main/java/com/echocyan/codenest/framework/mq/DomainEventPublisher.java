@@ -3,11 +3,6 @@ package com.echocyan.codenest.framework.mq;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.echocyan.codenest.common.util.DateTimes;
-import java.time.Duration;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,6 +11,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 发布领域事件的唯一入口，投递语义为"至少一次"，重复消息由消费端幂等处理（见 {@link IdempotentConsumer}）。
@@ -34,10 +35,14 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class DomainEventPublisher {
 
-    /** 等待 publisher confirm 的时间。 */
+    /**
+     * 等待 publisher confirm 的时间。
+     */
     static final Duration CONFIRM_TIMEOUT = Duration.ofSeconds(5);
 
-    /** 没有事务时的发送次数，含首次。 */
+    /**
+     * 没有事务时的发送次数，含首次。
+     */
     private static final int DIRECT_ATTEMPTS = 3;
 
     private static final Duration DIRECT_BACKOFF = Duration.ofMillis(200);
@@ -54,6 +59,15 @@ public class DomainEventPublisher {
         this.sender = sender;
         this.jsonMapper = jsonMapper;
         this.executor = executor;
+    }
+
+    private static void sleep(Duration duration) {
+        try {
+            Thread.sleep(duration);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AmqpException("Interrupted while publishing event", e);
+        }
     }
 
     /**
@@ -146,14 +160,5 @@ public class DomainEventPublisher {
         }
         throw new AmqpException("Failed to publish event " + routingKey + " after " + DIRECT_ATTEMPTS + " attempts",
                 lastError);
-    }
-
-    private static void sleep(Duration duration) {
-        try {
-            Thread.sleep(duration);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AmqpException("Interrupted while publishing event", e);
-        }
     }
 }

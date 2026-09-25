@@ -1,19 +1,22 @@
 package com.echocyan.codenest.article;
 
 import com.echocyan.codenest.support.IntegrationTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
  * 文章相关 HTTP 测试共用的造数步骤，都走真实接口。
  */
 public abstract class ArticleTestSupport extends IntegrationTest {
 
-    /** 一份合法的草稿请求体；分类 1 = 后端，标签 1 = Java、6 = Redis。 */
+    /**
+     * 一份合法的草稿请求体；分类 1 = 后端，标签 1 = Java、6 = Redis。
+     */
     protected static Map<String, Object> draft() {
         return new HashMap<>(Map.of(
                 "title", "Redis 计数实践",
@@ -24,7 +27,9 @@ public abstract class ArticleTestSupport extends IntegrationTest {
                 "tagIds", List.of(1, 6)));
     }
 
-    /** 指定分类和标签的草稿请求体。 */
+    /**
+     * 指定分类和标签的草稿请求体。
+     */
     protected static Map<String, Object> draftIn(int categoryId, int tagId) {
         Map<String, Object> body = draft();
         body.put("categoryId", categoryId);
@@ -32,7 +37,9 @@ public abstract class ArticleTestSupport extends IntegrationTest {
         return body;
     }
 
-    /** 新建草稿，返回文章 ID。 */
+    /**
+     * 新建草稿，返回文章 ID。
+     */
     protected String createDraft(RestTestClient author, Map<String, Object> body) {
         AtomicReference<String> id = new AtomicReference<>();
         author.post().uri(API + "/articles")
@@ -44,7 +51,9 @@ public abstract class ArticleTestSupport extends IntegrationTest {
         return id.get();
     }
 
-    /** 发布文章，返回传入的文章 ID，便于和 {@link #createDraft} 串起来用。 */
+    /**
+     * 发布文章，返回传入的文章 ID，便于和 {@link #createDraft} 串起来用。
+     */
     protected String publish(RestTestClient author, String id) {
         author.post().uri(API + "/articles/{id}/publish", id)
                 .exchange()
@@ -52,7 +61,9 @@ public abstract class ArticleTestSupport extends IntegrationTest {
         return id;
     }
 
-    /** 编辑文章，version 为读到的版本号：新建的草稿是 0，发布后是 1。 */
+    /**
+     * 编辑文章，version 为读到的版本号：新建的草稿是 0，发布后是 1。
+     */
     protected RestTestClient.ResponseSpec edit(RestTestClient author, String id, int version,
                                                Map<String, Object> body) {
         return author.put().uri(API + "/articles/{id}?version={version}", id, version)
@@ -67,7 +78,9 @@ public abstract class ArticleTestSupport extends IntegrationTest {
                 .expectStatus().isOk();
     }
 
-    /** 从文章详情读出作者 ID。 */
+    /**
+     * 从文章详情读出作者 ID。
+     */
     protected String authorIdOf(RestTestClient author, String articleId) {
         AtomicReference<String> authorId = new AtomicReference<>();
         author.get().uri(API + "/articles/{id}", articleId)

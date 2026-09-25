@@ -1,6 +1,10 @@
 package com.echocyan.codenest.interaction;
 
 import com.echocyan.codenest.support.IntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -8,11 +12,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.stream.IntStream;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.RestTestClient;
+import java.util.stream.IntStream;
 
 class LikeAndFavoriteApiTest extends IntegrationTest {
 

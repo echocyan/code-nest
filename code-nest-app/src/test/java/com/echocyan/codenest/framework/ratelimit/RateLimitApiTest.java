@@ -1,17 +1,18 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.article.ArticleTestSupport;
 import com.echocyan.codenest.support.RateLimitEnabled;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 限额见 {@link RateLimitEnabled}：每 IP 每小时注册 3 次、每分钟登录 3 次、搜索 2 次；每用户每小时发布 1 篇，
@@ -22,6 +23,44 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 class RateLimitApiTest extends ArticleTestSupport {
 
     private static final String XFF = "X-Forwarded-For";
+
+    private static String randomIp() {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        return "10." + random.nextInt(256) + "." + random.nextInt(256) + "." + random.nextInt(1, 255);
+    }
+
+    private static RestTestClient.ResponseSpec postLogin(RestTestClient client, String username) {
+        return client.post().uri(API + "/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("username", username, "password", PASSWORD))
+                .exchange();
+    }
+
+    private static RestTestClient.ResponseSpec follow(RestTestClient user, String userId) {
+        return user.put().uri(API + "/users/{id}/follow", userId).exchange();
+    }
+
+    private static RestTestClient.ResponseSpec comment(RestTestClient user, String articleId) {
+        return user.post().uri(API + "/articles/{id}/comments", articleId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("content", "写得好"))
+                .exchange();
+    }
+
+    private static RestTestClient.ResponseSpec reply(RestTestClient user, String commentId) {
+        return user.post().uri(API + "/comments/{id}/replies", commentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("content", "同意"))
+                .exchange();
+    }
+
+    private static String userIdOf(RestTestClient user) {
+        AtomicReference<String> id = new AtomicReference<>();
+        user.get().uri(API + "/users/me")
+                .exchange()
+                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
+        return id.get();
+    }
 
     @BeforeEach
     void useFreshClientIp() {
@@ -135,45 +174,7 @@ class RateLimitApiTest extends ArticleTestSupport {
         return client.mutate().defaultHeader(XFF, clientIp).build();
     }
 
-    private static String randomIp() {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-        return "10." + random.nextInt(256) + "." + random.nextInt(256) + "." + random.nextInt(1, 255);
-    }
-
-    private static RestTestClient.ResponseSpec postLogin(RestTestClient client, String username) {
-        return client.post().uri(API + "/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("username", username, "password", PASSWORD))
-                .exchange();
-    }
-
     private RestTestClient.ResponseSpec search() {
         return client.get().uri(API + "/search/articles?q=redis").exchange();
-    }
-
-    private static RestTestClient.ResponseSpec follow(RestTestClient user, String userId) {
-        return user.put().uri(API + "/users/{id}/follow", userId).exchange();
-    }
-
-    private static RestTestClient.ResponseSpec comment(RestTestClient user, String articleId) {
-        return user.post().uri(API + "/articles/{id}/comments", articleId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("content", "写得好"))
-                .exchange();
-    }
-
-    private static RestTestClient.ResponseSpec reply(RestTestClient user, String commentId) {
-        return user.post().uri(API + "/comments/{id}/replies", commentId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("content", "同意"))
-                .exchange();
-    }
-
-    private static String userIdOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

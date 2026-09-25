@@ -1,9 +1,10 @@
 package com.echocyan.codenest.article;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 各测试类共用一个数据库，每个测试用一个其他测试不用的标签隔离数据。本类在每个缓存档下各跑一遍，

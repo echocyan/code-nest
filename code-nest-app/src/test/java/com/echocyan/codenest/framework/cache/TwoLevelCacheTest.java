@@ -1,11 +1,14 @@
 package com.echocyan.codenest.framework.cache;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.awaitility.Awaitility.await;
-
 import com.echocyan.codenest.support.IntegrationTest;
 import com.echocyan.codenest.support.TwoLevelCacheMode;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import tools.jackson.databind.json.JsonMapper;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,12 +18,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import tools.jackson.databind.json.JsonMapper;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 /**
  * two-level 档的本地缓存失效广播、同 key 合并加载与布隆过滤器。单个应用上下文无法模拟两个实例，
@@ -42,6 +43,24 @@ class TwoLevelCacheTest extends IntegrationTest {
 
     @Autowired
     private RedisConnectionFactory connectionFactory;
+
+    /**
+     * 所有测试共用一个 Redis，缓存名需要全局唯一。
+     */
+    private static String uniqueName() {
+        return "test:" + UUID.randomUUID();
+    }
+
+    /**
+     * 让加载足够慢，其余线程在加载期间到达。
+     */
+    private static void sleep() {
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     @Test
     void evictOnOneInstanceInvalidatesLocalCacheOfTheOther() throws Exception {
@@ -141,27 +160,11 @@ class TwoLevelCacheTest extends IntegrationTest {
     }
 
     /**
-     * 所有测试共用一个 Redis，缓存名需要全局唯一。
-     */
-    private static String uniqueName() {
-        return "test:" + UUID.randomUUID();
-    }
-
-    /**
      * 建一个只含给定 ID 的布隆过滤器。
      */
     private BloomFilter bloomFilterOf(String name, Long... ids) {
         BloomFilter bloomFilter = caches.bloomFilter(name);
         bloomFilter.rebuildIfAbsent(afterId -> afterId == null ? List.of(ids) : List.of());
         return bloomFilter;
-    }
-
-    /** 让加载足够慢，其余线程在加载期间到达。 */
-    private static void sleep() {
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 }

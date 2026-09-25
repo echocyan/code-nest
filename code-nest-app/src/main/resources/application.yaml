@@ -75,7 +75,7 @@ rate-limit:
   # 总开关，压测时关闭
   enabled: true
   # 可信代理的 IP（如 Nginx），只有来自它们的请求才读取 X-Forwarded-For；默认不信任任何代理
-  trusted-proxies: []
+  trusted-proxies: [ ]
   # 各接口的限额，窗口长度见接口上的 @RateLimit
   limits:
     # 按 IP

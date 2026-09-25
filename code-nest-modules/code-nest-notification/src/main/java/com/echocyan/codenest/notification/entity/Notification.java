@@ -21,13 +21,19 @@ public class Notification extends AuditableEntity {
 
     private NotificationType type;
 
-    /** 关注通知为 null。 */
+    /**
+     * 关注通知为 null。
+     */
     private Long articleId;
 
-    /** 评论或回复本身的 ID；只有评论、回复通知有。 */
+    /**
+     * 评论或回复本身的 ID；只有评论、回复通知有。
+     */
     private Long commentId;
 
-    /** 点赞、关注用来去重，评论、回复为 null。 */
+    /**
+     * 点赞、关注用来去重，评论、回复为 null。
+     */
     private String dedupKey;
 
     private Boolean isRead;

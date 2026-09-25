@@ -2,9 +2,10 @@ package com.echocyan.codenest.framework.mq;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.echocyan.codenest.framework.mybatis.AuditableEntity;
-import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 /**
  * 一条待发送或已发送的事件，id 兼作消息的 messageId。
@@ -18,10 +19,14 @@ public class MqOutbox extends AuditableEntity {
 
     private String routingKey;
 
-    /** 事件类的全限定名。 */
+    /**
+     * 事件类的全限定名。
+     */
     private String eventType;
 
-    /** 事件的 JSON。 */
+    /**
+     * 事件的 JSON。
+     */
     private String payload;
 
     private OutboxStatus status;

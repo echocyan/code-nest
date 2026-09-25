@@ -1,12 +1,13 @@
 package com.echocyan.codenest.article.service.impl;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
-
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.Counts;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * 热度公式：{@code (3·点赞 + 5·收藏 + 4·评论 + 0.1·浏览) / (发布小时数 + 2)^1.5}。
@@ -14,6 +15,14 @@ import org.junit.jupiter.api.Test;
 class HotFormulaTest {
 
     private static final HotFormula DEFAULT = new HotFormula(3, 5, 4, 0.1, 1.5);
+
+    private static Counts counts(long like, long favorite, long comment, long view) {
+        return new Counts(Map.of(
+                CounterMetric.ARTICLE_LIKE, like,
+                CounterMetric.ARTICLE_FAVORITE, favorite,
+                CounterMetric.ARTICLE_COMMENT, comment,
+                CounterMetric.ARTICLE_VIEW, view));
+    }
 
     @Test
     void weighsInteractionsAndDividesByAge() {
@@ -38,13 +47,5 @@ class HotFormulaTest {
 
         // (1 + 2 + 3 + 4) / (3 + 2)^2 = 10 / 25
         assertThat(formula.score(counts(1, 1, 1, 1), 3)).isCloseTo(0.4, within(1e-9));
-    }
-
-    private static Counts counts(long like, long favorite, long comment, long view) {
-        return new Counts(Map.of(
-                CounterMetric.ARTICLE_LIKE, like,
-                CounterMetric.ARTICLE_FAVORITE, favorite,
-                CounterMetric.ARTICLE_COMMENT, comment,
-                CounterMetric.ARTICLE_VIEW, view));
     }
 }

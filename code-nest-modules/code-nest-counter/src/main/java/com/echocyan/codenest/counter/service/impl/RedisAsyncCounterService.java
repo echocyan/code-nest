@@ -6,11 +6,12 @@ import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.counter.event.CounterChangedEvent;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
-import java.util.Collection;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * 优化实现：计数先在 Redis 里原子累加，再异步批量落回 MySQL，热点对象不再排队等同一行的行锁。

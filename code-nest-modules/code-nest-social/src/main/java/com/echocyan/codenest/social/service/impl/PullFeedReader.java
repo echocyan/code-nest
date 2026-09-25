@@ -4,10 +4,11 @@ import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.social.service.FeedReader;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * 基线实现：每次读取都经 {@link ArticleApi#listByAuthors} 对关注的全部作者做一次 {@code author_id IN (…)} 查询，

@@ -1,11 +1,12 @@
 package com.echocyan.codenest.framework.cache;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
 
 /**
  * 以 ID 为元素的布隆过滤器，用 Redis 8 原生的 {@code BF.*} 命令，key 为 {@code bf:<name>}。
@@ -25,10 +26,14 @@ import org.springframework.data.redis.core.script.RedisScript;
 @Slf4j
 public class BloomFilter {
 
-    /** 误判率。 */
+    /**
+     * 误判率。
+     */
     private static final String ERROR_RATE = "0.001";
 
-    /** 预计容量，超出后 Redis 自动扩容。 */
+    /**
+     * 预计容量，超出后 Redis 自动扩容。
+     */
     private static final String CAPACITY = "1000000";
 
     /**
@@ -44,7 +49,9 @@ public class BloomFilter {
             return 1
             """, Long.class);
 
-    /** KEYS：过滤器、导入完成标记；ARGV：ID。任一 key 不存在时视为可能存在。 */
+    /**
+     * KEYS：过滤器、导入完成标记；ARGV：ID。任一 key 不存在时视为可能存在。
+     */
     private static final RedisScript<Long> MIGHT_CONTAIN = RedisScript.of("""
             if redis.call('EXISTS', KEYS[1], KEYS[2]) < 2 then
                 return 1

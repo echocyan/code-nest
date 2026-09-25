@@ -9,6 +9,13 @@ import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.framework.lock.RedisLock;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -20,12 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Component;
 
 /**
  * ES 中的文章索引。真实索引名为 {@code article_v{n}}，读写都经别名 {@value #ALIAS}。
@@ -50,14 +51,18 @@ public class ArticleIndex implements SmartInitializingSingleton {
 
     private static final String MAPPING = "search/article-index.json";
 
-    /** 全量导入时每批的文章数。 */
+    /**
+     * 全量导入时每批的文章数。
+     */
     private static final int IMPORT_BATCH_SIZE = 500;
 
     private static final int VERSION_CONFLICT = 409;
 
     private static final String REBUILD_LOCK_KEY = "search:rebuild:lock";
 
-    /** 锁的过期时间，要长于一次重建的耗时；实例崩溃时锁最迟在这之后释放。 */
+    /**
+     * 锁的过期时间，要长于一次重建的耗时；实例崩溃时锁最迟在这之后释放。
+     */
     private static final Duration REBUILD_LOCK_TTL = Duration.ofHours(1);
 
     private final ElasticsearchClient client;
@@ -290,9 +295,9 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /**
      * 一次重建的结果。
      *
-     * @param index     新索引名
-     * @param imported  全量导入的已发布文章数
-     * @param caughtUp  重建期间有变更、导入后又按最新状态写入或删除的文章数
+     * @param index    新索引名
+     * @param imported 全量导入的已发布文章数
+     * @param caughtUp 重建期间有变更、导入后又按最新状态写入或删除的文章数
      */
     public record RebuildResult(String index, long imported, long caughtUp) {
     }
@@ -300,9 +305,9 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /**
      * 索引中的文档。作者昵称可以修改、计数变化太频繁，都不放进来。
      *
-     * @param content  Markdown 原文，不做清洗
-     * @param tags     标签名，用于关键词与标签名完全一致时加分
-     * @param tagIds   标签 ID，用于按标签筛选
+     * @param content Markdown 原文，不做清洗
+     * @param tags    标签名，用于关键词与标签名完全一致时加分
+     * @param tagIds  标签 ID，用于按标签筛选
      */
     record ArticleDocument(Long id, String title, String summary, String content, List<String> tags,
                            List<Long> tagIds, Long categoryId, Long authorId, LocalDateTime publishedAt) {

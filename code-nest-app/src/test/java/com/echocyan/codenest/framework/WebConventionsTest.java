@@ -1,11 +1,12 @@
 package com.echocyan.codenest.framework;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.support.IntegrationTest;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class WebConventionsTest extends IntegrationTest {
 

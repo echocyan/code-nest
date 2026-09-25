@@ -3,16 +3,6 @@ package com.echocyan.codenest.counter.service.impl;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -22,6 +12,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * redis-async 档的 Redis 计数存储，MySQL 计数表是它的持久副本。
@@ -41,7 +36,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class RedisCounterStore {
 
-    /** 每次 {@code SPOP} 取出的对象数上限，也是一条批量写入语句的行数上限。 */
+    /**
+     * 每次 {@code SPOP} 取出的对象数上限，也是一条批量写入语句的行数上限。
+     */
     static final int FLUSH_BATCH = 1000;
 
     private static final Duration DEDUP_TTL = Duration.ofDays(1);
@@ -70,7 +67,9 @@ class RedisCounterStore {
             return 1
             """, Long.class);
 
-    /** KEYS：计数 Hash；ARGV：依次为各字段名和值。只在 Hash 不存在时写入。 */
+    /**
+     * KEYS：计数 Hash；ARGV：依次为各字段名和值。只在 Hash 不存在时写入。
+     */
     private static final byte[] BACKFILL = """
             if redis.call('EXISTS', KEYS[1]) == 1 then
                 return 0
@@ -94,6 +93,18 @@ class RedisCounterStore {
 
     private final StringRedisTemplate redis;
     private final CounterTables counterTables;
+
+    private static String hashKey(CounterTarget target, long id) {
+        return "counter:" + CounterTables.lower(target.name()) + ":" + id;
+    }
+
+    private static String dirtyKey(CounterTarget target) {
+        return "counter:dirty:" + CounterTables.lower(target.name());
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
 
     /**
      * 原子地增减一项计数（结果最小为 0），并把对象标记为待落库。
@@ -230,17 +241,5 @@ class RedisCounterStore {
             return null;
         });
         return loaded;
-    }
-
-    private static String hashKey(CounterTarget target, long id) {
-        return "counter:" + CounterTables.lower(target.name()) + ":" + id;
-    }
-
-    private static String dirtyKey(CounterTarget target) {
-        return "counter:dirty:" + CounterTables.lower(target.name());
-    }
-
-    private static byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
     }
 }

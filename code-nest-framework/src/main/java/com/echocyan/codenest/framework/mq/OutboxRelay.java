@@ -3,19 +3,16 @@ package com.echocyan.codenest.framework.mq;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.toolkit.ChainWrappers;
 import com.echocyan.codenest.common.util.DateTimes;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * Outbox 的补发与清理。
@@ -51,6 +48,24 @@ class OutboxRelay {
     static LocalDateTime nextRetryAt(LocalDateTime now, int retryCount) {
         Duration delay = FIRST_RETRY_DELAY.multipliedBy(1L << Math.min(retryCount, 16));
         return now.plus(delay.compareTo(MAX_RETRY_DELAY) > 0 ? MAX_RETRY_DELAY : delay);
+    }
+
+    /**
+     * 等所有 confirm 完成或超时；个别失败不影响其余记录，结果由 {@link #isAcked} 逐条判断。
+     */
+    private static void awaitAll(List<CompletableFuture<Boolean>> confirms) {
+        try {
+            CompletableFuture.allOf(confirms.toArray(CompletableFuture[]::new))
+                    .get(DomainEventPublisher.CONFIRM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | TimeoutException e) {
+            // 逐条判断
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static boolean isAcked(CompletableFuture<Boolean> confirm) {
+        return confirm.state() == Future.State.SUCCESS && confirm.resultNow();
     }
 
     @Scheduled(fixedDelay = 5, initialDelay = 5, timeUnit = TimeUnit.SECONDS)
@@ -111,23 +126,5 @@ class OutboxRelay {
             log.warn("Outbox event relay failed {} times: id={}, routingKey={}",
                     retryCount, outbox.getId(), outbox.getRoutingKey());
         }
-    }
-
-    /**
-     * 等所有 confirm 完成或超时；个别失败不影响其余记录，结果由 {@link #isAcked} 逐条判断。
-     */
-    private static void awaitAll(List<CompletableFuture<Boolean>> confirms) {
-        try {
-            CompletableFuture.allOf(confirms.toArray(CompletableFuture[]::new))
-                    .get(DomainEventPublisher.CONFIRM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (ExecutionException | TimeoutException e) {
-            // 逐条判断
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private static boolean isAcked(CompletableFuture<Boolean> confirm) {
-        return confirm.state() == Future.State.SUCCESS && confirm.resultNow();
     }
 }

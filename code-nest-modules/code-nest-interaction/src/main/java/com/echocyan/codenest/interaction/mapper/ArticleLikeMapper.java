@@ -3,9 +3,10 @@ package com.echocyan.codenest.interaction.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.interaction.entity.ArticleLike;
-import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 @Mapper
 public interface ArticleLikeMapper extends BaseMapper<ArticleLike> {

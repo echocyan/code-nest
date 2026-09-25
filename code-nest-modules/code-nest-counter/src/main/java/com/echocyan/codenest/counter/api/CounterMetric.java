@@ -8,7 +8,9 @@ public enum CounterMetric {
     ARTICLE_LIKE(CounterTarget.ARTICLE),
     ARTICLE_FAVORITE(CounterTarget.ARTICLE),
     ARTICLE_COMMENT(CounterTarget.ARTICLE),
-    /** 近似计数：不按访客去重，也不对账。 */
+    /**
+     * 近似计数：不按访客去重，也不对账。
+     */
     ARTICLE_VIEW(CounterTarget.ARTICLE),
     USER_FOLLOWER(CounterTarget.USER),
     USER_FOLLOWING(CounterTarget.USER),

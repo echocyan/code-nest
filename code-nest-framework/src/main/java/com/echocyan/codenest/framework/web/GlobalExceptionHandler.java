@@ -26,6 +26,19 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static ResponseEntity<Result<Void>> handleUnexpected(Exception e) {
+        log.error("Unhandled exception", e);
+        return respond(CommonErrorCode.INTERNAL_ERROR);
+    }
+
+    private static ResponseEntity<Result<Void>> respond(ErrorCode errorCode) {
+        return respond(errorCode, errorCode.message());
+    }
+
+    private static ResponseEntity<Result<Void>> respond(ErrorCode errorCode, String message) {
+        return ResponseEntity.status(errorCode.httpStatus()).body(Result.fail(errorCode, message));
+    }
+
     @ExceptionHandler(BizException.class)
     public ResponseEntity<Result<Void>> handleBiz(BizException e) {
         return respond(e.getErrorCode(), e.getMessage());
@@ -90,18 +103,5 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(status).body(Result.fail(errorCode, errorCode.message()));
         }
         return handleUnexpected(e);
-    }
-
-    private static ResponseEntity<Result<Void>> handleUnexpected(Exception e) {
-        log.error("Unhandled exception", e);
-        return respond(CommonErrorCode.INTERNAL_ERROR);
-    }
-
-    private static ResponseEntity<Result<Void>> respond(ErrorCode errorCode) {
-        return respond(errorCode, errorCode.message());
-    }
-
-    private static ResponseEntity<Result<Void>> respond(ErrorCode errorCode, String message) {
-        return ResponseEntity.status(errorCode.httpStatus()).body(Result.fail(errorCode, message));
     }
 }

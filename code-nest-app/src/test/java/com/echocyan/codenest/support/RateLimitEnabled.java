@@ -1,12 +1,8 @@
 package com.echocyan.codenest.support;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import org.springframework.test.context.TestPropertySource;
+
+import java.lang.annotation.*;
 
 /**
  * 让测试类在开启限流的上下文里运行。本机（127.0.0.1）是可信代理，测试用 {@code X-Forwarded-For} 模拟不同的客户端 IP；

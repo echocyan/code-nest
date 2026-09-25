@@ -1,7 +1,8 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.util.List;
 
 /**
  * 限流配置；各接口的限额在 {@code rate-limit.limits} 下，由 {@link RateLimit} 以占位符引用。

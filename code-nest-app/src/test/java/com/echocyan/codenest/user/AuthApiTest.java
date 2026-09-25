@@ -1,12 +1,13 @@
 package com.echocyan.codenest.user;
 
 import com.echocyan.codenest.support.IntegrationTest;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+
+import java.util.Map;
 
 class AuthApiTest extends IntegrationTest {
 

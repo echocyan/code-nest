@@ -1,7 +1,5 @@
 package com.echocyan.codenest.framework.mq;
 
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -10,6 +8,9 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 按约定的消息格式把事件发往 {@link EventQueues#EXCHANGE}：messageId 放在 {@code message_id} 属性，

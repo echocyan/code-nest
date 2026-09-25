@@ -2,8 +2,9 @@ package com.echocyan.codenest.article.convert;
 
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.vo.TagVO;
-import java.util.List;
 import org.mapstruct.Mapper;
+
+import java.util.List;
 
 @Mapper
 public interface TagConverter {

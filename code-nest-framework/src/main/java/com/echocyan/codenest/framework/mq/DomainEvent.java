@@ -1,10 +1,6 @@
 package com.echocyan.codenest.framework.mq;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 标记可以经 {@link DomainEventPublisher} 发出的事件类，并声明它的路由键。

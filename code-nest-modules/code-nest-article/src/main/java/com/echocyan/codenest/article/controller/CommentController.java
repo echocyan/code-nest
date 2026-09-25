@@ -1,7 +1,5 @@
 package com.echocyan.codenest.article.controller;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.article.dto.CommentRequest;
 import com.echocyan.codenest.article.dto.ReplyRequest;
@@ -19,13 +17,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
 
 @Tag(name = "评论")
 @RestController

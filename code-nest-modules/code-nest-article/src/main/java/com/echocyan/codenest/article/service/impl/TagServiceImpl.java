@@ -4,9 +4,10 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.TagMapper;
 import com.echocyan.codenest.article.service.TagService;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.List;
-import org.springframework.stereotype.Service;
 
 @Service
 public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagService {

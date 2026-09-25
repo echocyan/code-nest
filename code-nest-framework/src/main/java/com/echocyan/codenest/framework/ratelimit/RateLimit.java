@@ -1,11 +1,6 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Repeatable;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * 对 Controller 方法按滑动窗口限流，超限时返回 429 和 {@code Retry-After}。
@@ -41,10 +36,14 @@ public @interface RateLimit {
      */
     enum Dimension {
 
-        /** 当前登录用户，只能用于需要登录的接口。 */
+        /**
+         * 当前登录用户，只能用于需要登录的接口。
+         */
         USER,
 
-        /** 客户端 IP，只在请求来自可信代理时才读取 {@code X-Forwarded-For}。 */
+        /**
+         * 客户端 IP，只在请求来自可信代理时才读取 {@code X-Forwarded-For}。
+         */
         IP
     }
 }

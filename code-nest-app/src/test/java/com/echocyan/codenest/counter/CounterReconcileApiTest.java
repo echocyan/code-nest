@@ -3,13 +3,14 @@ package com.echocyan.codenest.counter;
 import com.echocyan.codenest.article.ArticleTestSupport;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 计数对账：篡改计数后经管理端口触发对账，各项计数恢复为关系表、内容表中的真实值。
@@ -21,6 +22,10 @@ class CounterReconcileApiTest extends ArticleTestSupport {
 
     @Value("${local.management.port}")
     private int managementPort;
+
+    private static long id(String id) {
+        return Long.parseLong(id);
+    }
 
     @Test
     void reconcileRestoresTamperedCounts() {
@@ -124,9 +129,5 @@ class CounterReconcileApiTest extends ArticleTestSupport {
                 .expectStatus().isOk()
                 .expectBody().jsonPath("$.data.id").value(String.class, id::set);
         return id.get();
-    }
-
-    private static long id(String id) {
-        return Long.parseLong(id);
     }
 }

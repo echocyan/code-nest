@@ -7,7 +7,9 @@ import com.echocyan.codenest.common.exception.ErrorCode;
  */
 public enum InteractionErrorCode implements ErrorCode {
 
-    /** 文章不存在、已删除或还是草稿。 */
+    /**
+     * 文章不存在、已删除或还是草稿。
+     */
     ARTICLE_NOT_FOUND(30001, "文章不存在", 404);
 
     private final int code;

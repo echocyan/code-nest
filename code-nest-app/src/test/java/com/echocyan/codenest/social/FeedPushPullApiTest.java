@@ -1,14 +1,15 @@
 package com.echocyan.codenest.social;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.support.PushPullFeed;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 在 push-pull 档下运行 {@link FeedApiTest} 的全部测试，另外覆盖推拉结合特有的场景。本档有 2 个粉丝即为大 V。

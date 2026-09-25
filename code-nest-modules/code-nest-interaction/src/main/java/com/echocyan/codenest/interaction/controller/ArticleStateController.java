@@ -8,21 +8,24 @@ import com.echocyan.codenest.interaction.vo.ArticleInteractionStateVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Size;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Tag(name = "点赞")
 @RestController
 @RequiredArgsConstructor
 public class ArticleStateController {
 
-    /** 一次最多查询的文章数，与列表页的最大 size 一致。 */
+    /**
+     * 一次最多查询的文章数，与列表页的最大 size 一致。
+     */
     private static final int MAX_IDS = 50;
 
     private final ArticleLikeService articleLikeService;

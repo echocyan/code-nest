@@ -6,12 +6,13 @@ import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.convert.UserConverter;
 import com.echocyan.codenest.user.entity.User;
 import com.echocyan.codenest.user.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor

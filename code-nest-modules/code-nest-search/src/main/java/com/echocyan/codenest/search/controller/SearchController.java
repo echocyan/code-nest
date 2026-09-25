@@ -1,7 +1,5 @@
 package com.echocyan.codenest.search.controller;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
-
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.result.Result;
@@ -18,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
 
 @Tag(name = "搜索")
 @RestController

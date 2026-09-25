@@ -1,12 +1,11 @@
 package com.echocyan.codenest.article;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
+
+import java.util.List;
+import java.util.Map;
 
 class ArticleApiTest extends ArticleTestSupport {
 

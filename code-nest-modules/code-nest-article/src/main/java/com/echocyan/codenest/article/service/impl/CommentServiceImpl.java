@@ -14,37 +14,48 @@ import com.echocyan.codenest.article.vo.ReplyVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
-import com.echocyan.codenest.counter.api.CounterApi;
-import com.echocyan.codenest.counter.api.CounterMetric;
-import com.echocyan.codenest.counter.api.CounterSource;
-import com.echocyan.codenest.counter.api.CounterTarget;
-import com.echocyan.codenest.counter.api.Counts;
-import com.echocyan.codenest.counter.api.IdCount;
+import com.echocyan.codenest.counter.api.*;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService,
         CounterSource {
 
-    /** 已删除但仍有回复的评论显示的内容。 */
+    /**
+     * 已删除但仍有回复的评论显示的内容。
+     */
     private static final String DELETED_CONTENT = "该评论已删除";
 
     private final ArticleService articleService;
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final DomainEventPublisher eventPublisher;
+
+    /**
+     * 按多查的一条判断是否还有下一页，并以本页最后一条的 ID 作为下一页的游标。
+     *
+     * @param rows 按游标方向排好序、最多 size + 1 条
+     */
+    private static CursorResult<Comment> pageOf(List<Comment> rows, int size) {
+        if (rows.size() <= size) {
+            return new CursorResult<>(rows, null, false);
+        }
+        List<Comment> page = rows.subList(0, size);
+        return new CursorResult<>(page, page.getLast().getId(), true);
+    }
 
     @Override
     @Transactional
@@ -196,18 +207,5 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                     counts.get(comment.getId()).get(CounterMetric.COMMENT_REPLY),
                     comment.getCreatedAt());
         };
-    }
-
-    /**
-     * 按多查的一条判断是否还有下一页，并以本页最后一条的 ID 作为下一页的游标。
-     *
-     * @param rows 按游标方向排好序、最多 size + 1 条
-     */
-    private static CursorResult<Comment> pageOf(List<Comment> rows, int size) {
-        if (rows.size() <= size) {
-            return new CursorResult<>(rows, null, false);
-        }
-        List<Comment> page = rows.subList(0, size);
-        return new CursorResult<>(page, page.getLast().getId(), true);
     }
 }

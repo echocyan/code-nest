@@ -14,7 +14,9 @@ import lombok.Setter;
 @TableName("comment")
 public class Comment extends AuditableEntity {
 
-    /** 评论的 rootId。 */
+    /**
+     * 评论的 rootId。
+     */
     public static final long NO_ROOT = 0L;
 
     private Long id;
@@ -25,7 +27,9 @@ public class Comment extends AuditableEntity {
 
     private Long rootId;
 
-    /** 回复 @某人；为 null 表示回复评论本身，评论恒为 null。 */
+    /**
+     * 回复 @某人；为 null 表示回复评论本身，评论恒为 null。
+     */
     private Long replyToUserId;
 
     private String content;

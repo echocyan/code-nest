@@ -2,9 +2,10 @@ package com.echocyan.codenest.framework.mybatis;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
-import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 /**
  * 所有表共有的创建与更新时间，由 {@link AuditMetaObjectHandler} 自动填充。

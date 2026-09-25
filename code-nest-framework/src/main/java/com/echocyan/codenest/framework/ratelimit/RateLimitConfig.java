@@ -18,7 +18,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @RequiredArgsConstructor
 public class RateLimitConfig implements WebMvcConfigurer {
 
-    /** 排在 Sa-Token 拦截器（默认 order 0）之后。 */
+    /**
+     * 排在 Sa-Token 拦截器（默认 order 0）之后。
+     */
     private static final int ORDER = 1;
 
     private final SlidingWindowRateLimiter limiter;

@@ -1,15 +1,16 @@
 package com.echocyan.codenest.notification;
 
-import static org.awaitility.Awaitility.await;
-
 import com.echocyan.codenest.support.IntegrationTest;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.client.RestTestClient;
+
+import static org.awaitility.Awaitility.await;
 
 /**
  * 通知由 MQ 消费者异步写入，断言前先用 Awaitility 等到通知出现。

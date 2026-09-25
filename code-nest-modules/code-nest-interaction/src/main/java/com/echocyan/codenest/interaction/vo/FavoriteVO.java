@@ -1,6 +1,7 @@
 package com.echocyan.codenest.interaction.vo;
 
 import com.echocyan.codenest.article.api.ArticleBrief;
+
 import java.time.LocalDateTime;
 
 /**

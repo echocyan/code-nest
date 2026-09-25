@@ -5,16 +5,10 @@ import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.counter.mapper.CounterMapper;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
+import java.util.*;
 
 /**
  * 三张计数表的读写，两种实现共用。
@@ -27,6 +21,36 @@ import org.springframework.stereotype.Component;
 class CounterTables {
 
     private final CounterMapper counterMapper;
+
+    /**
+     * @return 属于该对象类型的全部指标，按枚举声明顺序
+     */
+    static List<CounterMetric> metrics(CounterTarget target) {
+        return Arrays.stream(CounterMetric.values()).filter(metric -> metric.target() == target).toList();
+    }
+
+    /**
+     * 去掉对象类型前缀后的指标名，例如 {@code USER_LIKE_RECEIVED} → {@code like_received}。
+     */
+    static String field(CounterMetric metric) {
+        return lower(metric.name().substring(metric.target().name().length() + 1));
+    }
+
+    static String lower(String name) {
+        return name.toLowerCase(Locale.ROOT);
+    }
+
+    private static String table(CounterTarget target) {
+        return lower(target.name()) + "_stat";
+    }
+
+    private static String idColumn(CounterTarget target) {
+        return lower(target.name()) + "_id";
+    }
+
+    private static String column(CounterMetric metric) {
+        return field(metric) + "_count";
+    }
 
     /**
      * 计数行不存在时插入，存在时累加；结果不低于 0。
@@ -82,35 +106,5 @@ class CounterTables {
         });
         counterMapper.upsertAll(table(target), idColumn(target), metrics.stream().map(CounterTables::column).toList(),
                 rows, DateTimes.now());
-    }
-
-    /**
-     * @return 属于该对象类型的全部指标，按枚举声明顺序
-     */
-    static List<CounterMetric> metrics(CounterTarget target) {
-        return Arrays.stream(CounterMetric.values()).filter(metric -> metric.target() == target).toList();
-    }
-
-    /**
-     * 去掉对象类型前缀后的指标名，例如 {@code USER_LIKE_RECEIVED} → {@code like_received}。
-     */
-    static String field(CounterMetric metric) {
-        return lower(metric.name().substring(metric.target().name().length() + 1));
-    }
-
-    static String lower(String name) {
-        return name.toLowerCase(Locale.ROOT);
-    }
-
-    private static String table(CounterTarget target) {
-        return lower(target.name()) + "_stat";
-    }
-
-    private static String idColumn(CounterTarget target) {
-        return lower(target.name()) + "_id";
-    }
-
-    private static String column(CounterMetric metric) {
-        return field(metric) + "_count";
     }
 }

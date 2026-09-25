@@ -7,7 +7,9 @@ import com.echocyan.codenest.common.exception.ErrorCode;
  */
 public enum NotificationErrorCode implements ErrorCode {
 
-    /** 通知不存在，或不属于当前用户。 */
+    /**
+     * 通知不存在，或不属于当前用户。
+     */
     NOTIFICATION_NOT_FOUND(50001, "通知不存在", 404);
 
     private final int code;

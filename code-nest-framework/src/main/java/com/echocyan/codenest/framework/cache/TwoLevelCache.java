@@ -2,16 +2,6 @@ package com.echocyan.codenest.framework.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
 import org.springframework.data.redis.core.RedisCallback;
@@ -20,6 +10,12 @@ import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
 
 /**
  * 以 ID 为 key 的读缓存，采用 Cache-Aside：读取未命中时执行加载函数并回填，数据库更新后由写方调用 {@link #evict}。
@@ -61,7 +57,9 @@ public class TwoLevelCache<V> {
 
     private static final Duration LOCAL_TTL = Duration.ofSeconds(60);
 
-    /** 空值标记，即 JSON {@code null}；正常的缓存值是 JSON 对象，不会与它相同。 */
+    /**
+     * 空值标记，即 JSON {@code null}；正常的缓存值是 JSON 对象，不会与它相同。
+     */
     private static final String NULL = "null";
 
     private final String keyPrefix;
@@ -70,14 +68,18 @@ public class TwoLevelCache<V> {
     private final StringRedisTemplate redis;
     private final JsonMapper jsonMapper;
 
-    /** 本地缓存，只在 two-level 档的两级缓存中存在，否则为 null。 */
+    /**
+     * 本地缓存，只在 two-level 档的两级缓存中存在，否则为 null。
+     */
     private final Cache<Long, V> local;
 
-    /** 只在有本地缓存时使用。 */
+    /**
+     * 只在有本地缓存时使用。
+     */
     private final BloomFilter bloomFilter;
 
     TwoLevelCache(String name, Class<V> type, CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper,
-            boolean twoLevel, BloomFilter bloomFilter) {
+                  boolean twoLevel, BloomFilter bloomFilter) {
         this.keyPrefix = keyPrefixOf(name);
         this.type = type;
         this.mode = mode;
@@ -91,6 +93,13 @@ public class TwoLevelCache<V> {
 
     static String keyPrefixOf(String name) {
         return "cache:" + name + ":";
+    }
+
+    private static Duration ttlOf(String encoded) {
+        if (NULL.equals(encoded)) {
+            return NULL_TTL;
+        }
+        return TTL.plusSeconds(ThreadLocalRandom.current().nextLong(TTL_JITTER_SECONDS + 1));
     }
 
     /**
@@ -141,7 +150,7 @@ public class TwoLevelCache<V> {
     }
 
     private Map<Long, V> getAllFromRedis(Collection<Long> ids,
-            Function<Collection<Long>, Map<Long, V>> batchLoader) {
+                                         Function<Collection<Long>, Map<Long, V>> batchLoader) {
         List<Long> distinct = ids.stream().distinct().toList();
         List<String> cached = redis.opsForValue().multiGet(distinct.stream().map(this::key).toList());
         Map<Long, V> result = new HashMap<>();
@@ -224,12 +233,5 @@ public class TwoLevelCache<V> {
 
     private V decode(String json) {
         return NULL.equals(json) ? null : jsonMapper.readValue(json, type);
-    }
-
-    private static Duration ttlOf(String encoded) {
-        if (NULL.equals(encoded)) {
-            return NULL_TTL;
-        }
-        return TTL.plusSeconds(ThreadLocalRandom.current().nextLong(TTL_JITTER_SECONDS + 1));
     }
 }

@@ -2,15 +2,18 @@ package com.echocyan.codenest.social.service.impl;
 
 import com.echocyan.codenest.social.service.FeedFanoutService;
 import com.echocyan.codenest.social.service.FollowService;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 class FeedFanoutServiceImpl implements FeedFanoutService {
 
-    /** 推送时每页取出的粉丝数。 */
+    /**
+     * 推送时每页取出的粉丝数。
+     */
     static final int FOLLOWER_PAGE = 1000;
 
     private final FeedBoxes feedBoxes;

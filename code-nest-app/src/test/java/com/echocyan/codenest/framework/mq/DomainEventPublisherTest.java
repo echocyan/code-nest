@@ -1,21 +1,22 @@
 package com.echocyan.codenest.framework.mq;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import com.echocyan.codenest.support.IntegrationTest;
 import com.echocyan.codenest.support.SharedContainers;
 import com.echocyan.codenest.support.probe.MqProbe;
 import com.echocyan.codenest.support.probe.MqProbe.ProbeEvent;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DomainEventPublisherTest extends IntegrationTest {
 
@@ -27,6 +28,10 @@ class DomainEventPublisherTest extends IntegrationTest {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    private static String nonce() {
+        return UUID.randomUUID().toString();
+    }
 
     @Test
     void publishesWithoutTransactionImmediately() {
@@ -95,17 +100,6 @@ class DomainEventPublisherTest extends IntegrationTest {
                 .isInstanceOf(AmqpException.class);
     }
 
-    private record Undeclared(String value) {
-    }
-
-    @DomainEvent("probe.unbound")
-    record Unbound(String nonce) {
-    }
-
-    private static String nonce() {
-        return UUID.randomUUID().toString();
-    }
-
     private Message receive(String nonce, Duration timeout) {
         return receive(nonce, timeout, null);
     }
@@ -129,5 +123,12 @@ class DomainEventPublisherTest extends IntegrationTest {
             }
         }
         return null;
+    }
+
+    private record Undeclared(String value) {
+    }
+
+    @DomainEvent("probe.unbound")
+    record Unbound(String nonce) {
     }
 }

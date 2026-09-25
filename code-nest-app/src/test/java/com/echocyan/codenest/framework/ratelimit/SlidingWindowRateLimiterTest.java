@@ -1,15 +1,16 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.framework.ratelimit.SlidingWindowRateLimiter.Quota;
 import com.echocyan.codenest.support.IntegrationTest;
 import com.echocyan.codenest.support.RateLimitEnabled;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 滑动窗口脚本的窗口边界。时间取自 Redis，测试按返回的等待时间睡眠，不依赖本机时钟。
@@ -21,6 +22,10 @@ class SlidingWindowRateLimiterTest extends IntegrationTest {
 
     @Autowired
     private SlidingWindowRateLimiter limiter;
+
+    private static String uniqueKey() {
+        return "test:" + UUID.randomUUID();
+    }
 
     @Test
     void rejectsOnceWindowIsFullAndWaitsUntilOldestRecordLeaves() {
@@ -76,9 +81,5 @@ class SlidingWindowRateLimiterTest extends IntegrationTest {
         long wait = limiter.tryAcquire(List.of(new Quota(key, 1, WINDOW)));
 
         assertThat(wait).isGreaterThan(WINDOW.toMillis() / 2).isLessThanOrEqualTo(WINDOW.toMillis());
-    }
-
-    private static String uniqueKey() {
-        return "test:" + UUID.randomUUID();
     }
 }

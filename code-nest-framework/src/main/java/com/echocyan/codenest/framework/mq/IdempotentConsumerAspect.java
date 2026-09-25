@@ -1,9 +1,8 @@
 package com.echocyan.codenest.framework.mq;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import lombok.RequiredArgsConstructor;
-import org.aopalliance.intercept.MethodInterceptor;
 import lombok.extern.slf4j.Slf4j;
+import org.aopalliance.intercept.MethodInterceptor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -12,6 +11,8 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import java.lang.reflect.UndeclaredThrowableException;
 
 /**
  * {@link IdempotentConsumer} 的实现。messageId 与消费队列名取自当前线程正在处理的消息，
@@ -46,6 +47,16 @@ class IdempotentConsumerAspect {
         };
     }
 
+    private static Object proceed(ProceedingJoinPoint joinPoint) {
+        try {
+            return joinPoint.proceed();
+        } catch (RuntimeException | Error e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
+
     @Around("@annotation(com.echocyan.codenest.framework.mq.IdempotentConsumer)")
     public Object consumeOnce(ProceedingJoinPoint joinPoint) {
         Message message = CONSUMING.get();
@@ -65,20 +76,11 @@ class IdempotentConsumerAspect {
                 consumeRecordMapper.insert(record);
             } catch (DuplicateKeyException e) {
                 // MySQL 只回滚这一条语句，事务可以正常结束
-                log.info("Skip consumed message: messageId={}, consumer={}", record.getMessageId(), record.getConsumer());
+                log.info("Skip consumed message: messageId={}, consumer={}", record.getMessageId(),
+                        record.getConsumer());
                 return null;
             }
             return proceed(joinPoint);
         });
-    }
-
-    private static Object proceed(ProceedingJoinPoint joinPoint) {
-        try {
-            return joinPoint.proceed();
-        } catch (RuntimeException | Error e) {
-            throw e;
-        } catch (Throwable e) {
-            throw new UndeclaredThrowableException(e);
-        }
     }
 }

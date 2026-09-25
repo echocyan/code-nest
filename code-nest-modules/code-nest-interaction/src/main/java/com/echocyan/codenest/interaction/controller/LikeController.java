@@ -1,7 +1,5 @@
 package com.echocyan.codenest.interaction.controller;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
 import com.echocyan.codenest.framework.ratelimit.RateLimit;
@@ -9,11 +7,9 @@ import com.echocyan.codenest.interaction.service.ArticleLikeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
 
 @Tag(name = "点赞")
 @RestController

@@ -2,6 +2,7 @@ package com.echocyan.codenest.notification.vo;
 
 import com.echocyan.codenest.notification.entity.NotificationType;
 import com.echocyan.codenest.user.api.UserBrief;
+
 import java.time.LocalDateTime;
 
 /**

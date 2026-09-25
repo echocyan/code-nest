@@ -1,13 +1,14 @@
 package com.echocyan.codenest.social;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.article.ArticleTestSupport;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.web.servlet.client.RestTestClient;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.jupiter.api.Test;
-import org.springframework.test.web.servlet.client.RestTestClient;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class FeedApiTest extends ArticleTestSupport {
 

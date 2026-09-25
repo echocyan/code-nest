@@ -1,23 +1,30 @@
 package com.echocyan.codenest.article;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.CommentBrief;
 import com.echocyan.codenest.support.IntegrationTest;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 class CommentApiTest extends IntegrationTest {
 
     @Autowired
     private ArticleApi articleApi;
+
+    private static String idOf(RestTestClient.ResponseSpec response) {
+        AtomicReference<String> id = new AtomicReference<>();
+        response.expectBody().jsonPath("$.data.id").value(String.class, id::set);
+        return id.get();
+    }
 
     @Test
     void readerCanCommentOnAPublishedArticle() {
@@ -401,7 +408,9 @@ class CommentApiTest extends IntegrationTest {
                 .expectBody().jsonPath("$.data.counts.commentCount").isEqualTo(expected));
     }
 
-    /** 新注册一个作者，发布一篇文章，返回文章 ID。 */
+    /**
+     * 新注册一个作者，发布一篇文章，返回文章 ID。
+     */
     private String publishedArticle() {
         RestTestClient author = withToken(register(uniqueUsername()));
         return publish(author, draft(author));
@@ -429,11 +438,5 @@ class CommentApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("content", content))
                 .exchange();
-    }
-
-    private static String idOf(RestTestClient.ResponseSpec response) {
-        AtomicReference<String> id = new AtomicReference<>();
-        response.expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

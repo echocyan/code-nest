@@ -1,12 +1,5 @@
 package com.echocyan.codenest.social.service.impl;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
@@ -16,6 +9,14 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * 推拉结合 Feed 的 Redis 存储。
@@ -40,12 +41,16 @@ class FeedBoxes {
 
     private static final Duration INBOX_TTL = Duration.ofDays(7);
 
-    /** 只保留最新的 ARGV[1] 条：ZSet 按 score 升序，最旧的排在前面。各脚本的 ARGV[1] 都是上限。 */
+    /**
+     * 只保留最新的 ARGV[1] 条：ZSet 按 score 升序，最旧的排在前面。各脚本的 ARGV[1] 都是上限。
+     */
     private static final String TRIM = """
             redis.call('ZREMRANGEBYRANK', KEYS[1], 0, -tonumber(ARGV[1]) - 1)
             """;
 
-    /** 把发件箱 src 的全部文章并入 KEYS[1] 并裁剪；ZADD 不改变 KEYS[1] 的 TTL。 */
+    /**
+     * 把发件箱 src 的全部文章并入 KEYS[1] 并裁剪；ZADD 不改变 KEYS[1] 的 TTL。
+     */
     private static final String MERGE = """
             local function merge(src)
                 local items = redis.call('ZRANGE', src, 0, -1, 'WITHSCORES')
@@ -62,14 +67,18 @@ class FeedBoxes {
             end
             """;
 
-    /** KEYS：ZSet；ARGV：上限、文章 ID。 */
+    /**
+     * KEYS：ZSet；ARGV：上限、文章 ID。
+     */
     private static final RedisScript<Long> ADD = RedisScript.of("""
             redis.call('ZADD', KEYS[1], ARGV[2], ARGV[2])
             """ + TRIM + """
             return 1
             """, Long.class);
 
-    /** KEYS：收件箱；ARGV：上限、文章 ID。收件箱存在时才写入，不会造出没有 TTL 的收件箱。 */
+    /**
+     * KEYS：收件箱；ARGV：上限、文章 ID。收件箱存在时才写入，不会造出没有 TTL 的收件箱。
+     */
     private static final byte[] ADD_IF_PRESENT = ("""
             if redis.call('EXISTS', KEYS[1]) == 0 then
                 return 0
@@ -79,7 +88,9 @@ class FeedBoxes {
             return 1
             """).getBytes(StandardCharsets.UTF_8);
 
-    /** KEYS：收件箱、发件箱；ARGV：上限。收件箱存在时才并入。 */
+    /**
+     * KEYS：收件箱、发件箱；ARGV：上限。收件箱存在时才并入。
+     */
     private static final RedisScript<Long> MERGE_IF_PRESENT = RedisScript.of(MERGE + """
             if redis.call('EXISTS', KEYS[1]) == 0 then
                 return 0
@@ -88,7 +99,9 @@ class FeedBoxes {
             return 1
             """, Long.class);
 
-    /** KEYS：收件箱、各发件箱；ARGV：上限、TTL 秒数。发件箱都为空时收件箱仍不存在。 */
+    /**
+     * KEYS：收件箱、各发件箱；ARGV：上限、TTL 秒数。发件箱都为空时收件箱仍不存在。
+     */
     private static final RedisScript<Long> REBUILD = RedisScript.of(MERGE + """
             for i = 2, #KEYS do
                 merge(KEYS[i])
@@ -97,7 +110,9 @@ class FeedBoxes {
             return 1
             """, Long.class);
 
-    /** KEYS：收件箱、发件箱。从收件箱中移除发件箱里的全部文章。 */
+    /**
+     * KEYS：收件箱、发件箱。从收件箱中移除发件箱里的全部文章。
+     */
     private static final RedisScript<Long> REMOVE_ALL_OF = RedisScript.of("""
             local ids = redis.call('ZRANGE', KEYS[2], 0, -1)
             if #ids == 0 then
@@ -107,6 +122,18 @@ class FeedBoxes {
             """, Long.class);
 
     private final StringRedisTemplate redis;
+
+    private static String outboxKey(long authorId) {
+        return "feed:outbox:" + authorId;
+    }
+
+    private static String inboxKey(long userId) {
+        return "feed:inbox:" + userId;
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
 
     void addToOutbox(long authorId, long articleId) {
         redis.execute(ADD, List.of(outboxKey(authorId)), String.valueOf(OUTBOX_CAP), String.valueOf(articleId));
@@ -191,17 +218,5 @@ class FeedBoxes {
             }
         }
         return ids;
-    }
-
-    private static String outboxKey(long authorId) {
-        return "feed:outbox:" + authorId;
-    }
-
-    private static String inboxKey(long userId) {
-        return "feed:inbox:" + userId;
-    }
-
-    private static byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
     }
 }

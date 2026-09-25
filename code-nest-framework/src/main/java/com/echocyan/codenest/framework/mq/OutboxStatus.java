@@ -9,7 +9,9 @@ public enum OutboxStatus {
 
     PENDING(0),
     SENT(1),
-    /** 补发累计失败达到上限，等待人工处理。 */
+    /**
+     * 补发累计失败达到上限，等待人工处理。
+     */
     FAILED(2);
 
     @EnumValue

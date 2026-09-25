@@ -7,8 +7,8 @@ import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.framework.cache.TwoLevelCache;
-import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.UserErrorCode;
+import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.convert.UserConverter;
 import com.echocyan.codenest.user.dto.UpdateProfileRequest;
 import com.echocyan.codenest.user.entity.User;
@@ -16,11 +16,12 @@ import com.echocyan.codenest.user.mapper.UserMapper;
 import com.echocyan.codenest.user.service.UserService;
 import com.echocyan.codenest.user.vo.UserCountsVO;
 import com.echocyan.codenest.user.vo.UserProfileVO;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor

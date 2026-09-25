@@ -3,13 +3,14 @@ package com.echocyan.codenest.social.service.impl;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 /**
  * 按粉丝数识别大 V：粉丝数不低于 {@code feed.big-author-threshold} 的作者。作者跨过阈值时不迁移已推送或未推送的文章，

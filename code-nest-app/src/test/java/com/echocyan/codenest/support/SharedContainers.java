@@ -1,7 +1,5 @@
 package com.echocyan.codenest.support;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
@@ -9,6 +7,9 @@ import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * 集成测试用的中间件容器，声明为静态字段：即使测试用到了多个 Spring 上下文（如不同的模式开关），
@@ -19,8 +20,12 @@ import org.testcontainers.utility.DockerImageName;
  */
 public final class SharedContainers {
 
-    private static final String ES_IMAGE = "code-nest/elasticsearch-ik:9.4.5";
-
+    @ServiceConnection
+    public static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4.3.5-management") {
+        @Override
+        public void stop() {
+        }
+    };
     @ServiceConnection
     static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4") {
         @Override
@@ -32,14 +37,6 @@ public final class SharedContainers {
 
     @ServiceConnection(name = "redis")
     static final GenericContainer<?> REDIS = new RedisContainer().withExposedPorts(6379);
-
-    @ServiceConnection
-    public static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4.3.5-management") {
-        @Override
-        public void stop() {
-        }
-    };
-
     @ServiceConnection
     static final ElasticsearchContainer ELASTICSEARCH = new ElasticsearchContainer(elasticsearchImage()) {
         @Override
@@ -48,22 +45,9 @@ public final class SharedContainers {
     }
             .withEnv("xpack.security.enabled", "false")
             .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m");
+    private static final String ES_IMAGE = "code-nest/elasticsearch-ik:9.4.5";
 
     private SharedContainers() {
-    }
-
-    /**
-     * {@code GenericContainer<?>} 无法用匿名子类覆盖 {@code stop()}，单独声明。
-     */
-    private static final class RedisContainer extends GenericContainer<RedisContainer> {
-
-        RedisContainer() {
-            super("redis:8.6");
-        }
-
-        @Override
-        public void stop() {
-        }
     }
 
     /**
@@ -87,5 +71,19 @@ public final class SharedContainers {
             dir = dir.getParent();
         }
         throw new IllegalStateException("Cannot locate " + relative + " from working directory");
+    }
+
+    /**
+     * {@code GenericContainer<?>} 无法用匿名子类覆盖 {@code stop()}，单独声明。
+     */
+    private static final class RedisContainer extends GenericContainer<RedisContainer> {
+
+        RedisContainer() {
+            super("redis:8.6");
+        }
+
+        @Override
+        public void stop() {
+        }
     }
 }

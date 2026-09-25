@@ -12,7 +12,9 @@ import com.echocyan.codenest.notification.vo.NotificationVO;
  */
 public interface NotificationService extends IService<Notification> {
 
-    /** 未读数的上限。 */
+    /**
+     * 未读数的上限。
+     */
     int MAX_UNREAD_COUNT = 100;
 
     /**

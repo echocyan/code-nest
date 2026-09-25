@@ -1,21 +1,14 @@
 package com.echocyan.codenest.counter.service.impl;
 
-import com.echocyan.codenest.counter.api.CounterApi;
-import com.echocyan.codenest.counter.api.CounterMetric;
-import com.echocyan.codenest.counter.api.CounterSource;
-import com.echocyan.codenest.counter.api.Counts;
-import com.echocyan.codenest.counter.api.IdCount;
+import com.echocyan.codenest.counter.api.*;
 import com.echocyan.codenest.counter.service.CounterReconcileService;
 import com.echocyan.codenest.framework.lock.RedisLock;
-import java.time.Duration;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.*;
 
 /**
  * 按指标逐页对账：取来源的一页精确计数，连同计数表里同一 ID 区间内不为 0、但这一页里没有的对象（精确计数为 0），
@@ -30,12 +23,16 @@ import org.springframework.stereotype.Service;
 @Service
 class CounterReconcileServiceImpl implements CounterReconcileService {
 
-    /** 每页统计的对象数，也是一次批量读取当前计数的对象数上限。 */
+    /**
+     * 每页统计的对象数，也是一次批量读取当前计数的对象数上限。
+     */
     static final int BATCH = 500;
 
     private static final String LOCK_KEY = "counter:reconcile:lock";
 
-    /** 锁的过期时间，要长于一次对账的耗时；实例崩溃时锁最迟在这之后释放。 */
+    /**
+     * 锁的过期时间，要长于一次对账的耗时；实例崩溃时锁最迟在这之后释放。
+     */
     private static final Duration LOCK_TTL = Duration.ofHours(1);
 
     private final CounterApi counterApi;

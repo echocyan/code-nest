@@ -13,15 +13,16 @@ import com.echocyan.codenest.interaction.entity.Favorite;
 import com.echocyan.codenest.interaction.mapper.FavoriteMapper;
 import com.echocyan.codenest.interaction.service.FavoriteService;
 import com.echocyan.codenest.interaction.vo.FavoriteVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor

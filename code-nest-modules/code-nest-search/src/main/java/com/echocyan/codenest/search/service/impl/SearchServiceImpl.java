@@ -9,15 +9,18 @@ import com.echocyan.codenest.search.service.SearchService;
 import com.echocyan.codenest.search.vo.SearchArticleVO;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 class SearchServiceImpl implements SearchService {
 
-    /** 翻页上限：{@code from + size} 不超过它，避免深分页。 */
+    /**
+     * 翻页上限：{@code from + size} 不超过它，避免深分页。
+     */
     private static final long MAX_WINDOW = 1000;
 
     private final ArticleSearcher articleSearcher;

@@ -14,7 +14,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class ArticleBloomFilterLoader implements SmartInitializingSingleton {
 
-    /** 重建时每批读取的文章 ID 数。 */
+    /**
+     * 重建时每批读取的文章 ID 数。
+     */
     private static final int BATCH_SIZE = 1000;
 
     private final BloomFilter articleBloomFilter;

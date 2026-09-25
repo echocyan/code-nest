@@ -1,14 +1,15 @@
 package com.echocyan.codenest.framework.lock;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.stereotype.Component;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.stereotype.Component;
 
 /**
  * 多实例之间互斥执行任务的 Redis 锁：{@code SET key token NX PX ttl} 加锁，任务结束后只释放自己持有的锁。
@@ -18,7 +19,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RedisLock {
 
-    /** KEYS：锁；ARGV：加锁时写入的 token。 */
+    /**
+     * KEYS：锁；ARGV：加锁时写入的 token。
+     */
     private static final RedisScript<Long> UNLOCK = RedisScript.of("""
             if redis.call('GET', KEYS[1]) == ARGV[1] then
                 return redis.call('DEL', KEYS[1])

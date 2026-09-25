@@ -16,6 +16,7 @@ import com.echocyan.codenest.article.service.ArticleTagService;
 import com.echocyan.codenest.article.service.CommentService;
 import com.echocyan.codenest.article.service.TagService;
 import com.echocyan.codenest.common.result.PageResult;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,11 @@ class ArticleApiImpl implements ArticleApi {
     @Override
     public List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit) {
         return toSnapshots(articleService.listPublishedAfter(afterId, limit));
+    }
+
+    @Override
+    public List<ArticleSnapshot> listSnapshotsUpdatedSince(LocalDateTime since, Long afterId, int limit) {
+        return toSnapshots(articleService.listUpdatedSinceIncludingDeleted(since, afterId, limit));
     }
 
     /**

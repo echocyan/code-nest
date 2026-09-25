@@ -21,5 +21,4 @@ Status: closed
   - 用户不存在时两种列表返回空，与作者文章列表一致。
   - `GET /users/follow-states?ids=`：需要登录，ids 最多 50 个（与 `/articles/states` 一致）。返回以用户 ID 为 key 的布尔值。
 - **幂等与并发**：插入直接 `save`，捕获 `DuplicateKeyException` 视为已关注；删除按影响行数判断。只有插入或删除成功才调用 `CounterApi.increment`（USER_FOLLOWER 记在被关注者，USER_FOLLOWING 记在关注者）。
-- **模块依赖**：social 目前只依赖 user、counter；article 在 Feed 票用到时再加。
 - **测试**：断言计数时用 `eventually`（Awaitility）等计数最终生效；`FollowRedisAsyncApiTest` 在 redis-async 档重跑同一组测试。

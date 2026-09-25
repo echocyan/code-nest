@@ -6,6 +6,10 @@ spring:
       # 应用的工作目录是 code-nest-app（IDEA 与 spring-boot:run 默认如此），compose 文件在仓库根目录
       file: ../compose.yaml
       lifecycle-management: start-only
+  testcontainers:
+    beans:
+      # 只影响测试与 TestCodeNestApplication：并行启动 Testcontainers 容器，总耗时取决于最慢的 ES
+      startup: parallel
   rabbitmq:
     publisher-confirm-type: correlated
     # 没有队列绑定的消息退回给生产者，按发送失败处理

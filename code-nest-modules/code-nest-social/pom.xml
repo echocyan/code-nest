@@ -17,6 +17,10 @@
         </dependency>
         <dependency>
             <groupId>com.echocyan</groupId>
+            <artifactId>code-nest-article</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.echocyan</groupId>
             <artifactId>code-nest-counter</artifactId>
         </dependency>
     </dependencies>

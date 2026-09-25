@@ -34,6 +34,10 @@ counter:
   # redis-async：计数经 Outbox 投递，在 Redis 里原子累加，每 5 秒批量落回计数表
   mode: sync-db
 
+feed:
+  # pull：读取时查出关注列表，对这些作者做一次 IN 查询（基线）
+  mode: pull
+
 search:
   # mysql-like：LIKE '%kw%' 匹配标题、摘要、正文，按发布时间倒序（基线）
   mode: mysql-like

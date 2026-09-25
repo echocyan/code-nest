@@ -7,6 +7,7 @@ import com.echocyan.codenest.social.SocialErrorCode;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.vo.FollowUserVO;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -39,6 +40,11 @@ public interface FollowService extends IService<Follow> {
      * @param cursor 上一页的 nextCursor，第一页为 null
      */
     CursorResult<FollowUserVO> listFollowings(long followerId, Long cursor, int size);
+
+    /**
+     * followerId 关注的全部用户，只读 (follower_id, author_id) 唯一索引。
+     */
+    List<Long> listAllFollowedAuthorIds(long followerId);
 
     /**
      * 给定用户中 followerId 关注了的那些，走 (follower_id, author_id) 唯一索引。

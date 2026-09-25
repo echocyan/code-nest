@@ -2,6 +2,7 @@ package com.echocyan.codenest.article.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.echocyan.codenest.article.entity.Comment;
+import com.echocyan.codenest.counter.api.IdCount;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -31,4 +32,24 @@ public interface CommentMapper extends BaseMapper<Comment> {
             LIMIT #{limit}
             """)
     List<Comment> selectVisibleComments(long articleId, long cursor, int limit);
+
+    /**
+     * 文章 ID 大于 afterId 的各文章未删除的评论与回复数，按文章 ID 升序。
+     */
+    @Select("""
+            SELECT article_id, COUNT(*) FROM comment
+            WHERE article_id > #{afterId} AND deleted = 0
+            GROUP BY article_id ORDER BY article_id LIMIT #{limit}
+            """)
+    List<IdCount> countByArticle(long afterId, int limit);
+
+    /**
+     * 评论 ID 大于 afterId 的各评论未删除的回复数，按评论 ID 升序。
+     */
+    @Select("""
+            SELECT root_id, COUNT(*) FROM comment
+            WHERE root_id > #{afterId} AND deleted = 0
+            GROUP BY root_id ORDER BY root_id LIMIT #{limit}
+            """)
+    List<IdCount> countByRoot(long afterId, int limit);
 }

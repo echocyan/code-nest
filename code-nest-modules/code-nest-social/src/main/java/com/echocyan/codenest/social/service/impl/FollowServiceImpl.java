@@ -5,6 +5,8 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterSource;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 import com.echocyan.codenest.social.SocialErrorCode;
@@ -27,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements FollowService {
+public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements FollowService,
+        CounterSource {
 
     private final UserApi userApi;
     private final CounterApi counterApi;
@@ -105,6 +108,20 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                 .list().stream()
                 .map(Follow::getAuthorId)
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<CounterMetric> metrics() {
+        return Set.of(CounterMetric.USER_FOLLOWER, CounterMetric.USER_FOLLOWING);
+    }
+
+    @Override
+    public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
+        return switch (metric) {
+            case USER_FOLLOWER -> baseMapper.countByAuthor(afterId, limit);
+            case USER_FOLLOWING -> baseMapper.countByFollower(afterId, limit);
+            default -> throw new IllegalArgumentException("不负责的计数指标: " + metric);
+        };
     }
 
     /**

@@ -62,4 +62,15 @@ public interface CounterMapper {
             """)
     List<Map<String, Object>> selectByIds(@Param("table") String table, @Param("idColumn") String idColumn,
                                           @Param("ids") Collection<Long> ids);
+
+    /**
+     * ID 在 (afterId, upperId] 内、该列不为 0 的对象，走主键范围扫描。
+     */
+    @Select("""
+            SELECT ${idColumn} FROM ${table}
+            WHERE ${idColumn} > #{afterId} AND ${idColumn} <= #{upperId} AND ${column} > 0
+            """)
+    List<Long> selectNonZeroIds(@Param("table") String table, @Param("idColumn") String idColumn,
+                                @Param("column") String column, @Param("afterId") long afterId,
+                                @Param("upperId") long upperId);
 }

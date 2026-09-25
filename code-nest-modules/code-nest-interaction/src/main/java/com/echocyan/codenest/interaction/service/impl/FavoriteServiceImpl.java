@@ -7,6 +7,8 @@ import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterSource;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.interaction.entity.Favorite;
 import com.echocyan.codenest.interaction.mapper.FavoriteMapper;
 import com.echocyan.codenest.interaction.service.FavoriteService;
@@ -23,7 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> implements FavoriteService {
+public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> implements FavoriteService,
+        CounterSource {
 
     private final PublishedArticles publishedArticles;
     private final ArticleApi articleApi;
@@ -81,6 +84,16 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
                 .map(favorite -> new FavoriteVO(briefs.get(favorite.getArticleId()), favorite.getCreatedAt()))
                 .toList();
         return new CursorResult<>(list, hasMore ? page.getLast().getId() : null, hasMore);
+    }
+
+    @Override
+    public Set<CounterMetric> metrics() {
+        return Set.of(CounterMetric.ARTICLE_FAVORITE);
+    }
+
+    @Override
+    public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
+        return baseMapper.countByArticle(afterId, limit);
     }
 
     @Override

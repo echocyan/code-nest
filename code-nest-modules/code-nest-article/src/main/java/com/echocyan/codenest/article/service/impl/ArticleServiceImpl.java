@@ -31,14 +31,17 @@ import com.echocyan.codenest.common.util.Texts;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterSource;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,7 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
+public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService,
+        CounterSource {
 
     /** 自动摘要截取的正文字符数。 */
     private static final int AUTO_SUMMARY_LENGTH = 100;
@@ -192,6 +196,16 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .orderByDesc(Article::getId)
                 .last("LIMIT " + (size + 1))
                 .list(), size);
+    }
+
+    @Override
+    public Set<CounterMetric> metrics() {
+        return Set.of(CounterMetric.USER_ARTICLE);
+    }
+
+    @Override
+    public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
+        return baseMapper.countPublishedByAuthor(afterId, limit);
     }
 
     /**

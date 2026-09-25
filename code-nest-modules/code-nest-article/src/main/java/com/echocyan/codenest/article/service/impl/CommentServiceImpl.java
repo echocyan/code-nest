@@ -16,14 +16,17 @@ import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterSource;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService {
+public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService,
+        CounterSource {
 
     /** 已删除但仍有回复的评论显示的内容。 */
     private static final String DELETED_CONTENT = "该评论已删除";
@@ -140,6 +144,20 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             counterApi.increment(CounterMetric.COMMENT_REPLY, comment.getRootId(), -1);
         }
         counterApi.increment(CounterMetric.ARTICLE_COMMENT, comment.getArticleId(), -1);
+    }
+
+    @Override
+    public Set<CounterMetric> metrics() {
+        return Set.of(CounterMetric.ARTICLE_COMMENT, CounterMetric.COMMENT_REPLY);
+    }
+
+    @Override
+    public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
+        return switch (metric) {
+            case ARTICLE_COMMENT -> baseMapper.countByArticle(afterId, limit);
+            case COMMENT_REPLY -> baseMapper.countByRoot(afterId, limit);
+            default -> throw new IllegalArgumentException("不负责的计数指标: " + metric);
+        };
     }
 
     /**

@@ -4,12 +4,15 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
+import com.echocyan.codenest.counter.api.CounterSource;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.interaction.api.event.LikeCreatedEvent;
 import com.echocyan.codenest.interaction.entity.ArticleLike;
 import com.echocyan.codenest.interaction.mapper.ArticleLikeMapper;
 import com.echocyan.codenest.interaction.service.ArticleLikeService;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, ArticleLike> implements ArticleLikeService {
+public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, ArticleLike> implements ArticleLikeService,
+        CounterSource {
 
     private final PublishedArticles publishedArticles;
     private final CounterApi counterApi;
@@ -32,6 +36,7 @@ public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, Artic
         ArticleLike like = new ArticleLike();
         like.setUserId(userId);
         like.setArticleId(articleId);
+        like.setAuthorId(article.authorId());
         try {
             save(like);
         } catch (DuplicateKeyException e) {
@@ -58,6 +63,20 @@ public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, Artic
     private void countLike(ArticleState article, long delta) {
         counterApi.increment(CounterMetric.ARTICLE_LIKE, article.id(), delta);
         counterApi.increment(CounterMetric.USER_LIKE_RECEIVED, article.authorId(), delta);
+    }
+
+    @Override
+    public Set<CounterMetric> metrics() {
+        return Set.of(CounterMetric.ARTICLE_LIKE, CounterMetric.USER_LIKE_RECEIVED);
+    }
+
+    @Override
+    public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
+        return switch (metric) {
+            case ARTICLE_LIKE -> baseMapper.countByArticle(afterId, limit);
+            case USER_LIKE_RECEIVED -> baseMapper.countByAuthor(afterId, limit);
+            default -> throw new IllegalArgumentException("不负责的计数指标: " + metric);
+        };
     }
 
     @Override

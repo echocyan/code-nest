@@ -58,6 +58,14 @@ class CounterTables {
     }
 
     /**
+     * @return ID 在 (afterId, upperId] 内、MySQL 里该项计数不为 0 的对象
+     */
+    List<Long> selectNonZeroIds(CounterMetric metric, long afterId, long upperId) {
+        CounterTarget target = metric.target();
+        return counterMapper.selectNonZeroIds(table(target), idColumn(target), column(metric), afterId, upperId);
+    }
+
+    /**
      * 把各对象的全部计数按绝对值写入，没有计数行时插入。
      */
     void upsert(CounterTarget target, Map<Long, Counts> counts) {

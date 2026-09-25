@@ -318,7 +318,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
         - counter 模块内部使用的计数变更事件
     - 队列：
         - `search.article-sync`
-        - `social.feed-push`，以及处理关注、取关、删文修正的队列
+        - `social.feed-push`，以及处理关注、取关、删文修正的 `social.feed-fix`
         - `article.cache-evict`
         - `notification.create`
         - counter 的计数消费队列
@@ -360,10 +360,11 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **大 V 判定**：粉丝数 ≥ `feed.big-author-threshold`（默认 5000，从 `CounterApi` 读取）。作者跨过阈值时不迁移历史数据。
 - **Redis 结构**：
     - 每个作者一个发件箱 ZSet（最近 100 篇）；每个读者一个收件箱 ZSet（上限 500 条，TTL 7 天，读取时续期）。
-    - member 和 score 都用雪花 articleId，articleId 同时是分页游标。
+    - member 和 score 都用雪花 articleId，articleId 同时是分页游标。score 是 double，大 ID 会舍入；按游标读取时，与游标 score 相同的一组按 ID 精确比较。
 - **推送**：`social.feed-push` 消费 `article.published`。
     - 先写作者的发件箱；作者是大 V 就到此为止。
     - 普通作者：按粉丝索引每页取 1000 个粉丝，只给收件箱 key 仍存在的粉丝执行 pipeline `ZADD` 并裁剪到上限。
+    - 推送与修正都与 `feed.mode` 无关，两档都维护。
 - **读取流程**：
     1. 用覆盖索引查出我关注的作者。
     2. 用 `CounterApi` 识别其中的大 V。

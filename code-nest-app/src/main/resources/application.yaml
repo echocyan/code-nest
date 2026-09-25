@@ -69,6 +69,27 @@ hot:
     view: 0.1
   gravity: 1.5
 
+rate-limit:
+  # 总开关，压测时关闭
+  enabled: true
+  # 可信代理的 IP（如 Nginx），只有来自它们的请求才读取 X-Forwarded-For；默认不信任任何代理
+  trusted-proxies: []
+  # 各接口的限额，窗口长度见接口上的 @RateLimit
+  limits:
+    # 按 IP
+    register-per-hour: 5
+    login-per-minute: 10
+    search-per-minute: 60
+    # 按用户
+    publish-per-hour: 10
+    # 评论与回复共用
+    comment-per-minute: 10
+    comment-per-day: 200
+    # 点赞、收藏及其取消共用
+    like-favorite-per-minute: 60
+    # 关注与取关共用
+    follow-per-minute: 30
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

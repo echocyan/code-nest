@@ -1,8 +1,11 @@
 package com.echocyan.codenest.interaction.controller;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
+
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
+import com.echocyan.codenest.framework.ratelimit.RateLimit;
 import com.echocyan.codenest.interaction.service.FavoriteService;
 import com.echocyan.codenest.interaction.vo.FavoriteVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +28,8 @@ public class FavoriteController {
     private final FavoriteService favoriteService;
 
     @Operation(summary = "收藏", description = "已收藏过时不产生变化；只能收藏已发布的文章")
+    @RateLimit(key = "like-favorite-per-minute", limit = "${rate-limit.limits.like-favorite-per-minute}", window = "1m",
+            dimension = USER)
     @PutMapping("/articles/{id}/favorite")
     public Result<Void> favorite(@PathVariable long id) {
         favoriteService.favorite(AuthContext.currentUserId(), id);
@@ -32,6 +37,8 @@ public class FavoriteController {
     }
 
     @Operation(summary = "取消收藏", description = "没收藏过时不产生变化")
+    @RateLimit(key = "like-favorite-per-minute", limit = "${rate-limit.limits.like-favorite-per-minute}", window = "1m",
+            dimension = USER)
     @DeleteMapping("/articles/{id}/favorite")
     public Result<Void> unfavorite(@PathVariable long id) {
         favoriteService.unfavorite(AuthContext.currentUserId(), id);

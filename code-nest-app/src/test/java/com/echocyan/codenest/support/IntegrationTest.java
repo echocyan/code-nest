@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.awaitility.core.ThrowingRunnable;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,14 +14,19 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
  * HTTP 集成测试基类：真实端口 + 真实中间件容器。子类通过 {@link #client} 匿名调用接口，
  * 通过 {@link #withToken} 以登录用户身份调用。
+ * <p>
+ * 所有测试都从本机发请求，默认关闭限流，避免互相占用额度；限流测试在子类上重新开启。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({TestcontainersConfiguration.class, SaTokenDaoRebinding.class})
+@TestPropertySource(properties = "rate-limit.enabled=false")
 public abstract class IntegrationTest {
 
     protected static final String API = "/api/v1";
@@ -34,7 +40,10 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void setUpClient() {
-        client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+        // HttpClient 默认会按 Retry-After 自动重试 429，测试需要直接看到 429
+        var requestFactory = new HttpComponentsClientHttpRequestFactory(
+                HttpClients.custom().disableAutomaticRetries().build());
+        client = RestTestClient.bindToServer(requestFactory).baseUrl("http://localhost:" + port).build();
     }
 
     /**

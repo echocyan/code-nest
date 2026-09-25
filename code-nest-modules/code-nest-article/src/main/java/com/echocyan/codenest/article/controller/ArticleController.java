@@ -1,5 +1,7 @@
 package com.echocyan.codenest.article.controller;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
+
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
@@ -10,6 +12,7 @@ import com.echocyan.codenest.article.vo.ArticleVersionVO;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
+import com.echocyan.codenest.framework.ratelimit.RateLimit;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -59,6 +62,8 @@ public class ArticleController {
     }
 
     @Operation(summary = "发布", description = "已发布的文章重复发布不产生变化")
+    @RateLimit(key = "publish-per-hour", limit = "${rate-limit.limits.publish-per-hour}", window = "1h",
+            dimension = USER)
     @PostMapping("/{id}/publish")
     public Result<ArticleVersionVO> publish(@PathVariable long id) {
         return Result.ok(versionOf(articleService.publish(id, AuthContext.currentUserId())));

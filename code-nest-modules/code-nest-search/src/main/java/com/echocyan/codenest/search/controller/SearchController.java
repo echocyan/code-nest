@@ -1,8 +1,11 @@
 package com.echocyan.codenest.search.controller;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
+
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.result.Result;
+import com.echocyan.codenest.framework.ratelimit.RateLimit;
 import com.echocyan.codenest.search.dto.SearchSort;
 import com.echocyan.codenest.search.service.SearchService;
 import com.echocyan.codenest.search.vo.SearchArticleVO;
@@ -25,6 +28,8 @@ public class SearchController {
 
     @SaIgnore
     @Operation(summary = "搜索文章", description = "只搜已发布文章；可按分类、标签筛选；page × size 超过 1000（即 from + size > 1000）时返回 400")
+    @RateLimit(key = "search-per-minute", limit = "${rate-limit.limits.search-per-minute}", window = "1m",
+            dimension = IP)
     @GetMapping("/search/articles")
     public Result<PageResult<SearchArticleVO>> search(
             @RequestParam @NotBlank String q,

@@ -1,5 +1,7 @@
 package com.echocyan.codenest.article.controller;
 
+import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
+
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.article.dto.CommentRequest;
 import com.echocyan.codenest.article.dto.ReplyRequest;
@@ -10,6 +12,7 @@ import com.echocyan.codenest.article.vo.ReplyVO;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
+import com.echocyan.codenest.framework.ratelimit.RateLimit;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,6 +35,9 @@ public class CommentController {
     private final CommentService commentService;
 
     @Operation(summary = "发表评论", description = "只能评论已发布的文章")
+    @RateLimit(key = "comment-per-minute", limit = "${rate-limit.limits.comment-per-minute}", window = "1m",
+            dimension = USER)
+    @RateLimit(key = "comment-per-day", limit = "${rate-limit.limits.comment-per-day}", window = "1d", dimension = USER)
     @PostMapping("/articles/{id}/comments")
     public Result<CommentIdVO> comment(@PathVariable long id, @Valid @RequestBody CommentRequest request) {
         return Result.ok(new CommentIdVO(
@@ -50,6 +56,9 @@ public class CommentController {
 
     @Operation(summary = "发表回复", description = "id 可以是评论或回复；对回复再回复时，新回复仍挂在同一条评论下。"
             + "replyToUserId 须是该评论或同一评论下某条回复的作者")
+    @RateLimit(key = "comment-per-minute", limit = "${rate-limit.limits.comment-per-minute}", window = "1m",
+            dimension = USER)
+    @RateLimit(key = "comment-per-day", limit = "${rate-limit.limits.comment-per-day}", window = "1d", dimension = USER)
     @PostMapping("/comments/{id}/replies")
     public Result<CommentIdVO> reply(@PathVariable long id, @Valid @RequestBody ReplyRequest request) {
         return Result.ok(new CommentIdVO(commentService.reply(

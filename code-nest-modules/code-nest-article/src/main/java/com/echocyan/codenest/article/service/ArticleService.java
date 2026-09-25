@@ -25,7 +25,7 @@ public interface ArticleService extends IService<Article> {
     Article create(long authorId, ArticleRequest request);
 
     /**
-     * 整体替换文章内容，状态和发布时间不变。
+     * 整体替换文章内容，状态和发布时间不变，版本号 +1，并发出 {@code article.updated}。
      *
      * @param version 客户端读到的版本号，与数据库不一致时视为冲突
      * @throws BizException 文章不存在、不是作者本人、版本冲突、分类或标签不存在
@@ -33,14 +33,14 @@ public interface ArticleService extends IService<Article> {
     Article update(long id, long userId, int version, ArticleRequest request);
 
     /**
-     * 发布草稿，作者文章数 +1，并发出 {@code article.published}。已发布的文章重复发布不产生变化。
+     * 发布草稿，版本号 +1，作者文章数 +1，并发出 {@code article.published}。已发布的文章重复发布不产生变化。
      *
      * @throws BizException 文章不存在、不是作者本人、版本冲突
      */
     Article publish(long id, long userId);
 
     /**
-     * 软删除文章并发出 {@code article.deleted}；删除的是已发布文章时，作者文章数 -1。
+     * 软删除文章，版本号 +1，并发出 {@code article.deleted}；删除的是已发布文章时，作者文章数 -1。
      *
      * @throws BizException 文章不存在、不是作者本人、并发修改导致版本冲突
      */
@@ -66,6 +66,20 @@ public interface ArticleService extends IService<Article> {
      * 按关键词搜索已发布的文章，见 {@link com.echocyan.codenest.article.api.ArticleApi#searchPublished}。
      */
     PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
+
+    /**
+     * 按 ID 查询，已删除的文章也返回。
+     *
+     * @return 文章从未存在时为 null
+     */
+    Article getIncludingDeleted(long id);
+
+    /**
+     * 一批已发布的文章，按文章 ID 正序。
+     *
+     * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
+     */
+    List<Article> listPublishedAfter(Long afterId, int limit);
 
     /**
      * 一批作者已发布的文章，按文章 ID 倒序。

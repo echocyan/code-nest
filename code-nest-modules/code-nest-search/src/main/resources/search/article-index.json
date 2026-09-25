@@ -1,0 +1,28 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "analysis": {
+      "normalizer": {
+        "lowercase": {
+          "type": "custom",
+          "filter": ["lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "properties": {
+      "id": {"type": "long"},
+      "title": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+      "summary": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+      "content": {"type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart"},
+      "tags": {"type": "keyword", "normalizer": "lowercase"},
+      "tagIds": {"type": "keyword"},
+      "categoryId": {"type": "keyword"},
+      "authorId": {"type": "keyword"},
+      "publishedAt": {"type": "date"}
+    }
+  }
+}

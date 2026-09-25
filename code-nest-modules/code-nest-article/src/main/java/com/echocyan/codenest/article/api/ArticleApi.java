@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * article 模块对其他模块的门面。已删除的文章、评论视为不存在。
+ * article 模块对其他模块的门面。除 {@link #findSnapshot} 外，已删除的文章、评论视为不存在。
  */
 public interface ArticleApi {
 
@@ -41,6 +41,21 @@ public interface ArticleApi {
      * @param tagId      为 null 时不按标签筛选
      */
     PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
+
+    /**
+     * 查询文章当前的完整内容与版本号，已删除的文章也会返回。
+     *
+     * @return 文章从未存在时为空
+     */
+    Optional<ArticleSnapshot> findSnapshot(long articleId);
+
+    /**
+     * 一批已发布文章的完整内容，按文章 ID 正序，以文章 ID 作游标，用于全量导入搜索索引。
+     *
+     * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
+     * @param limit   最多返回的条数
+     */
+    List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit);
 
     /**
      * 批量查询评论或回复的摘要，不检查所属文章的状态。

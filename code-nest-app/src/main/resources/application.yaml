@@ -52,6 +52,7 @@ feed:
 
 search:
   # mysql-like：LIKE '%kw%' 匹配标题、摘要、正文，按发布时间倒序（基线）
+  # es：IK 分词、相关度排序、标签加权与高亮；文章经 MQ 同步到 ES，启动时别名不存在就建索引并全量导入
   mode: mysql-like
 
 sa-token:

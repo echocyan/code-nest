@@ -1,6 +1,7 @@
 package com.echocyan.codenest.article.convert;
 
 import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.vo.ArticleCountsVO;
@@ -19,6 +20,9 @@ public interface ArticleConverter {
     ArticleState toState(Article article);
 
     ArticleBrief toBrief(Article article);
+
+    @Mapping(target = "deleted", expression = "java(article.getDeleted() == 1)")
+    ArticleSnapshot toSnapshot(Article article, String content, List<Long> tagIds, List<String> tagNames);
 
     /** 分类、作者都有 id 属性，需指明取文章的。 */
     @Mapping(target = "id", source = "article.id")

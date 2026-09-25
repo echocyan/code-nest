@@ -19,4 +19,10 @@ public interface ArticleMapper extends BaseMapper<Article> {
             GROUP BY author_id ORDER BY author_id LIMIT #{limit}
             """)
     List<IdCount> countPublishedByAuthor(long afterId, int limit);
+
+    /**
+     * 按 ID 查询，已删除的文章也返回；自定义 SQL 不会被追加逻辑删除条件。
+     */
+    @Select("SELECT * FROM article WHERE id = #{id}")
+    Article selectByIdIncludingDeleted(long id);
 }

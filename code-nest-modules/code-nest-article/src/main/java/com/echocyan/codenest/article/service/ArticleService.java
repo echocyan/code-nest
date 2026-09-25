@@ -9,6 +9,7 @@ import com.echocyan.codenest.article.vo.ArticleItemVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.PageResult;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -80,6 +81,16 @@ public interface ArticleService extends IService<Article> {
      * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
      */
     List<Article> listPublishedAfter(Long afterId, int limit);
+
+    /**
+     * 发布时间不早于 since 的已发布文章，只含 ID 与发布时间。
+     */
+    List<Article> listPublishedSince(LocalDateTime since);
+
+    /**
+     * 按传入顺序补全列表项，已删除和未发布的文章被滤掉。
+     */
+    List<ArticleItemVO> listPublishedItems(List<Long> ids);
 
     /**
      * 一批作者已发布的文章，按文章 ID 倒序。

@@ -55,6 +55,15 @@ search:
   # es：IK 分词、相关度排序、标签加权与高亮；文章经 MQ 同步到 ES，启动时别名不存在就建索引并全量导入
   mode: mysql-like
 
+hot:
+  # 热度 = (like·点赞 + favorite·收藏 + comment·评论 + view·浏览) / (发布小时数 + 2)^gravity
+  weight:
+    like: 3
+    favorite: 5
+    comment: 4
+    view: 0.1
+  gravity: 1.5
+
 sa-token:
   # 请求头为 Authorization: Bearer <uuid>
   token-name: Authorization

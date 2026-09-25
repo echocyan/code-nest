@@ -1,6 +1,7 @@
 package com.echocyan.codenest.article.api;
 
 import com.echocyan.codenest.common.result.PageResult;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,13 @@ public interface ArticleApi {
      * @param limit   最多返回的条数
      */
     List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit);
+
+    /**
+     * 发布时间不早于 since 的已发布文章，作为热榜的候选集。
+     *
+     * @return 以文章 ID 为 key，发布时间为 value
+     */
+    Map<Long, LocalDateTime> getPublishedSince(LocalDateTime since);
 
     /**
      * 批量查询评论或回复的摘要，不检查所属文章的状态。

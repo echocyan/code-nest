@@ -12,7 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
- * 热榜：手动触发一次重算后匿名读取。所有测试共用一个库，榜单里还有其他测试的文章，只断言本测试文章之间的相对位置。
+ * 热榜：手动触发一次重算后匿名读取。所有测试共用一个库，榜单里还有其他测试的文章，只断言本测试文章之间的相对位置；
+ * 前提是其他测试留下的、比"刚发布且有一个赞"更热的文章不足 100 篇。
  */
 class HotArticleApiTest extends ArticleTestSupport {
 

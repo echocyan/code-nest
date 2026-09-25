@@ -266,7 +266,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - `article_tag`：主键 (article_id, tag_id)，外加反向索引。
     - `comment`：用 `root_id = 0` 区分评论和回复，回复带 `reply_to_user_id`。
 - **counter 模块**：`article_stat`、`user_stat`、`comment_stat`。
-- **interaction 模块**：`article_like`、`favorite`，两张表都有 (user_id, article_id) 唯一键。
+- **interaction 模块**：`article_like`、`favorite`，两张表都有 (user_id, article_id) 唯一键；`article_like` 另存被点赞文章的 `author_id`，供对账统计获赞数。
 - **social 模块**：`follow`，唯一键 (follower_id, author_id)。
     - 索引 (author_id, follower_id) 供 Feed 推送按粉丝分页。
     - 索引 (author_id, id)、(follower_id, id) 供粉丝列表、关注列表按关注时间翻页。
@@ -351,8 +351,9 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 点赞、收藏、获赞由 interaction 负责。
     - 评论、回复、文章数由 article 负责。
     - 粉丝、关注由 social 负责。
-    - 方式是分页 `GROUP BY` 重新统计，再调用 `reset`。
-    - 每周定时执行，也可以通过 `POST /actuator/counter-reconcile` 手动触发。
+    - 方式是分页 `GROUP BY` 重新统计，再调用 `reset`：各模块实现 `counter.api.CounterSource` 提供每页精确计数，counter 模块与当前值比较后只修正不一致的对象。
+    - MySQL 计数表里有值、但关系表里已经没有对应行的对象，修正为 0；只在 Redis 里有值的对象不在此列。
+    - 每周定时执行，也可以通过管理端口上的 `POST /actuator/counter-reconcile` 手动触发；多实例之间用 Redis 锁互斥。
 - **已知缺陷**（写进文档）：`SPOP` 之后、写库之前实例崩溃会丢失待落库标记；对账与并发写入之间可能有 ±1 的误差。
 
 ### Feed 推拉结合（主打亮点 B，见[Feed 推拉结合](issues/07-feed.md)）

@@ -26,7 +26,7 @@ Blocked by: 03
    - 作者跨过阈值时不迁移历史数据，之后按新身份处理。同一篇文章可能既在收件箱里又被拉取到，读 Feed 时按 articleId 去重。
 4. **结构**：
    - 收件箱 `feed:inbox:{userId}`、发件箱 `feed:outbox:{authorId}`，都是 ZSet。
-   - member 是 articleId，**score 也用 articleId**。雪花 ID 本身按时间有序且唯一，分页时不会因为 score 相同而跳过或重复。
+   - member 是 articleId，**score 也用 articleId**。雪花 ID 本身按时间有序且唯一。score 是 double，大于 2^53 的 ID 会舍入，相邻 ID 可能得到相同的 score；同 score 的 member 按字典序排列，位数相同的 ID 字典序即数值序，所以顺序仍然正确。按游标读取时，把与游标 score 相同的那一组单独取出、按 ID 精确比较，分页不会跳过或重复。
    - 收件箱上限 500 条，发件箱上限 100 条，写入后用 `ZREMRANGEBYRANK` 裁掉超出的部分。
    - 分页游标是 articleId（取小于游标的条目）。Feed 最多只能往回翻约 500 条。
 5. **读 Feed**（`GET /feed?cursor=&size=`）：
@@ -40,12 +40,13 @@ Blocked by: 03
 
    关注列表要不要缓存，由多级缓存票根据压测结果决定。[多级缓存与缓存治理](09-multilevel-cache.md)的结论是暂不缓存；如果压测中它成为瓶颈，由压测方案票决定。
 6. **推送**：
-   - 消费者 `social.feed-push` 订阅 `article.published`，先把文章写入作者的发件箱。
+   - 消费者 `social.feed-push` 订阅 `article.published`，先把文章写入作者的发件箱。推送与下面的修正都与 `feed.mode` 无关，两档都维护，切换档位时不需要预热。
    - 如果作者是大 V，到此结束。
    - 如果作者不是大 V，按 `IDX(author_id, follower_id)` 每页取 1000 个粉丝，用 pipeline 对收件箱 key 存在的粉丝执行 `ZADD` 并裁剪到上限。
    - 普通作者的粉丝数低于阈值，所以不需要拆成子任务。
    - `ZADD` 本身是幂等的，所以不加 `@IdempotentConsumer`。
 7. **修正**（原则：写入时尽量修正，读取时兜底过滤）：
+   - 修正统一由消费者 `social.feed-fix` 处理。
    - **关注**：消费 `follow.created`。如果被关注的是普通作者且我的收件箱存在，就把他的发件箱合并进我的收件箱。大 V 不需要处理，读的时候会拉取。
    - **取关**：消费 `follow.deleted`，按对方发件箱里的文章从我的收件箱中尽量 `ZREM`。更早的、不在发件箱里的残留，由读取时过滤。
    - **删文**：消费 `article.deleted`，把文章从作者的发件箱中移除。粉丝收件箱里的不逐个删除，读取时过滤。

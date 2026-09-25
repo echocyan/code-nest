@@ -59,12 +59,19 @@ class FeedApiTest extends ArticleTestSupport {
             reader.put().uri(API + "/users/{id}/follow", idOf(author)).exchange().expectStatus().isOk();
         }
 
+        eventually(() -> assertThat(readAllPages(reader, 2)).isEqualTo(newestFirst));
+    }
+
+    /**
+     * 按 size 连续翻页直到没有下一页，返回依次看到的文章 ID。
+     */
+    protected List<String> readAllPages(RestTestClient reader, int size) {
         List<String> seen = new ArrayList<>();
         AtomicReference<String> cursor = new AtomicReference<>();
         AtomicReference<Boolean> hasMore = new AtomicReference<>(true);
         while (hasMore.get()) {
             RestTestClient.BodyContentSpec page = reader.get()
-                    .uri(API + "/feed?size=2" + (cursor.get() == null ? "" : "&cursor=" + cursor.get()))
+                    .uri(API + "/feed?size=" + size + (cursor.get() == null ? "" : "&cursor=" + cursor.get()))
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
@@ -74,10 +81,10 @@ class FeedApiTest extends ArticleTestSupport {
                 page.jsonPath("$.data.nextCursor").value(String.class, cursor::set);
             }
         }
-        assertThat(seen).isEqualTo(newestFirst);
+        return seen;
     }
 
-    private void expectFeed(RestTestClient reader, List<String> articleIds) {
+    protected void expectFeed(RestTestClient reader, List<String> articleIds) {
         reader.get().uri(API + "/feed")
                 .exchange()
                 .expectStatus().isOk()
@@ -86,7 +93,7 @@ class FeedApiTest extends ArticleTestSupport {
                 .jsonPath("$.data.hasMore").isEqualTo(false);
     }
 
-    private String idOf(RestTestClient user) {
+    protected String idOf(RestTestClient user) {
         AtomicReference<String> id = new AtomicReference<>();
         user.get().uri(API + "/users/me")
                 .exchange()

@@ -14,8 +14,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
- * 限额见 {@link RateLimitEnabled}：登录每 IP 每分钟 3 次，关注每用户每分钟 2 次，评论和回复每用户每分钟 5 条、每天 3 条。
- * 每个测试经可信代理（本机）以一个新的客户端 IP 发请求，测试之间互不占用额度。
+ * 限额见 {@link RateLimitEnabled}：每 IP 每小时注册 3 次、每分钟登录 3 次、搜索 2 次；每用户每小时发布 1 篇，
+ * 每分钟点赞与收藏 2 次、关注与取关 2 次，评论和回复每分钟 5 条、每天 3 条。
+ * 每个测试经可信代理（本机）以一个新的客户端 IP 发请求，测试之间互不占用额度；一个测试最多注册 3 个用户。
  */
 @RateLimitEnabled
 class RateLimitApiTest extends ArticleTestSupport {
@@ -60,7 +61,7 @@ class RateLimitApiTest extends ArticleTestSupport {
         RestTestClient first = withToken(register(uniqueUsername()));
         RestTestClient second = withToken(register(uniqueUsername()));
         follow(first, authorId).expectStatus().isOk();
-        follow(first, authorId).expectStatus().isOk();
+        first.delete().uri(API + "/users/{id}/follow", authorId).exchange().expectStatus().isOk();
         follow(first, authorId).expectStatus().isEqualTo(429);
 
         follow(second, authorId).expectStatus().isOk();
@@ -84,6 +85,52 @@ class RateLimitApiTest extends ArticleTestSupport {
                         value -> assertThat(Long.parseLong(value)).isGreaterThan(60L));
     }
 
+    @Test
+    void registrationIsLimitedPerIp() {
+        for (int i = 0; i < 3; i++) {
+            register(uniqueUsername());
+        }
+
+        client.post().uri(API + "/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("username", uniqueUsername(), "password", PASSWORD))
+                .exchange()
+                .expectStatus().isEqualTo(429);
+    }
+
+    @Test
+    void anonymousSearchIsLimitedPerIp() {
+        search().expectStatus().isOk();
+        search().expectStatus().isOk();
+
+        search().expectStatus().isEqualTo(429);
+    }
+
+    @Test
+    void publishingIsLimitedPerUser() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String first = createDraft(author, draft());
+        String second = createDraft(author, draft());
+        publish(author, first);
+
+        author.post().uri(API + "/articles/{id}/publish", second)
+                .exchange()
+                .expectStatus().isEqualTo(429);
+    }
+
+    @Test
+    void likesFavoritesAndCancellationsShareOneQuota() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String article = publish(author, createDraft(author, draft()));
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        reader.put().uri(API + "/articles/{id}/like", article).exchange().expectStatus().isOk();
+        reader.put().uri(API + "/articles/{id}/favorite", article).exchange().expectStatus().isOk();
+
+        reader.delete().uri(API + "/articles/{id}/favorite", article)
+                .exchange()
+                .expectStatus().isEqualTo(429);
+    }
+
     private RestTestClient behind(String clientIp) {
         return client.mutate().defaultHeader(XFF, clientIp).build();
     }
@@ -98,6 +145,10 @@ class RateLimitApiTest extends ArticleTestSupport {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("username", username, "password", PASSWORD))
                 .exchange();
+    }
+
+    private RestTestClient.ResponseSpec search() {
+        return client.get().uri(API + "/search/articles?q=redis").exchange();
     }
 
     private static RestTestClient.ResponseSpec follow(RestTestClient user, String userId) {

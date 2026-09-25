@@ -19,7 +19,11 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(properties = {
         "rate-limit.enabled=true",
         "rate-limit.trusted-proxies=127.0.0.1",
+        "rate-limit.limits.register-per-hour=3",
         "rate-limit.limits.login-per-minute=3",
+        "rate-limit.limits.search-per-minute=2",
+        "rate-limit.limits.publish-per-hour=1",
+        "rate-limit.limits.like-favorite-per-minute=2",
         "rate-limit.limits.follow-per-minute=2",
         "rate-limit.limits.comment-per-minute=5",
         "rate-limit.limits.comment-per-day=3",

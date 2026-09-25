@@ -12,8 +12,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
- * 消费 {@value #QUEUE}：文章编辑、删除后第二次删除缓存。事件经 Outbox 发出并带重试，第二次删除一定会执行；
- * MQ 的投递延迟起到了延迟双删中"延迟"的作用。删除缓存本身幂等，不加 {@code @IdempotentConsumer}。
+ * 消费 {@value #QUEUE}：文章编辑、删除后第二次删除缓存。事件经 Outbox 发出，事务提交后一定会投递；
+ * 消费失败按 MQ 规则重试，耗尽后进入死信队列。MQ 的投递延迟起到了延迟双删中"延迟"的作用。
+ * 删除缓存本身幂等，不加 {@code @IdempotentConsumer}。
  */
 @Component
 @RabbitListener(queues = ArticleCacheEvictListener.QUEUE)

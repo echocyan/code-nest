@@ -52,6 +52,15 @@ public abstract class ArticleTestSupport extends IntegrationTest {
         return id;
     }
 
+    /** 编辑文章，version 为读到的版本号：新建的草稿是 0，发布后是 1。 */
+    protected RestTestClient.ResponseSpec edit(RestTestClient author, String id, int version,
+                                               Map<String, Object> body) {
+        return author.put().uri(API + "/articles/{id}?version={version}", id, version)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .exchange();
+    }
+
     protected void delete(RestTestClient author, String id) {
         author.delete().uri(API + "/articles/{id}", id)
                 .exchange()

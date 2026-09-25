@@ -2,12 +2,19 @@ package com.echocyan.codenest.article.service.impl;
 
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.article.api.CommentBrief;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CommentConverter;
+import com.echocyan.codenest.article.entity.Article;
+import com.echocyan.codenest.article.entity.ArticleContent;
+import com.echocyan.codenest.article.entity.Tag;
+import com.echocyan.codenest.article.service.ArticleContentService;
 import com.echocyan.codenest.article.service.ArticleService;
+import com.echocyan.codenest.article.service.ArticleTagService;
 import com.echocyan.codenest.article.service.CommentService;
+import com.echocyan.codenest.article.service.TagService;
 import com.echocyan.codenest.common.result.PageResult;
 import java.util.Collection;
 import java.util.List;
@@ -23,6 +30,9 @@ import org.springframework.stereotype.Service;
 class ArticleApiImpl implements ArticleApi {
 
     private final ArticleService articleService;
+    private final ArticleContentService articleContentService;
+    private final ArticleTagService articleTagService;
+    private final TagService tagService;
     private final ArticleConverter articleConverter;
     private final CommentService commentService;
     private final CommentConverter commentConverter;
@@ -53,6 +63,40 @@ class ArticleApiImpl implements ArticleApi {
     public PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page,
                                                     long size) {
         return articleService.searchPublished(keyword, categoryId, tagId, page, size).map(articleConverter::toBrief);
+    }
+
+    @Override
+    public Optional<ArticleSnapshot> findSnapshot(long articleId) {
+        return Optional.ofNullable(articleService.getIncludingDeleted(articleId))
+                .map(article -> toSnapshots(List.of(article)).getFirst());
+    }
+
+    @Override
+    public List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit) {
+        return toSnapshots(articleService.listPublishedAfter(afterId, limit));
+    }
+
+    /**
+     * 批量补全正文与标签，保持传入顺序。
+     */
+    private List<ArticleSnapshot> toSnapshots(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = articles.stream().map(Article::getId).toList();
+        Map<Long, String> contents = articleContentService.listByIds(ids).stream()
+                .collect(Collectors.toMap(ArticleContent::getArticleId, ArticleContent::getContent));
+        Map<Long, List<Long>> tagIds = articleTagService.listTagIds(ids);
+        Map<Long, String> tagNames = tagService.listInOrder(
+                        tagIds.values().stream().flatMap(List::stream).distinct().toList()).stream()
+                .collect(Collectors.toMap(Tag::getId, Tag::getName));
+        return articles.stream()
+                .map(article -> {
+                    List<Long> ownTagIds = tagIds.getOrDefault(article.getId(), List.of());
+                    return articleConverter.toSnapshot(article, contents.get(article.getId()), ownTagIds,
+                            ownTagIds.stream().map(tagNames::get).toList());
+                })
+                .toList();
     }
 
     @Override

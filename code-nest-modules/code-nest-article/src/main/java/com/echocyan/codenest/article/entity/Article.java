@@ -34,7 +34,7 @@ public class Article extends AuditableEntity {
 
     private LocalDateTime publishedAt;
 
-    /** 乐观锁版本号，按 ID 更新时自动比对并 +1。 */
+    /** 乐观锁版本号，每次编辑、发布、删除都自动比对并 +1；也是搜索索引的外部版本号。 */
     @Version
     private Integer version;
 

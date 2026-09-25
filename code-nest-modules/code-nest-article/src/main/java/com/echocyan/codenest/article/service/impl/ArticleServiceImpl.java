@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
+import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
+import com.echocyan.codenest.article.api.event.ArticleUpdatedEvent;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.convert.TagConverter;
@@ -33,6 +36,7 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import java.util.Collection;
@@ -60,6 +64,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final TagConverter tagConverter;
     private final UserApi userApi;
     private final CounterApi counterApi;
+    private final DomainEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -90,6 +95,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         articleContentService.updateById(contentOf(id, request));
         articleTagService.replaceTags(id, tagIds);
+        eventPublisher.publish(new ArticleUpdatedEvent(id, userId));
         return article;
     }
 
@@ -104,6 +110,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setPublishedAt(DateTimes.now());
         updateOrConflict(article);
         counterApi.increment(CounterMetric.USER_ARTICLE, userId, 1);
+        eventPublisher.publish(new ArticlePublishedEvent(id, userId));
         return article;
     }
 
@@ -111,17 +118,21 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Transactional
     public void delete(long id, long userId) {
         Article article = getOwned(id, userId);
-        // 带上读到的版本号：期间被发布或删除时按冲突处理，保证按读到的状态增减文章数是正确的
+        // 带上读到的版本号：期间被发布或删除时按冲突处理，保证按读到的状态增减文章数是正确的。
+        // 乐观锁插件比对版本号并把它 +1，搜索同步以此让删除覆盖此前的写入
+        Article deletion = new Article();
+        deletion.setVersion(article.getVersion());
         boolean deleted = lambdaUpdate()
+                .set(Article::getDeleted, 1)
                 .eq(Article::getId, id)
-                .eq(Article::getVersion, article.getVersion())
-                .remove();
+                .update(deletion);
         if (!deleted) {
             throw new BizException(ArticleErrorCode.VERSION_CONFLICT);
         }
         if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
         }
+        eventPublisher.publish(new ArticleDeletedEvent(id, userId));
     }
 
     @Override
@@ -162,6 +173,21 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                                 "%" + escaped + "%"))
                 .page(new Page<>(page, size));
         return new PageResult<>(result.getRecords(), result.getTotal(), page, size);
+    }
+
+    @Override
+    public Article getIncludingDeleted(long id) {
+        return baseMapper.selectByIdIncludingDeleted(id);
+    }
+
+    @Override
+    public List<Article> listPublishedAfter(Long afterId, int limit) {
+        return lambdaQuery()
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .gt(afterId != null, Article::getId, afterId)
+                .orderByAsc(Article::getId)
+                .last("LIMIT " + limit)
+                .list();
     }
 
     @Override

@@ -230,13 +230,6 @@ class ArticleApiTest extends ArticleTestSupport {
                 .expectStatus().isOk();
     }
 
-    private RestTestClient.ResponseSpec edit(RestTestClient author, String id, int version, Map<String, Object> body) {
-        return author.put().uri(API + "/articles/{id}?version={version}", id, version)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .exchange();
-    }
-
     @Test
     void unknownArticleIsNotFound() {
         expectArticleNotFound(client, "1");

@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 /**
- * 各测试类共用一个数据库，每个测试用一个随机关键词隔离数据。
+ * 各测试类共用一个数据库，每个测试用一个随机关键词隔离数据。es 档下文章异步同步到索引，搜索结果用
+ * {@link #eventually} 等待；两档要求搜到同一批文章，需要确定顺序时按 LATEST 排序。
  */
 class SearchApiTest extends ArticleTestSupport {
 
@@ -24,16 +25,34 @@ class SearchApiTest extends ArticleTestSupport {
         createDraft(author, withTitle(keyword + " 草稿"));
         delete(author, publish(author, createDraft(author, withTitle(keyword + " 已删除"))));
 
-        client.get().uri(API + "/search/articles?q={q}", keyword)
+        eventually(() -> client.get().uri(API + "/search/articles?q={q}&sort=LATEST", keyword)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(byContent, bySummary, byTitle))
                 .jsonPath("$.data.total").isEqualTo(3)
                 .jsonPath("$.data.list[2].article.title").isEqualTo("关于 " + keyword + " 的笔记")
-                .jsonPath("$.data.list[2].author.nickname").isEqualTo(username)
-                .jsonPath("$.data.list[2].titleHighlight").isEmpty()
-                .jsonPath("$.data.list[2].contentHighlight").isEmpty();
+                .jsonPath("$.data.list[2].author.nickname").isEqualTo(username));
+    }
+
+    @Test
+    void resultsFollowPublishEditAndDelete() {
+        String before = uniqueKeyword();
+        String after = uniqueKeyword();
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String id = createDraft(author, withTitle(before));
+        publish(author, id);
+
+        eventually(() -> expectHits(before, id));
+
+        edit(author, id, 1, withTitle(after)).expectStatus().isOk();
+        eventually(() -> {
+            expectHits(before);
+            expectHits(after, id);
+        });
+
+        delete(author, id);
+        eventually(() -> expectHits(after));
     }
 
     @Test
@@ -44,14 +63,16 @@ class SearchApiTest extends ArticleTestSupport {
         String otherTag = publish(author, createDraft(author, withTitle(keyword, 5, 8)));
         publish(author, createDraft(author, withTitle(keyword, 2, 7)));
 
-        client.get().uri(API + "/search/articles?q={q}&categoryId=5&tagId=7", keyword)
-                .exchange()
-                .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(match));
-        client.get().uri(API + "/search/articles?q={q}&categoryId=5&sort=LATEST", keyword)
-                .exchange()
-                .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(otherTag, match));
+        eventually(() -> {
+            client.get().uri(API + "/search/articles?q={q}&categoryId=5&tagId=7", keyword)
+                    .exchange()
+                    .expectBody()
+                    .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(match));
+            client.get().uri(API + "/search/articles?q={q}&categoryId=5&sort=LATEST", keyword)
+                    .exchange()
+                    .expectBody()
+                    .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(otherTag, match));
+        });
     }
 
     @Test
@@ -61,10 +82,7 @@ class SearchApiTest extends ArticleTestSupport {
         String literal = publish(author, createDraft(author, withTitle("100%_" + keyword)));
         publish(author, createDraft(author, withTitle("100ab" + keyword)));
 
-        client.get().uri(API + "/search/articles?q={q}", "%_" + keyword)
-                .exchange()
-                .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(literal));
+        eventually(() -> expectHits("%_" + keyword, literal));
     }
 
     @Test
@@ -74,13 +92,13 @@ class SearchApiTest extends ArticleTestSupport {
         String first = publish(author, createDraft(author, withTitle(keyword)));
         String second = publish(author, createDraft(author, withTitle(keyword)));
 
-        client.get().uri(API + "/search/articles?q={q}&page=2&size=1", keyword)
+        eventually(() -> client.get().uri(API + "/search/articles?q={q}&page=2&size=1", keyword)
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(first))
                 .jsonPath("$.data.total").isEqualTo(2)
                 .jsonPath("$.data.page").isEqualTo(2)
-                .jsonPath("$.data.size").isEqualTo(1);
+                .jsonPath("$.data.size").isEqualTo(1));
         client.get().uri(API + "/search/articles?q={q}&page=50&size=20", keyword)
                 .exchange()
                 .expectStatus().isOk()
@@ -112,21 +130,32 @@ class SearchApiTest extends ArticleTestSupport {
                 .expectBody().jsonPath("$.code").isEqualTo(90400);
     }
 
-    private static String uniqueKeyword() {
+    /**
+     * 断言按 LATEST 排序搜到的恰好是给定的文章。
+     */
+    protected void expectHits(String keyword, String... articleIds) {
+        client.get().uri(API + "/search/articles?q={q}&sort=LATEST", keyword)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(articleIds));
+    }
+
+    protected static String uniqueKeyword() {
         return "kw" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 
-    private static Map<String, Object> withTitle(String title) {
+    protected static Map<String, Object> withTitle(String title) {
         return with("title", title);
     }
 
-    private static Map<String, Object> withTitle(String title, int categoryId, int tagId) {
+    protected static Map<String, Object> withTitle(String title, int categoryId, int tagId) {
         Map<String, Object> body = draftIn(categoryId, tagId);
         body.put("title", title);
         return body;
     }
 
-    private static Map<String, Object> with(String field, String value) {
+    protected static Map<String, Object> with(String field, String value) {
         Map<String, Object> body = draft();
         body.put(field, value);
         return body;

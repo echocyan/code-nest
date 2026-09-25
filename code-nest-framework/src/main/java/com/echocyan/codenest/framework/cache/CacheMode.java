@@ -9,5 +9,8 @@ public enum CacheMode {
     NONE,
 
     /** 只用 Redis 一级缓存。 */
-    REDIS
+    REDIS,
+
+    /** Caffeine 本地缓存加 Redis，只用于经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存。 */
+    TWO_LEVEL
 }

@@ -58,6 +58,8 @@ search:
 cache:
   # none：直接查数据库（基线）
   # redis：文章详情、用户与文章的批量摘要经 Redis 缓存，写库提交后删除缓存，文章编辑、删除后经 MQ 再删一次
+  # two-level：在 redis 档基础上，文章详情多一级 Caffeine 本地缓存，删除缓存时经 Pub/Sub 广播失效，
+  #            布隆过滤器 bf:article 拦截不存在的文章 ID
   mode: none
 
 hot:

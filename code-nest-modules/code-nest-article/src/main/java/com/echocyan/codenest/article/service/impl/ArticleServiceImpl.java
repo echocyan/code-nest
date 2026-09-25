@@ -39,6 +39,7 @@ import com.echocyan.codenest.counter.api.CounterSource;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.counter.api.IdCount;
+import com.echocyan.codenest.framework.cache.BloomFilter;
 import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
@@ -75,6 +76,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final DomainEventPublisher eventPublisher;
     private final TwoLevelCache<CachedArticleDetail> detailCache;
     private final TwoLevelCache<ArticleBrief> briefCache;
+    private final BloomFilter articleBloomFilter;
 
     @Override
     @Transactional
@@ -86,6 +88,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setStatus(ArticleStatus.DRAFT);
         article.setVersion(0);
         save(article);
+        articleBloomFilter.add(article.getId());
 
         articleContentService.save(contentOf(article.getId(), request));
         articleTagService.replaceTags(article.getId(), tagIds);
@@ -209,6 +212,19 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .orderByAsc(Article::getId)
                 .last("LIMIT " + limit)
                 .list();
+    }
+
+    @Override
+    public List<Long> listIdsAfter(Long afterId, int limit) {
+        return lambdaQuery()
+                .select(Article::getId)
+                .gt(afterId != null, Article::getId, afterId)
+                .orderByAsc(Article::getId)
+                .last("LIMIT " + limit)
+                .list()
+                .stream()
+                .map(Article::getId)
+                .toList();
     }
 
     @Override

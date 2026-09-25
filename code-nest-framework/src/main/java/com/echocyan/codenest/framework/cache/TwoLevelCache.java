@@ -1,5 +1,7 @@
 package com.echocyan.codenest.framework.cache;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,6 +29,16 @@ import tools.jackson.databind.json.JsonMapper;
  * 避免同一批写入的 key 同时过期。加载结果为空时缓存一个 JSON {@code null}，TTL 60 秒，
  * 反复查询不存在的 ID 不会反复打到数据库。
  *
+ * <p><b>两级缓存：</b>经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存在 two-level 档下多一级 Caffeine 本地缓存，
+ * 最多 10000 条，写入 60 秒后过期。{@link #get} 的读取顺序是本地缓存 → 布隆过滤器 → Redis → 加载函数；
+ * 布隆过滤器判定一定不存在的 ID 直接返回 null。本地缓存未命中时，同一实例上对同一个 ID 的并发请求只加载一次，
+ * 防止热点 key 过期时击穿到数据库。{@link #getAll} 同样先读本地缓存，但不经过布隆过滤器。
+ * 空值不放进本地缓存。本地缓存返回的是同一个对象，调用方不能修改它。
+ *
+ * <p><b>本地缓存失效：</b>{@link #evict} 删除 Redis 后清除本实例的本地缓存，再经 Redis Pub/Sub 频道
+ * {@code cache:invalidate} 广播，其他实例收到后清除各自的本地缓存。Pub/Sub 不保证送达，漏收的实例最多读到
+ * 60 秒的旧值，由本地缓存的过期时间兜底。
+ *
  * <p><b>隐式行为：</b>{@link #evict} 在有活跃事务时推迟到事务提交后（afterCommit）执行，事务回滚则不删除；
  * 此时删除失败只记日志，不影响已提交的业务。没有事务时立即删除，失败直接抛出。
  *
@@ -45,6 +57,10 @@ public class TwoLevelCache<V> {
 
     private static final Duration NULL_TTL = Duration.ofSeconds(60);
 
+    private static final int LOCAL_MAXIMUM_SIZE = 10_000;
+
+    private static final Duration LOCAL_TTL = Duration.ofSeconds(60);
+
     /** 空值标记，即 JSON {@code null}；正常的缓存值是 JSON 对象，不会与它相同。 */
     private static final String NULL = "null";
 
@@ -54,12 +70,27 @@ public class TwoLevelCache<V> {
     private final StringRedisTemplate redis;
     private final JsonMapper jsonMapper;
 
-    TwoLevelCache(String name, Class<V> type, CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper) {
-        this.keyPrefix = "cache:" + name + ":";
+    /** 本地缓存，只在 two-level 档的两级缓存中存在，否则为 null。 */
+    private final Cache<Long, V> local;
+
+    /** 只在有本地缓存时使用。 */
+    private final BloomFilter bloomFilter;
+
+    TwoLevelCache(String name, Class<V> type, CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper,
+            boolean twoLevel, BloomFilter bloomFilter) {
+        this.keyPrefix = keyPrefixOf(name);
         this.type = type;
         this.mode = mode;
         this.redis = redis;
         this.jsonMapper = jsonMapper;
+        this.local = twoLevel && mode == CacheMode.TWO_LEVEL
+                ? Caffeine.newBuilder().maximumSize(LOCAL_MAXIMUM_SIZE).expireAfterWrite(LOCAL_TTL).build()
+                : null;
+        this.bloomFilter = bloomFilter;
+    }
+
+    static String keyPrefixOf(String name) {
+        return "cache:" + name + ":";
     }
 
     /**
@@ -72,6 +103,13 @@ public class TwoLevelCache<V> {
         if (mode == CacheMode.NONE) {
             return loader.apply(id);
         }
+        if (local == null) {
+            return getFromRedis(id, loader);
+        }
+        return local.get(id, key -> bloomFilter.mightContain(key) ? getFromRedis(key, loader) : null);
+    }
+
+    private V getFromRedis(long id, Function<Long, V> loader) {
         String key = key(id);
         String cached = redis.opsForValue().get(key);
         if (cached != null) {
@@ -96,6 +134,14 @@ public class TwoLevelCache<V> {
         if (mode == CacheMode.NONE) {
             return batchLoader.apply(ids);
         }
+        if (local == null) {
+            return getAllFromRedis(ids, batchLoader);
+        }
+        return local.getAll(ids, misses -> getAllFromRedis(List.copyOf(misses), batchLoader));
+    }
+
+    private Map<Long, V> getAllFromRedis(Collection<Long> ids,
+            Function<Collection<Long>, Map<Long, V>> batchLoader) {
         List<Long> distinct = ids.stream().distinct().toList();
         List<String> cached = redis.opsForValue().multiGet(distinct.stream().map(this::key).toList());
         Map<Long, V> result = new HashMap<>();
@@ -125,7 +171,7 @@ public class TwoLevelCache<V> {
     }
 
     /**
-     * 删除缓存。有活跃事务时推迟到提交后执行，见类注释。
+     * 删除缓存，有本地缓存时同时广播失效。有活跃事务时推迟到提交后执行，见类注释。
      */
     public void evict(long id) {
         if (mode == CacheMode.NONE) {
@@ -137,14 +183,34 @@ public class TwoLevelCache<V> {
                 @Override
                 public void afterCommit() {
                     try {
-                        redis.delete(key);
+                        evictNow(id, key);
                     } catch (RuntimeException e) {
                         log.warn("Failed to evict cache after commit: key={}", key, e);
                     }
                 }
             });
         } else {
-            redis.delete(key);
+            evictNow(id, key);
+        }
+    }
+
+    /**
+     * 先删 Redis 再清本地缓存，避免本实例从 Redis 读回旧值；最后广播，让其他实例清除各自的本地缓存。
+     */
+    private void evictNow(long id, String key) {
+        redis.delete(key);
+        if (local != null) {
+            local.invalidate(id);
+            redis.convertAndSend(TwoLevelCaches.INVALIDATE_CHANNEL, key);
+        }
+    }
+
+    /**
+     * 收到失效广播时清除本地缓存。
+     */
+    void invalidateLocal(long id) {
+        if (local != null) {
+            local.invalidate(id);
         }
     }
 

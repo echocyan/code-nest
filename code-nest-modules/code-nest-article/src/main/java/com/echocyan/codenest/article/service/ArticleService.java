@@ -89,6 +89,13 @@ public interface ArticleService extends IService<Article> {
     List<Article> listPublishedAfter(Long afterId, int limit);
 
     /**
+     * 一批未删除文章（含草稿）的 ID，按 ID 正序。
+     *
+     * @param afterId 只返回大于它的 ID；为 null 时从头开始
+     */
+    List<Long> listIdsAfter(Long afterId, int limit);
+
+    /**
      * 一批 {@code updated_at} 不早于 since 的文章，草稿和已删除的文章也返回，按文章 ID 正序。
      *
      * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始

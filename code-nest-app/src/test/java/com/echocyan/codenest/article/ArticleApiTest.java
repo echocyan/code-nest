@@ -96,6 +96,8 @@ class ArticleApiTest extends ArticleTestSupport {
     void publishedArticleIsVisibleToAnyone() {
         RestTestClient author = withToken(register(uniqueUsername()));
         String id = createDraft(author, draft());
+        // 先读一次草稿，发布后详情仍要立即反映新状态
+        author.get().uri(API + "/articles/{id}", id).exchange().expectStatus().isOk();
 
         author.post().uri(API + "/articles/{id}/publish", id)
                 .exchange()
@@ -169,6 +171,9 @@ class ArticleApiTest extends ArticleTestSupport {
         edited.put("title", "Redis 计数实践（修订）");
         edited.put("tagIds", List.of(13));
         edited.remove("coverUrl");
+        edited.put("content", "修订后的正文");
+        // 先读一次旧内容，编辑后详情仍要立即是新内容
+        author.get().uri(API + "/articles/{id}", id).exchange().expectStatus().isOk();
 
         edit(author, id, 0, edited)
                 .expectStatus().isOk()
@@ -178,6 +183,7 @@ class ArticleApiTest extends ArticleTestSupport {
                 .exchange()
                 .expectBody()
                 .jsonPath("$.data.title").isEqualTo("Redis 计数实践（修订）")
+                .jsonPath("$.data.content").isEqualTo("修订后的正文")
                 .jsonPath("$.data.coverUrl").isEmpty()
                 .jsonPath("$.data.tags[*].name").isEqualTo(List.of("高并发"))
                 .jsonPath("$.data.version").isEqualTo(1);
@@ -207,6 +213,7 @@ class ArticleApiTest extends ArticleTestSupport {
     void deletedArticleIsNotFound() {
         RestTestClient author = withToken(register(uniqueUsername()));
         String id = publish(author, createDraft(author, draft()));
+        client.get().uri(API + "/articles/{id}", id).exchange().expectStatus().isOk();
 
         author.delete().uri(API + "/articles/{id}", id)
                 .exchange()
@@ -214,6 +221,23 @@ class ArticleApiTest extends ArticleTestSupport {
 
         expectArticleNotFound(author, id);
         expectArticleNotFound(client, id);
+    }
+
+    @Test
+    void authorNicknameFollowsProfileEdits() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String id = publish(author, createDraft(author, draft()));
+        client.get().uri(API + "/articles/{id}", id).exchange().expectStatus().isOk();
+
+        author.put().uri(API + "/users/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("nickname", "改名后的作者"))
+                .exchange()
+                .expectStatus().isOk();
+
+        client.get().uri(API + "/articles/{id}", id)
+                .exchange()
+                .expectBody().jsonPath("$.data.author.nickname").isEqualTo("改名后的作者");
     }
 
     @Test
@@ -231,8 +255,10 @@ class ArticleApiTest extends ArticleTestSupport {
     }
 
     @Test
-    void unknownArticleIsNotFound() {
-        expectArticleNotFound(client, "1");
+    void unknownArticleIsNotFoundEveryTime() {
+        for (int i = 0; i < 3; i++) {
+            expectArticleNotFound(client, "1");
+        }
     }
 
     private void expectArticleNotFound(RestTestClient viewer, String id) {

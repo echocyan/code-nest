@@ -16,6 +16,7 @@ import com.echocyan.codenest.article.service.ArticleTagService;
 import com.echocyan.codenest.article.service.CommentService;
 import com.echocyan.codenest.article.service.TagService;
 import com.echocyan.codenest.common.result.PageResult;
+import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ class ArticleApiImpl implements ArticleApi {
     private final ArticleConverter articleConverter;
     private final CommentService commentService;
     private final CommentConverter commentConverter;
+    private final TwoLevelCache<ArticleBrief> briefCache;
 
     @Override
     public Optional<ArticleState> findState(long articleId) {
@@ -44,12 +46,9 @@ class ArticleApiImpl implements ArticleApi {
 
     @Override
     public Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds) {
-        if (articleIds.isEmpty()) {
-            return Map.of();
-        }
-        return articleService.listByIds(articleIds).stream()
+        return briefCache.getAll(articleIds, ids -> articleService.listByIds(ids).stream()
                 .map(articleConverter::toBrief)
-                .collect(Collectors.toMap(ArticleBrief::id, Function.identity()));
+                .collect(Collectors.toMap(ArticleBrief::id, Function.identity())));
     }
 
     @Override

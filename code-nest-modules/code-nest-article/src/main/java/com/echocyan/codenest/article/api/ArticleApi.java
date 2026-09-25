@@ -19,7 +19,7 @@ public interface ArticleApi {
     Optional<ArticleState> findState(long articleId);
 
     /**
-     * 批量查询文章摘要，草稿也会返回，由调用方按状态过滤。
+     * 批量查询文章摘要，草稿也会返回，由调用方按状态过滤。经缓存读取，文章编辑、发布、删除后失效。
      *
      * @return 以文章 ID 为 key；不存在的文章不出现在结果中
      */

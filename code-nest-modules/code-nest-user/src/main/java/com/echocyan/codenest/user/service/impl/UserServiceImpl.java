@@ -6,6 +6,8 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
+import com.echocyan.codenest.framework.cache.TwoLevelCache;
+import com.echocyan.codenest.user.api.UserBrief;
 import com.echocyan.codenest.user.UserErrorCode;
 import com.echocyan.codenest.user.convert.UserConverter;
 import com.echocyan.codenest.user.dto.UpdateProfileRequest;
@@ -28,6 +30,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     private final UserConverter userConverter;
     private final CounterApi counterApi;
+    private final TwoLevelCache<UserBrief> briefCache;
 
     @Override
     public User register(String username, String password) {
@@ -75,5 +78,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 .set(User::getBio, request.bio())
                 .eq(User::getId, userId)
                 .update(new User());
+        briefCache.evict(userId);
     }
 }

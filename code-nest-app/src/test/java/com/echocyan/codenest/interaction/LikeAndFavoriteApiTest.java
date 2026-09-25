@@ -126,6 +126,25 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
     }
 
     @Test
+    void myFavoritesShowTheLatestTitleAfterEditing() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String articleId = publishedArticle(author);
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        favorite(reader, articleId).expectStatus().isOk();
+        reader.get().uri(API + "/users/me/favorites").exchange().expectStatus().isOk();
+
+        author.put().uri(API + "/articles/{id}?version=1", articleId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("title", "点赞计数（修订）", "content", "热点行更新会排队等锁。", "categoryId", 1))
+                .exchange()
+                .expectStatus().isOk();
+
+        reader.get().uri(API + "/users/me/favorites")
+                .exchange()
+                .expectBody().jsonPath("$.data.list[0].article.title").isEqualTo("点赞计数（修订）");
+    }
+
+    @Test
     void statesTellWhichArticlesILikedOrFavorited() {
         RestTestClient author = withToken(register(uniqueUsername()));
         String liked = publishedArticle(author);

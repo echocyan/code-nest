@@ -23,14 +23,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 class ModuleBoundaryTest {
 
     static final String ROOT = "com.echocyan.codenest";
-    @ArchTest
-    static final ArchRule onlyApiPackagesAcrossModules = crossModuleDependencies(
-            "only depend on other business modules through their api package",
-            (own, target, targetPackage) -> isSameOrSubPackage(targetPackage, ROOT + "." + target + ".api"));
-    @ArchTest
-    static final ArchRule onlyDeclaredModuleDependencies = crossModuleDependencies(
-            "only depend on business modules declared in the module dependency list",
-            (own, target, targetPackage) -> ALLOWED_DEPENDENCIES.get(own).contains(target));
+
     /**
      * 规格中约定的模块依赖：key 可以依赖 value 中的模块。
      */
@@ -42,6 +35,15 @@ class ModuleBoundaryTest {
             "social", Set.of("user", "article", "counter"),
             "notification", Set.of("user", "article", "interaction", "social"),
             "search", Set.of("article", "user"));
+
+    @ArchTest
+    static final ArchRule onlyApiPackagesAcrossModules = crossModuleDependencies(
+            "only depend on other business modules through their api package",
+            (own, target, targetPackage) -> isSameOrSubPackage(targetPackage, ROOT + "." + target + ".api"));
+    @ArchTest
+    static final ArchRule onlyDeclaredModuleDependencies = crossModuleDependencies(
+            "only depend on business modules declared in the module dependency list",
+            (own, target, targetPackage) -> ALLOWED_DEPENDENCIES.get(own).contains(target));
 
     /**
      * 检查业务模块之间的每一条依赖，不满足 allowed 的记为违规。

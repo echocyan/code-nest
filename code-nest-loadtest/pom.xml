@@ -9,4 +9,35 @@
     </parent>
     <artifactId>code-nest-loadtest</artifactId>
     <description>造数程序、k6 脚本与压测结果；不打进应用 jar</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <!-- spring-security-crypto 用它打日志，在 Spring 应用里由 spring-core 带入 -->
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- ./mvnw -pl code-nest-loadtest compile exec:java 运行造数程序 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.echocyan.codenest.loadtest.Seeder</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

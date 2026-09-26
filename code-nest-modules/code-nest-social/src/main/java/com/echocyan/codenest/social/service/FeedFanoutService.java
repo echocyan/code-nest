@@ -25,4 +25,10 @@ public interface FeedFanoutService {
      * 按作者的发件箱，从读者的收件箱中移除他的文章。
      */
     void removeOnUnfollow(long followerId, long authorId);
+
+    /**
+     * 发件箱的重建完成标记不存在时（首次部署、Redis 数据丢失，或造数绕过发文事件直接写库），按全部已发布文章重建
+     * 各作者的发件箱，完成后写入标记；标记存在时什么也不做。收件箱不用重建，读取时会从发件箱懒重建。
+     */
+    void rebuildOutboxesIfAbsent();
 }

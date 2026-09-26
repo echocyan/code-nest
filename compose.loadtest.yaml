@@ -1,0 +1,138 @@
+# 压测环境：叠加在 compose.yaml 之上，加 2 个应用实例与 Nginx，并限定各容器的 CPU 与内存。用法见 code-nest-loadtest/README.md
+#   docker compose -f compose.yaml -f compose.loadtest.yaml up -d --build --wait
+# 项目名与本地开发环境不同，数据卷各自独立；两者端口相同，不能同时运行
+name: code-nest-loadtest
+
+x-app: &app
+  build: .
+  image: code-nest/app:loadtest
+  environment:
+    # 与 MySQL 一致；日志时间与 @Scheduled 的 cron 按 JVM 默认时区解释
+    TZ: Asia/Shanghai
+    SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_nest
+    SPRING_DATASOURCE_USERNAME: codenest
+    SPRING_DATASOURCE_PASSWORD: codenest
+    SPRING_DATA_REDIS_HOST: redis
+    SPRING_RABBITMQ_HOST: rabbitmq
+    SPRING_RABBITMQ_USERNAME: codenest
+    SPRING_RABBITMQ_PASSWORD: codenest
+    SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+    # 模式开关，启动前用同名环境变量覆盖
+    COUNTER_MODE: ${COUNTER_MODE:-sync-db}
+    FEED_MODE: ${FEED_MODE:-pull}
+    SEARCH_MODE: ${SEARCH_MODE:-mysql-like}
+    CACHE_MODE: ${CACHE_MODE:-none}
+    RATELIMIT_ENABLED: "false"
+    RATELIMIT_TRUSTEDPROXIES: 172.30.0.10
+  healthcheck:
+    test: [ "CMD", "curl", "-fs", "http://localhost:8081/actuator/health" ]
+    interval: 5s
+    timeout: 3s
+    retries: 60
+    start_period: 30s
+  deploy:
+    resources:
+      limits:
+        cpus: "2"
+        memory: 1536M
+
+services:
+  mysql:
+    command: [ "--innodb-buffer-pool-size=1G" ]
+    healthcheck:
+      # 初始化阶段的临时实例不监听 TCP，用 127.0.0.1 探测才能等到正式实例
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ucodenest", "-pcodenest" ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  redis:
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  rabbitmq:
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  elasticsearch:
+    environment:
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    healthcheck:
+      test: [ "CMD", "curl", "-fs", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=3s" ]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+
+  app-1:
+    <<: *app
+    ports:
+      # 管理端口，供造数脚本调用对账与 search-rebuild；业务请求只经 Nginx
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  app-2:
+    <<: *app
+    ports:
+      - "8082:8081"
+    # 等 app-1 跑完 Flyway、建好 ES 索引再启动，避免两个实例同时初始化
+    depends_on:
+      app-1:
+        condition: service_healthy
+
+  nginx:
+    image: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./code-nest-loadtest/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      default:
+        # 固定 IP，应用据此把它当作可信代理
+        ipv4_address: 172.30.0.10
+    depends_on:
+      - app-1
+      - app-2
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

@@ -1,5 +1,6 @@
 package com.echocyan.codenest.social.service.impl;
 
+import com.echocyan.codenest.article.api.ArticleState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
@@ -27,6 +28,7 @@ import java.util.stream.Stream;
  *     <li>{@code feed:inbox:{userId}}：读者的收件箱，推送来的普通作者的文章，至多 {@value #INBOX_CAP} 条，
  *     TTL 7 天、读取时续期。key 不存在说明读者 7 天没来过：推送时跳过，读取时从发件箱重建。</li>
  * </ul>
+ * 另有 String {@code feed:outbox:ready}：发件箱全部重建完成的标记，见 {@link FeedFanoutServiceImpl#rebuildOutboxesIfAbsent}。
  * score 是 double，大于 2^53 的雪花 ID 转换时会舍入，相邻的 ID 可能得到相同的 score。score 相同的 member 按字典序排列，
  * 位数相同的 ID 字典序就是数值序，所以 ZSet 内的顺序仍与 ID 一致；按游标读取时，与游标 score 相同的那一组单独取出，
  * 在 Java 里按 ID 精确比较。
@@ -40,6 +42,8 @@ class FeedBoxes {
     static final int INBOX_CAP = 500;
 
     private static final Duration INBOX_TTL = Duration.ofDays(7);
+
+    private static final String OUTBOX_READY = "feed:outbox:ready";
 
     /**
      * 只保留最新的 ARGV[1] 条：ZSet 按 score 升序，最旧的排在前面。各脚本的 ARGV[1] 都是上限。
@@ -75,6 +79,8 @@ class FeedBoxes {
             """ + TRIM + """
             return 1
             """, Long.class);
+
+    private static final byte[] ADD_BYTES = ADD.getScriptAsString().getBytes(StandardCharsets.UTF_8);
 
     /**
      * KEYS：收件箱；ARGV：上限、文章 ID。收件箱存在时才写入，不会造出没有 TTL 的收件箱。
@@ -137,6 +143,26 @@ class FeedBoxes {
 
     void addToOutbox(long authorId, long articleId) {
         redis.execute(ADD, List.of(outboxKey(authorId)), String.valueOf(OUTBOX_CAP), String.valueOf(articleId));
+    }
+
+    /**
+     * 用 pipeline 把一批文章写入各自作者的发件箱。
+     */
+    void addToOutboxes(Collection<ArticleState> articles) {
+        byte[] cap = bytes(String.valueOf(OUTBOX_CAP));
+        redis.executePipelined((RedisCallback<Object>) connection -> {
+            articles.forEach(article -> connection.scriptingCommands().eval(ADD_BYTES, ReturnType.INTEGER, 1,
+                    bytes(outboxKey(article.authorId())), cap, bytes(String.valueOf(article.id()))));
+            return null;
+        });
+    }
+
+    boolean outboxesReady() {
+        return Boolean.TRUE.equals(redis.hasKey(OUTBOX_READY));
+    }
+
+    void markOutboxesReady() {
+        redis.opsForValue().set(OUTBOX_READY, "1");
     }
 
     void removeFromOutbox(long authorId, long articleId) {

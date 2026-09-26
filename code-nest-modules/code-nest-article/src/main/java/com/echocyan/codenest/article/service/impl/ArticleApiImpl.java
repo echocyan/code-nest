@@ -70,6 +70,11 @@ class ArticleApiImpl implements ArticleApi {
     }
 
     @Override
+    public List<ArticleState> listPublishedStates(Long afterId, int limit) {
+        return articleService.listPublishedAfter(afterId, limit).stream().map(articleConverter::toState).toList();
+    }
+
+    @Override
     public List<ArticleSnapshot> listSnapshotsUpdatedSince(LocalDateTime since, Long afterId, int limit) {
         return toSnapshots(articleService.listUpdatedSinceIncludingDeleted(since, afterId, limit));
     }

@@ -1,5 +1,6 @@
 package com.echocyan.codenest.social;
 
+import com.echocyan.codenest.social.service.FeedFanoutService;
 import com.echocyan.codenest.support.PushPullFeed;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ class FeedPushPullApiTest extends FeedApiTest {
 
     @Autowired
     private StringRedisTemplate redis;
+
+    @Autowired
+    private FeedFanoutService feedFanoutService;
 
     @Test
     void articlesOfBigAndNormalAuthorsAreMergedNewestFirst() {
@@ -70,6 +74,28 @@ class FeedPushPullApiTest extends FeedApiTest {
         follow(reader, newcomer);
 
         eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(latest, second, first));
+    }
+
+    @Test
+    void lostOutboxesAreRebuiltOnRestart() {
+        RestTestClient big = withToken(register(uniqueUsername()));
+        RestTestClient normal = withToken(register(uniqueUsername()));
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        RestTestClient fan = withToken(register(uniqueUsername()));
+        follow(reader, big);
+        follow(fan, big);
+        follow(reader, normal);
+        String bigArticle = publish(big, createDraft(big, draft()));
+        String normalArticle = publish(normal, createDraft(normal, draft()));
+        eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(normalArticle, bigArticle));
+
+        // 模拟 Redis 数据丢失（或绕过发文事件直接写库的造数），再模拟重启：各实例启动时都会调用 rebuildOutboxesIfAbsent。
+        // 完成标记是全局的，删除后会按全部已发布文章重建所有作者的发件箱；重建只做幂等的 ZADD，不影响其他测试的数据
+        redis.delete(List.of("feed:outbox:ready", "feed:outbox:" + idOf(big), "feed:outbox:" + idOf(normal),
+                "feed:inbox:" + idOf(reader)));
+        feedFanoutService.rebuildOutboxesIfAbsent();
+
+        assertThat(readAllPages(reader, 20)).containsExactly(normalArticle, bigArticle);
     }
 
     private void follow(RestTestClient follower, RestTestClient author) {

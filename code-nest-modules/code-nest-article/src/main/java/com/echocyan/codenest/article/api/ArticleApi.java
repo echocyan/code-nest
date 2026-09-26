@@ -60,6 +60,14 @@ public interface ArticleApi {
     List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit);
 
     /**
+     * 一批已发布文章的状态与作者，按文章 ID 正序，以文章 ID 作游标，用于重建 Feed 发件箱。
+     *
+     * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
+     * @param limit   最多返回的条数
+     */
+    List<ArticleState> listPublishedStates(Long afterId, int limit);
+
+    /**
      * 一批在给定时间及之后更新过的文章的完整内容，草稿和已删除的文章也返回，按文章 ID 正序，以文章 ID 作游标。
      * 用于重建搜索索引后追补重建期间的变更。
      *

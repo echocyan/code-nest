@@ -49,7 +49,7 @@ es，数据量 10 万篇文章；`cache.mode` 取 none / redis / two-level，场
     - 派生数据都走系统自带的重建路径生成，造数过程顺带验证了这些路径：
         - 计数：执行各模块的对账。
         - ES：调用 `search-rebuild` 端点。
-        - 布隆过滤器：应用启动时重建。
+        - 布隆过滤器、Feed 发件箱：应用启动时重建。
         - Feed 收件箱：首次读取时懒重建。
 4. **场景与指标**：每组先预热 30 秒，再稳态压测 2 分钟，跑 3 次取中位数。服务端指标用脚本在压测前后各采集一次
    `SHOW GLOBAL STATUS` 和 Redis `INFO commandstats`，取差值。不引入 Prometheus/Grafana。

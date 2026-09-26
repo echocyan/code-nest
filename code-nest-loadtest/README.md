@@ -1,6 +1,6 @@
-# 压测环境与造数
+# 压测环境、造数与压测场景
 
-压测环境由 `compose.yaml` 加上 `compose.loadtest.yaml` 组成：MySQL、Redis、RabbitMQ、ES，2 个应用实例，前面一个 Nginx。
+压测环境由 `compose.yaml` 加上 `compose.loadtest.yaml` 组成：MySQL、Redis、RabbitMQ、ES，2 个应用实例，前面一个 Nginx。压测客户端 k6（`grafana/k6`）也在这份 compose 里，只由 `bench.sh` 按需启动，不限资源。
 
 | 服务 | CPU | 内存 | 说明 |
 |---|---|---|---|
@@ -90,3 +90,49 @@ COUNTER_MODE=redis-async FEED_MODE=push-pull SEARCH_MODE=es CACHE_MODE=two-level
 对账写入计数的对象数：文章点赞 94,851、收藏 94,356、评论 81,440；用户粉丝 20,011、关注 100,000、文章 19,818、获赞 19,818；评论回复 189,875。
 
 对账逐个对象单独提交。`seed.sh` 在造数与对账期间临时设置 `innodb_flush_log_at_trx_commit=2`、`sync_binlog=0`，提交时不等刷盘，结束后（包括中途失败）恢复为 1。不放宽时对账要 1 小时以上。
+
+## 跑压测
+
+先用 `seed.sh` 造好数据、环境保持运行，再按场景执行（宿主机需要 `jq`）：
+
+```bash
+./code-nest-loadtest/bench.sh a      # 场景 A，默认每档 3 轮
+./code-nest-loadtest/bench.sh d 1    # 每档只跑 1 轮
+WARMUP=5s DURATION=10s ./code-nest-loadtest/bench.sh c 1   # 缩短时长，检查脚本能否跑通
+```
+
+| 场景 | 脚本 | 对比的开关 | 压测内容 |
+|---|---|---|---|
+| a | `k6/a-counter.js` | `counter.mode` sync-db / redis-async | 200 个 VU 各用一个账号（`user_20000` 起），对最新发布的一篇文章反复点赞、取消 |
+| b | `k6/b-feed.js` | `feed.mode` pull / push-pull | 200 个 VU 轮流用 100 个重度用户读 Feed 首页 |
+| c | `k6/c-search.js` | `search.mode` mysql-like / es | 50 个 VU 匿名搜索，关键词从 `vocabulary.txt` 随机抽取 |
+| d | `k6/d-cache.js` | `cache.mode` none / redis / two-level | 300 个 VU 匿名访问文章详情：候选为最新发布的 1000 篇，按 Zipf 分布（指数 1.2）抽取，前 10 篇约占 57% 的请求 |
+
+对每一档开关，`bench.sh` 依次：
+
+1. 切换：停掉两个应用、清空 Redis，以新的档启动，每档都从同样的状态开始；启动时重建布隆过滤器与 Feed 发件箱。再重启 Nginx，让它重新解析应用容器的地址。
+2. 准备（k6 的 prepare 阶段）：登录账号、查出要访问的文章，写到 `target/k6/<脚本>.data.json`。之后的阶段直接读这个文件，登录等准备请求不计入压测和服务端指标。
+3. 每轮：预热 `WARMUP`（默认 30s）→ 采集服务端状态 → 稳态压测 `DURATION`（默认 2m）→ 再采集一次，取差值。
+   - 服务端状态：MySQL `SHOW GLOBAL STATUS` 的数值项、Redis `INFO commandstats` 各命令的调用次数。
+   - 场景 a 压测后先等落库完成再采集：每 6 秒比较一次 `article_stat.like_count` 与这篇文章的点赞行数（redis-async 每 5 秒落库一次），连续两次相等即通过，60 秒内做不到就报错退出。
+   - 场景 b 在 push-pull 档额外测量推送耗时（`k6/b-feed-push.js`）：准备时登录 `author_4999` 的全部 4999 个粉丝，各读一次 Feed，建好收件箱（推送会跳过收件箱不存在的冷用户）；每轮压测后作者发一篇文章，从发出发布请求起反复读 ID 最大的粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，这就是推送完成的时刻；测完删除文章。pull 档不推送，不测。
+
+每轮打印 QPS、延迟、错误率，以及 `Innodb_row_lock_waits`、`Com_select` 和 Redis 命令总数的差值。全部跑完后写入 `results/<日期>-<场景>.json`：
+
+```json
+{
+  "scenario": "a-counter", "switch": "COUNTER_MODE", "startedAt": "…", "warmup": "30s", "duration": "2m", "runs": 3,
+  "modes": {
+    "sync-db": {
+      "median": { "k6": { … }, "mysql": { … }, "redis": { … }, "counter": { … } },
+      "runs": [ { "k6": { … }, "mysql": { … }, "redis": { … }, "counter": { … } }, … ]
+    },
+    "redis-async": { … }
+  }
+}
+```
+
+- `k6`：`requests`、`qps`、`avgMs`、`p95Ms`、`p99Ms`、`errorRate`（HTTP 状态不是 200 或返回体 `code` 不是 0 的比例）。
+- `mysql`、`redis`：稳态压测前后的差值，只列有变化的项；后台任务（Outbox 补发、落库、对账等）和场景 a 等待落库时的查询也会计入。
+- `counter`（场景 a）：文章 ID、`likeCount`、`likeRows`；`pushMs`（场景 b 的 push-pull 档）：推送耗时，毫秒，精度是一次读取 Feed 的耗时（脚本不停地读，没有间隔）。
+- `median`：每个数值项各自取各轮的中位数，某一轮没有的项按 0 计。

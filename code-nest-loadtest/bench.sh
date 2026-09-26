@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 
 scenario=${1:?用法：bench.sh <a|b|c|d> [轮数，默认 3]}
 runs=${2:-3}
+[[ $runs =~ ^[1-9][0-9]*$ ]] || { echo "轮数应为正整数：$runs" >&2; exit 1; }
 export WARMUP=${WARMUP:-30s} DURATION=${DURATION:-2m}
 
 case $scenario in
@@ -74,17 +75,27 @@ switch_mode() {
         || { echo "Nginx 未就绪" >&2; exit 1; }
 }
 
-# 场景 A：断言计数表里的点赞数等于点赞行数
-check_counter() {
-    local article_id count rows
+# 场景 A：等待落库完成并断言计数表里的点赞数等于点赞行数。计数经 Outbox、MQ 进入 Redis，redis-async 每 5 秒
+# 落库一次；每 6 秒查一次，连续两次相等才算落库完成，60 秒内做不到就报错退出
+wait_counter() {
+    local article_id count rows matched=0
     article_id=$(jq -r .articleId "$work/$name.data.json")
-    count=$(sql "SELECT COALESCE(MAX(like_count), 0) FROM article_stat WHERE article_id = $article_id")
-    rows=$(sql "SELECT COUNT(*) FROM article_like WHERE article_id = $article_id")
-    if [ "$count" != "$rows" ]; then
-        echo "计数不一致：文章 $article_id 的 like_count=$count，点赞行数=$rows" >&2
-        exit 1
-    fi
-    echo "{\"articleId\": \"$article_id\", \"likeCount\": $count, \"likeRows\": $rows}"
+    for _ in $(seq 10); do
+        sleep 6
+        count=$(sql "SELECT COALESCE(MAX(like_count), 0) FROM article_stat WHERE article_id = $article_id")
+        rows=$(sql "SELECT COUNT(*) FROM article_like WHERE article_id = $article_id")
+        if [ "$count" = "$rows" ]; then
+            matched=$((matched + 1))
+        else
+            matched=0
+        fi
+        if [ "$matched" = 2 ]; then
+            echo "{\"articleId\": \"$article_id\", \"likeCount\": $count, \"likeRows\": $rows}"
+            return
+        fi
+    done
+    echo "计数不一致：文章 $article_id 的 like_count=$count，点赞行数=$rows" >&2
+    exit 1
 }
 
 # 各轮结果的每个数值项各自取中位数；某一轮没有的项按 0 计（差值为 0 的项不输出）
@@ -115,15 +126,17 @@ for mode in "${modes[@]}"; do
         step "$switch=$mode 第 $run/$runs 轮：稳态压测 $DURATION"
         run_k6 "$name" steady
         if [ "$scenario" = a ]; then
-            # 等两个落库周期（redis-async 每 5 秒落库一次），异步落库的写入也计入差值
-            sleep 10
+            # 落库完成后再采集，异步落库的写入也计入差值
+            counter=$(wait_counter)
         fi
-        result=$(jq -n --slurpfile k6 "$work/$name.summary.json" \
-            --argjson mysql "$(delta "$mysql_before" "$(mysql_status)")" \
-            --argjson redis "$(delta "$redis_before" "$(redis_calls)")" \
-            '{k6: $k6[0], mysql: $mysql, redis: $redis}')
+        # 采集结果先存入变量：命令替换直接作参数时，采集失败不会中止脚本
+        mysql_after=$(mysql_status)
+        redis_after=$(redis_calls)
+        mysql_delta=$(delta "$mysql_before" "$mysql_after")
+        redis_delta=$(delta "$redis_before" "$redis_after")
+        result=$(jq -n --slurpfile k6 "$work/$name.summary.json" --argjson mysql "$mysql_delta" \
+            --argjson redis "$redis_delta" '{k6: $k6[0], mysql: $mysql, redis: $redis}')
         if [ "$scenario" = a ]; then
-            counter=$(check_counter)
             result=$(jq --argjson counter "$counter" '. + {counter: $counter}' <<<"$result")
         fi
         if [ "$mode" = push-pull ]; then

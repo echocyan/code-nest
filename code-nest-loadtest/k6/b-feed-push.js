@@ -1,7 +1,7 @@
 // 场景 B 推送耗时：普通作者 author_4999（4999 个粉丝，比大 V 阈值少 1）发文，测量推送到全部粉丝收件箱的耗时。
 // 只在 feed.mode=push-pull 下有意义。分两个阶段：
 //   prepare：登录作者和全部粉丝，每个粉丝读一次 Feed，让收件箱都存在（推送会跳过收件箱不存在的冷用户）；
-//   measure：作者发文，反复读最后一个粉丝的 Feed 直到出现这篇文章。推送按粉丝 ID 升序进行，
+//   measure：作者发文，从发出发布请求起反复读最后一个粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，
 //            ID 最大的粉丝最后收到，这时推送完成。测完删除文章，数据保持不变。
 import http from 'k6/http';
 import { Trend } from 'k6/metrics';
@@ -49,8 +49,9 @@ export default function (data) {
         content: '压测脚本发布的文章，测完即删除。',
         categoryId: 1,
     }), author));
-    mustData(http.post(`${BASE_URL}/articles/${article.id}/publish`, null, author));
+    // 从发出发布请求开始计时：事务提交后消费者就可能开始推送，不等发布请求返回
     const start = Date.now();
+    mustData(http.post(`${BASE_URL}/articles/${article.id}/publish`, null, author));
 
     const fan = authHeaders(data.lastFanToken);
     while (mustData(http.get(`${BASE_URL}/feed?size=1`, fan)).list[0]?.id !== article.id) {

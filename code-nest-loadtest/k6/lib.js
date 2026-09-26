@@ -3,7 +3,7 @@
 // 每个场景脚本分三个阶段运行，各是一次 k6 run：
 //   prepare：setup() 登录账号、查出要访问的文章等，handleSummary 把 setup() 的返回值写入 DATA_FILE；
 //   warmup、steady：各 VUS 个 VU 持续跑 WARMUP、DURATION，setup() 直接返回 DATA_FILE 的内容，不再发起准备请求，
-//   服务端指标差值只包含压测请求本身；steady 的指标写入 SUMMARY_FILE。
+//   服务端指标差值不含准备阶段的请求；steady 的指标写入 SUMMARY_FILE。
 import http from 'k6/http';
 import { Rate } from 'k6/metrics';
 

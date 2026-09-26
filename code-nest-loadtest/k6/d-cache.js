@@ -32,6 +32,9 @@ export const setup = prepareWith(() => {
     const ids = [];
     for (let page = 1; ids.length < POOL; page++) {
         const list = mustData(http.get(`${BASE_URL}/articles?page=${page}&size=${PAGE_SIZE}`)).list;
+        if (list.length === 0) {
+            throw new Error(`已发布文章不足 ${POOL} 篇`);
+        }
         ids.push(...list.map((article) => article.id));
     }
     return { articleIds: ids.slice(0, POOL) };

@@ -114,8 +114,8 @@ WARMUP=5s DURATION=10s ./code-nest-loadtest/bench.sh c 1   # 缩短时长，检�
 2. 准备（k6 的 prepare 阶段）：登录账号、查出要访问的文章，写到 `target/k6/<脚本>.data.json`。之后的阶段直接读这个文件，登录等准备请求不计入压测和服务端指标。
 3. 每轮：预热 `WARMUP`（默认 30s）→ 采集服务端状态 → 稳态压测 `DURATION`（默认 2m）→ 再采集一次，取差值。
    - 服务端状态：MySQL `SHOW GLOBAL STATUS` 的数值项、Redis `INFO commandstats` 各命令的调用次数。
-   - 场景 a 压测后先等 10 秒（redis-async 每 5 秒落库一次），再采集，然后断言 `article_stat.like_count` 等于这篇文章的点赞行数，不相等时报错退出。
-   - 场景 b 在 push-pull 档额外测量推送耗时（`k6/b-feed-push.js`）：准备时登录 `author_4999` 的全部 4999 个粉丝，各读一次 Feed，建好收件箱（推送会跳过收件箱不存在的冷用户）；每轮压测后作者发一篇文章，反复读 ID 最大的粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，这就是推送完成的时刻；测完删除文章。pull 档不推送，不测。
+   - 场景 a 压测后先等落库完成再采集：每 6 秒比较一次 `article_stat.like_count` 与这篇文章的点赞行数（redis-async 每 5 秒落库一次），连续两次相等即通过，60 秒内做不到就报错退出。
+   - 场景 b 在 push-pull 档额外测量推送耗时（`k6/b-feed-push.js`）：准备时登录 `author_4999` 的全部 4999 个粉丝，各读一次 Feed，建好收件箱（推送会跳过收件箱不存在的冷用户）；每轮压测后作者发一篇文章，从发出发布请求起反复读 ID 最大的粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，这就是推送完成的时刻；测完删除文章。pull 档不推送，不测。
 
 每轮打印 QPS、延迟、错误率，以及 `Innodb_row_lock_waits`、`Com_select` 和 Redis 命令总数的差值。全部跑完后写入 `results/<日期>-<场景>.json`：
 
@@ -133,6 +133,6 @@ WARMUP=5s DURATION=10s ./code-nest-loadtest/bench.sh c 1   # 缩短时长，检�
 ```
 
 - `k6`：`requests`、`qps`、`avgMs`、`p95Ms`、`p99Ms`、`errorRate`（HTTP 状态不是 200 或返回体 `code` 不是 0 的比例）。
-- `mysql`、`redis`：稳态压测前后的差值，只列有变化的项；后台任务（Outbox 补发、落库、对账等）的查询也会计入。
+- `mysql`、`redis`：稳态压测前后的差值，只列有变化的项；后台任务（Outbox 补发、落库、对账等）和场景 a 等待落库时的查询也会计入。
 - `counter`（场景 a）：文章 ID、`likeCount`、`likeRows`；`pushMs`（场景 b 的 push-pull 档）：推送耗时，毫秒，精度是一次读取 Feed 的耗时（脚本不停地读，没有间隔）。
 - `median`：每个数值项各自取各轮的中位数，某一轮没有的项按 0 计。

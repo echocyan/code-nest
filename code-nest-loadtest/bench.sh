@@ -58,6 +58,19 @@ redis_calls() {
             | add // {}'
 }
 
+# 场景 B：两个实例的 Timer feed.read 与 feed.read.follow-list 的累计次数与耗时（毫秒）之和，输出 JSON 对象
+feed_timers() {
+    local port metric
+    for port in 8081 8082; do
+        for metric in feed.read feed.read.follow-list; do
+            curl -fs "http://localhost:$port/actuator/metrics/$metric" \
+                | jq --arg metric "$metric" '.measurements | map({key: .statistic, value}) | from_entries
+                    | {($metric): {count: .COUNT, ms: (.TOTAL_TIME * 1000)}}'
+        done
+    done | jq -s 'reduce (.[] | to_entries[]) as $e ({}; .[$e.key].count += $e.value.count | .[$e.key].ms += $e.value.ms)
+        | {readCount: .["feed.read"].count, readMs: .["feed.read"].ms, followListMs: .["feed.read.follow-list"].ms}'
+}
+
 # 两次快照的差值，只保留有变化的项
 delta() {
     jq -n --argjson before "$1" --argjson after "$2" \
@@ -123,6 +136,9 @@ for mode in "${modes[@]}"; do
         run_k6 "$name" warmup
         mysql_before=$(mysql_status)
         redis_before=$(redis_calls)
+        if [ "$scenario" = b ]; then
+            feed_before=$(feed_timers)
+        fi
         step "$switch=$mode 第 $run/$runs 轮：稳态压测 $DURATION"
         run_k6 "$name" steady
         if [ "$scenario" = a ]; then
@@ -139,14 +155,23 @@ for mode in "${modes[@]}"; do
         if [ "$scenario" = a ]; then
             result=$(jq --argjson counter "$counter" '. + {counter: $counter}' <<<"$result")
         fi
+        if [ "$scenario" = b ]; then
+            # 服务端读一页 Feed 的平均耗时，以及其中查询关注列表所占的比例
+            feed_after=$(feed_timers)
+            feed=$(jq -n --argjson before "$feed_before" --argjson after "$feed_after" \
+                '$after | with_entries(.value -= $before[.key])
+                    | {readCount, readAvgMs: (.readMs / .readCount), followListAvgMs: (.followListMs / .readCount),
+                       followListShare: (.followListMs / .readMs)}')
+            result=$(jq --argjson feed "$feed" '. + {feed: $feed}' <<<"$result")
+        fi
         if [ "$mode" = push-pull ]; then
             step "测量推送耗时"
             run_k6 b-feed-push measure
             result=$(jq --slurpfile push "$work/b-feed-push.summary.json" '. + $push[0]' <<<"$result")
         fi
         jq -c . <<<"$result" >>"$runs_file"
-        jq '{k6, innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0), comSelect: (.mysql.Com_select // 0),
-            redisCalls: ([.redis[]] | add // 0)}' <<<"$result"
+        jq '{k6} + (if .feed then {feed} else {} end) + {innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0),
+            comSelect: (.mysql.Com_select // 0), redisCalls: ([.redis[]] | add // 0)}' <<<"$result"
     done
     mode_json=$(jq -s "$medians {median: medians, runs: .}" "$runs_file")
     modes_json=$(jq --arg mode "$mode" --argjson result "$mode_json" '. + {($mode): $result}' <<<"$modes_json")

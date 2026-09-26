@@ -13,20 +13,36 @@ import com.echocyan.codenest.social.vo.ArticleCountsVO;
 import com.echocyan.codenest.social.vo.FeedItemVO;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 读取一页 Feed 的整体耗时记在 Timer {@code feed.read}，其中查询关注列表的耗时另记在 {@code feed.read.follow-list}，
+ * 经管理端口的 metrics 端点查看；压测用它们判断关注列表要不要加缓存。
+ */
 @Service
-@RequiredArgsConstructor
 class FeedServiceImpl implements FeedService {
 
     private final FollowService followService;
     private final FeedReader feedReader;
     private final UserApi userApi;
     private final CounterApi counterApi;
+    private final Timer readTimer;
+    private final Timer followListTimer;
+
+    FeedServiceImpl(FollowService followService, FeedReader feedReader, UserApi userApi, CounterApi counterApi,
+                    MeterRegistry meterRegistry) {
+        this.followService = followService;
+        this.feedReader = feedReader;
+        this.userApi = userApi;
+        this.counterApi = counterApi;
+        this.readTimer = meterRegistry.timer("feed.read");
+        this.followListTimer = meterRegistry.timer("feed.read.follow-list");
+    }
 
     private static ArticleCountsVO countsVO(Counts counts) {
         return new ArticleCountsVO(
@@ -38,7 +54,11 @@ class FeedServiceImpl implements FeedService {
 
     @Override
     public CursorResult<FeedItemVO> read(long userId, Long cursor, int size) {
-        List<Long> authorIds = followService.listAllFollowedAuthorIds(userId);
+        return readTimer.record(() -> doRead(userId, cursor, size));
+    }
+
+    private CursorResult<FeedItemVO> doRead(long userId, Long cursor, int size) {
+        List<Long> authorIds = followListTimer.record(() -> followService.listAllFollowedAuthorIds(userId));
         if (authorIds.isEmpty()) {
             return CursorResult.empty();
         }

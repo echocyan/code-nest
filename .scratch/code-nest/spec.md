@@ -214,7 +214,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 对象转换用 MapStruct，配好它与 Lombok 注解处理器的先后顺序。
     - 密码哈希只引入 `spring-security-crypto`。
 - **中间件版本**：以用户本地镜像为准，即 `mysql:8.4`、`redis:8.6`、`rabbitmq:4.3.5-management`、`elasticsearch:9.4.5`（与 Boot 4 管理的 ES 客户端大版本一致）。ES
-  在官方镜像上安装 IK 9.4.5 插件。需要新增镜像或插件时先问用户。已同意的镜像有 `grafana/k6`、`eclipse-temurin:21-jre`、
+  在官方镜像上安装 IK 9.4.5 插件。需要新增镜像或插件时先问用户。已同意的镜像有 `grafana/k6`、`eclipse-temurin:21-jre`、`eclipse-temurin:21-jdk`（应用镜像的构建阶段）、
   `nginx`。
 - **本地环境**：根目录的 compose 文件管理中间件，由 `spring-boot-docker-compose` 以 `start-only` 模式拉起并注入连接信息。
 

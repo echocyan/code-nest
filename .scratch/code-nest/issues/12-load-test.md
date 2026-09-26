@@ -17,11 +17,11 @@ es，数据量 10 万篇文章；`cache.mode` 取 none / redis / two-level，场
 
 ## Answer
 
-1. **工具**：用 k6。脚本用 JS 编写、纳入版本管理，结果导出 JSON 汇总。用户已同意新增三个镜像：`grafana/k6`、
-   `eclipse-temurin:21-jre`、`nginx`。
+1. **工具**：用 k6。脚本用 JS 编写、纳入版本管理，结果导出 JSON 汇总。用户已同意新增四个镜像：`grafana/k6`、
+   `eclipse-temurin:21-jre`、`eclipse-temurin:21-jdk`、`nginx`。
 2. **环境**：
     - 在 `compose.yaml` 之上叠加 `compose.loadtest.yaml`，启动两个应用实例，前面由 Nginx 做负载均衡。各模式开关通过环境变量注入。
-    - 应用镜像用多阶段 Dockerfile 构建，运行时基础镜像为 `eclipse-temurin:21-jre`，不用 buildpacks。
+    - 应用镜像用多阶段 Dockerfile 构建，运行时基础镜像为 `eclipse-temurin:21-jre`，构建阶段用 `eclipse-temurin:21-jdk`，不用 buildpacks。
     - 资源上限（机器共 18 核、15GB）：
 
       | 服务             | CPU  | 内存             |

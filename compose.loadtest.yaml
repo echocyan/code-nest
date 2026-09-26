@@ -131,6 +131,13 @@ services:
         limits:
           cpus: "1"
 
+  # 压测客户端，只由 bench.sh 用 compose run 启动；不限资源，用剩余的 CPU
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: [ k6 ]
+    volumes:
+      - ./code-nest-loadtest:/loadtest
+
 networks:
   default:
     ipam:

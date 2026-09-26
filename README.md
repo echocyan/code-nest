@@ -31,4 +31,4 @@
 
 ## 压测
 
-`./code-nest-loadtest/seed.sh` 一条命令拉起资源受限的压测环境（2 个应用实例加 Nginx），并造出 10 万级数据，详见 [code-nest-loadtest/README.md](code-nest-loadtest/README.md)。
+`./code-nest-loadtest/seed.sh` 一条命令拉起资源受限的压测环境（2 个应用实例加 Nginx），并造出 10 万级数据；`./code-nest-loadtest/bench.sh <a|b|c|d>` 用 k6 跑一组场景，逐档对比模式开关。详见 [code-nest-loadtest/README.md](code-nest-loadtest/README.md)。

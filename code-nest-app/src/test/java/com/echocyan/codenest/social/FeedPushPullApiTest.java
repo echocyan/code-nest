@@ -89,7 +89,8 @@ class FeedPushPullApiTest extends FeedApiTest {
         String normalArticle = publish(normal, createDraft(normal, draft()));
         eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(normalArticle, bigArticle));
 
-        // 模拟 Redis 数据丢失（或绕过发文事件直接写库的造数），再模拟重启：各实例启动时都会调用 rebuildOutboxesIfAbsent
+        // 模拟 Redis 数据丢失（或绕过发文事件直接写库的造数），再模拟重启：各实例启动时都会调用 rebuildOutboxesIfAbsent。
+        // 完成标记是全局的，删除后会按全部已发布文章重建所有作者的发件箱；重建只做幂等的 ZADD，不影响其他测试的数据
         redis.delete(List.of("feed:outbox:ready", "feed:outbox:" + idOf(big), "feed:outbox:" + idOf(normal),
                 "feed:inbox:" + idOf(reader)));
         feedFanoutService.rebuildOutboxesIfAbsent();

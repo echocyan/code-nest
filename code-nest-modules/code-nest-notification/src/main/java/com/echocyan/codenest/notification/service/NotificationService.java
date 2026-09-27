@@ -1,11 +1,14 @@
 package com.echocyan.codenest.notification.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
+import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
+import com.echocyan.codenest.interaction.api.event.LikeCreatedEvent;
 import com.echocyan.codenest.notification.NotificationErrorCode;
 import com.echocyan.codenest.notification.entity.Notification;
 import com.echocyan.codenest.notification.vo.NotificationVO;
+import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 
 /**
  * 站内通知的写入与查询。
@@ -18,9 +21,19 @@ public interface NotificationService extends IService<Notification> {
     int MAX_UNREAD_COUNT = 100;
 
     /**
-     * 写入一条通知。触发者就是接收者时跳过；dedupKey 已存在时忽略。
+     * 点赞通知文章作者；同一人对同一篇文章只通知一次，给自己的文章点赞不通知。
      */
-    void send(Notification notification);
+    void notifyLike(LikeCreatedEvent event);
+
+    /**
+     * 评论通知文章作者，回复通知被回复的人；评论、回复各自独立，不去重。评论自己的文章、回复自己不通知。
+     */
+    void notifyComment(CommentCreatedEvent event);
+
+    /**
+     * 关注通知被关注者；同一人只通知一次。
+     */
+    void notifyFollow(FollowCreatedEvent event);
 
     /**
      * 按 ID 倒序翻阅自己的通知，展示信息在读取时组装。

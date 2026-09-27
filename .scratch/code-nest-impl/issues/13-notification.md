@@ -26,8 +26,9 @@ Status: closed
 - **事件**：
   - `LikeCreatedEvent`、`CommentCreatedEvent`、`FollowCreatedEvent` 分别放在 interaction、article、social 的 `api/event/`，只在真的插入一行后发出。
   - `comment.created` 的 replyToUserId 是被回复的人：回复时 @ 了谁就是谁，没有 @ 时是被回复评论的作者；评论为 null。消费者按 rootId 是否为 0 区分评论和回复。
-- **消费者**：`listener/NotificationListener`，一个 `notification.create` 队列，用三个 `@RabbitHandler` 按事件类型分派，每个都加 `@IdempotentConsumer`。
-- **写入**：`INSERT IGNORE` 是 Mapper 上的自定义 SQL，不走自动填充，ID 和时间由 `send` 设置。实体字段叫 `isRead`（`read` 是 MySQL 保留字）。
+- **消费者**：`listener/NotificationListener`，一个 `notification.create` 队列，用三个 `@RabbitHandler` 按事件类型分派，每个都加 `@IdempotentConsumer`，只把事件转给 `NotificationService`。
+- **规则**：`NotificationService` 按点赞、评论（含回复）、关注各有一个入口，由它决定接收者、类型、去重 key，以及触发者就是接收者时不通知。
+- **写入**：`INSERT IGNORE` 是 Mapper 上的自定义 SQL，不走自动填充，ID 和时间由 `NotificationServiceImpl` 私有的 `send` 设置。实体字段叫 `isRead`（`read` 是 MySQL 保留字）。
 - **接口细节**：
   - `GET /notifications?cursor=&size=`：size 默认 20、最大 50；列表项为 `{id, type, actor, articleId, articleTitle, commentId, commentSummary, read, createdAt}`，type 为 LIKE、COMMENT、REPLY、FOLLOW。
   - 文章已删除时 articleTitle 和 commentSummary 都显示"该内容已删除"；评论或回复已删除时 commentSummary 显示"该内容已删除"。

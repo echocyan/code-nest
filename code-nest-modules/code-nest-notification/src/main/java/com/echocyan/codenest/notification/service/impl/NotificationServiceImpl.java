@@ -5,14 +5,18 @@ import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.CommentBrief;
+import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.util.DateTimes;
+import com.echocyan.codenest.interaction.api.event.LikeCreatedEvent;
 import com.echocyan.codenest.notification.NotificationErrorCode;
 import com.echocyan.codenest.notification.entity.Notification;
+import com.echocyan.codenest.notification.entity.NotificationType;
 import com.echocyan.codenest.notification.mapper.NotificationMapper;
 import com.echocyan.codenest.notification.service.NotificationService;
 import com.echocyan.codenest.notification.vo.NotificationVO;
+import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import lombok.RequiredArgsConstructor;
@@ -73,7 +77,42 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
     }
 
     @Override
-    public void send(Notification notification) {
+    public void notifyLike(LikeCreatedEvent event) {
+        Notification notification = new Notification();
+        notification.setRecipientId(event.authorId());
+        notification.setActorId(event.userId());
+        notification.setType(NotificationType.LIKE);
+        notification.setArticleId(event.articleId());
+        notification.setDedupKey("L:" + event.userId() + ":" + event.articleId());
+        send(notification);
+    }
+
+    @Override
+    public void notifyComment(CommentCreatedEvent event) {
+        boolean reply = event.rootId() != 0;
+        Notification notification = new Notification();
+        notification.setRecipientId(reply ? event.replyToUserId() : event.articleAuthorId());
+        notification.setActorId(event.userId());
+        notification.setType(reply ? NotificationType.REPLY : NotificationType.COMMENT);
+        notification.setArticleId(event.articleId());
+        notification.setCommentId(event.commentId());
+        send(notification);
+    }
+
+    @Override
+    public void notifyFollow(FollowCreatedEvent event) {
+        Notification notification = new Notification();
+        notification.setRecipientId(event.authorId());
+        notification.setActorId(event.followerId());
+        notification.setType(NotificationType.FOLLOW);
+        notification.setDedupKey("F:" + event.followerId() + ":" + event.authorId());
+        send(notification);
+    }
+
+    /**
+     * 写入一条通知。触发者就是接收者时跳过；dedupKey 已存在时忽略。
+     */
+    private void send(Notification notification) {
         if (notification.getActorId().equals(notification.getRecipientId())) {
             return;
         }

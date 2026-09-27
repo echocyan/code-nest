@@ -1,6 +1,7 @@
 package com.echocyan.codenest.support;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
@@ -51,13 +52,20 @@ public final class SharedContainers {
     }
 
     /**
-     * 复用仓库里带 IK 插件的 Dockerfile；镜像不随测试结束删除，第二次起直接命中缓存。
+     * 与 compose 共用带 IK 插件的镜像：本地已有就直接用，没有才按仓库里的 Dockerfile 构建，镜像不随测试结束删除。
+     * <p>
+     * 每次构建都会带上 Testcontainers 的会话标签、生成新镜像，旧镜像失去名字变成悬空镜像，所以不重复构建。
+     * 镜像名含 ES 版本，Dockerfile 只随版本变化；若改了 Dockerfile 而镜像名不变，需要先手动删除旧镜像。
      */
     private static DockerImageName elasticsearchImage() {
-        String image = new ImageFromDockerfile(ES_IMAGE, false)
-                .withFileFromPath(".", findRepoPath("docker/elasticsearch"))
-                .get();
-        return DockerImageName.parse(image)
+        boolean exists = !DockerClientFactory.instance().client()
+                .listImagesCmd().withReferenceFilter(ES_IMAGE).exec().isEmpty();
+        if (!exists) {
+            new ImageFromDockerfile(ES_IMAGE, false)
+                    .withFileFromPath(".", findRepoPath("docker/elasticsearch"))
+                    .get();
+        }
+        return DockerImageName.parse(ES_IMAGE)
                 .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
     }
 

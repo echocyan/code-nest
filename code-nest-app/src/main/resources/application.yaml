@@ -3,8 +3,7 @@ spring:
     name: code-nest
   docker:
     compose:
-      # 应用的工作目录是 code-nest-app（IDEA 与 spring-boot:run 默认如此），compose 文件在仓库根目录
-      file: ../compose.yaml
+      # 应用以仓库根目录为工作目录运行（IDEA 默认如此，spring-boot:run 在 pom 中指定），按默认规则找到根目录的 compose.yaml
       lifecycle-management: start-only
   testcontainers:
     beans:

@@ -105,6 +105,10 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 与 IDEA 一致，以仓库根目录为工作目录，Docker Compose 支持据此找到 compose.yaml -->
+                    <workingDirectory>${maven.multiModuleProjectDirectory}</workingDirectory>
+                </configuration>
             </plugin>
         </plugins>
     </build>

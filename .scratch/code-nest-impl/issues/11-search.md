@@ -32,8 +32,8 @@ Status: closed
 - **结构**：翻页上限校验和列表项组装在 `SearchServiceImpl`，ES 查询在 `EsArticleSearcher`，索引的建立、同步与重建在 `ArticleIndex`。
 - **事件**：`ArticlePublishedEvent`、`ArticleUpdatedEvent`、`ArticleDeletedEvent`（`article/api/event/`）都只带 `articleId`、`authorId`。发布只在草稿首次发布时发出；编辑、删除对草稿也发出，由消费者回查状态决定。删除改为带版本号的更新，乐观锁插件把 `version` +1。
 - **ArticleApi**：`findSnapshot(id)` 返回正文、标签、状态、版本号，已删除的文章也返回（`deleted=true`），同步方据此拿到删除后的版本号；`listPublishedSnapshots(afterId, limit)` 按 ID 正序遍历已发布文章。
-- **索引**：mapping 在 search 模块的 `search/article-index.json`，单分片、无副本、`dynamic: strict`。除规格字段外多存一个 `tagIds`：`tags` 存标签名（lowercase normalizer）用于加分，`tagIds` 用于按标签筛选。写入带 `require_alias`，别名不存在时不会误建名为 `article` 的索引。
-- **同步**：`ArticleIndex.sync` 回查快照，`searchable()` 就写入，否则删除；写入和删除都带 `version_type=external`，409 忽略，删除不存在的文档不报错。队列 `search.article-sync` 由 `ArticleSyncListener` 声明。
+- **索引**：mapping 在 search 模块的 `search/article-index.json`，单分片、无副本、`dynamic: strict`。除规格字段外多存一个 `tagIds`：`tags` 存标签名（lowercase normalizer）用于加分，`tagIds` 用于按标签筛选。写入带 `require_alias`，别名不存在时不会误建名为 `article` 的索引。字段名集中在 `ArticleIndex.Fields`，与文档 record 的组件名、mapping 一致，查询都引用它。
+- **同步**：`ArticleIndex.sync` 是唯一的单篇写入入口：回查快照，`searchable()` 就写入，否则删除；写入和删除都带 `version_type=external`，409 忽略，删除不存在的文档不报错。队列 `search.article-sync` 由 `ArticleSyncListener` 声明。
 - **启动建索引**：`ArticleIndex` 实现 `SmartInitializingSingleton`，在 MQ 消费者启动前检查别名；不存在就在重建锁内再检查一次，仍不存在则执行一次 `rebuild` 的流程（见 12 号票）：新建 `article_v{n}`（n 取已有最大值 +1），按 500 篇一批 bulk 导入，除 409 外的失败直接抛出、阻止启动；导入完成才挂别名，所以中断后别名仍不存在，下次启动重来，残留的索引由那次重建删除。
   - 多个实例同时启动时，抢不到锁的实例跳过、照常启动；别名出现前它的搜索和同步都会失败，这期间的变更由重建最后的追补写入。
   - `ArticleIndex` 的别名是构造参数，索引名前缀和重建锁都由它派生，应用里用 `article`。
@@ -42,4 +42,4 @@ Status: closed
   - RELEVANCE 按 `_score`、发布时间、ID 倒序；LATEST 按发布时间、ID 倒序。
   - 高亮经 HTML 转义；title 整体高亮，content 用 plain 高亮器取 1 个 100 字片段（unified 按句切分，无标点的长句会整句返回）；未命中的字段为 null。
   - 只从 ES 取命中 ID 和高亮，列表项经 `ArticleApi.listPublishedItems` 组装，同步尚未跟上的已删除文章被滤掉（total 仍按 ES 计）。
-- **测试**：`SearchApiTest` 的搜索结果用 `eventually` 等待，需要确定顺序时按 LATEST；乱序测试直接调用 `ArticleIndex` 写入旧版本并读 ES 文档断言。`ArticleIndexStartupTest` 另建 `ArticleIndex`，用随机别名和桩化的 `ArticleApi`，覆盖导入中断后下次启动补全、两个实例同时启动都成功且只留一个索引。
+- **测试**：`SearchApiTest` 的搜索结果用 `eventually` 等待，需要确定顺序时按 LATEST；乱序测试让 `ArticleApi.findSnapshot`（`@MockitoSpyBean`）依次返回旧版本的已发布快照和已删除快照，调用 `ArticleIndex.sync` 后读 ES 文档断言。`ArticleIndexStartupTest` 另建 `ArticleIndex`，用随机别名和桩化的 `ArticleApi`，覆盖导入中断后下次启动补全、两个实例同时启动都成功且只留一个索引。

@@ -175,7 +175,7 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /**
      * 写入一篇文章；索引里已有相同或更新的版本时什么都不做。
      */
-    public void save(ArticleSnapshot snapshot) {
+    private void save(ArticleSnapshot snapshot) {
         ignoringVersionConflict(() -> client.index(index -> index
                 .index(alias)
                 .requireAlias(true)
@@ -188,7 +188,7 @@ public class ArticleIndex implements SmartInitializingSingleton {
     /**
      * 删除一篇文章；version 是删除后的版本号，索引里已有相同或更新的版本时什么都不做。
      */
-    public void remove(long articleId, long version) {
+    private void remove(long articleId, long version) {
         ignoringVersionConflict(() -> client.delete(delete -> delete
                 .index(alias)
                 .id(String.valueOf(articleId))
@@ -321,7 +321,26 @@ public class ArticleIndex implements SmartInitializingSingleton {
     }
 
     /**
-     * 索引中的文档。作者昵称可以修改、计数变化太频繁，都不放进来。
+     * 索引文档的字段名，与 {@link ArticleDocument} 的组件名、{@code search/article-index.json} 的 mapping 一致。
+     */
+    public static final class Fields {
+
+        public static final String ID = "id";
+        public static final String TITLE = "title";
+        public static final String SUMMARY = "summary";
+        public static final String CONTENT = "content";
+        public static final String TAGS = "tags";
+        public static final String TAG_IDS = "tagIds";
+        public static final String CATEGORY_ID = "categoryId";
+        public static final String AUTHOR_ID = "authorId";
+        public static final String PUBLISHED_AT = "publishedAt";
+
+        private Fields() {
+        }
+    }
+
+    /**
+     * 索引中的文档，组件名即字段名，见 {@link Fields}。作者昵称可以修改、计数变化太频繁，都不放进来。
      *
      * @param content Markdown 原文，不做清洗
      * @param tags    标签名，用于关键词与标签名完全一致时加分

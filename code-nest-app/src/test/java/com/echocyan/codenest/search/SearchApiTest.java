@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 
 /**
  * 各测试类共用一个数据库和一套索引，每个测试用一个随机关键词隔离数据。文章异步同步到索引，搜索结果用
@@ -247,7 +249,8 @@ class SearchApiTest extends ArticleTestSupport {
     }
 
     /**
-     * 两个消费者先后读到新旧两个版本、旧版本后写入的竞态从 HTTP 上构造不出来，这里直接用旧版本写入索引，再读 ES 里的文档。
+     * 两个消费者先后读到新旧两个版本、旧版本后写入的竞态从 HTTP 上构造不出来：这里让回查依次返回旧版本的已发布快照
+     * 和已删除快照，按它们同步，再读 ES 里的文档。
      */
     @Test
     void staleWritesDoNotOverwriteNewerVersion() throws IOException {
@@ -258,12 +261,17 @@ class SearchApiTest extends ArticleTestSupport {
         edit(author, id, 1, withTitle(after)).expectStatus().isOk();
         eventually(() -> expectHits(after, id));
 
-        ArticleSnapshot latest = articleApi.findSnapshot(Long.parseLong(id)).orElseThrow();
+        long articleId = Long.parseLong(id);
+        ArticleSnapshot latest = articleApi.findSnapshot(articleId).orElseThrow();
         ArticleSnapshot stale = new ArticleSnapshot(latest.id(), latest.authorId(), latest.categoryId(), before,
                 latest.summary(), latest.content(), latest.tagIds(), latest.tagNames(), latest.status(),
                 latest.publishedAt(), 1, false);
-        articleIndex.save(stale);
-        articleIndex.remove(latest.id(), 1);
+        ArticleSnapshot staleDeletion = new ArticleSnapshot(latest.id(), latest.authorId(), latest.categoryId(),
+                before, latest.summary(), latest.content(), latest.tagIds(), latest.tagNames(), latest.status(),
+                latest.publishedAt(), 1, true);
+        doReturn(Optional.of(stale), Optional.of(staleDeletion)).when(articleApi).findSnapshot(articleId);
+        articleIndex.sync(articleId);
+        articleIndex.sync(articleId);
 
         GetResponse<Map> indexed = elasticsearchClient.get(get -> get.index("article").id(id), Map.class);
         assertThat(indexed.found()).isTrue();

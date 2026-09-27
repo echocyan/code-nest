@@ -13,6 +13,7 @@ import co.elastic.clients.util.NamedValue;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.dto.SearchSort;
 import com.echocyan.codenest.search.service.ArticleIndex;
+import com.echocyan.codenest.search.service.ArticleIndex.Fields;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -49,17 +50,17 @@ class EsArticleSearcher {
         return bool
                 .must(must -> must.multiMatch(match -> match
                         .query(keyword)
-                        .fields("title^3", "summary^1.5", "content")
+                        .fields(Fields.TITLE + "^3", Fields.SUMMARY + "^1.5", Fields.CONTENT)
                         .operator(Operator.And)))
-                .should(should -> should.term(term -> term.field("tags").value(keyword).boost(TAG_BOOST)));
+                .should(should -> should.term(term -> term.field(Fields.TAGS).value(keyword).boost(TAG_BOOST)));
     }
 
     private static BoolQuery.Builder filtered(BoolQuery.Builder bool, Long categoryId, Long tagId) {
         if (categoryId != null) {
-            bool.filter(filter -> filter.term(term -> term.field("categoryId").value(categoryId)));
+            bool.filter(filter -> filter.term(term -> term.field(Fields.CATEGORY_ID).value(categoryId)));
         }
         if (tagId != null) {
-            bool.filter(filter -> filter.term(term -> term.field("tagIds").value(tagId)));
+            bool.filter(filter -> filter.term(term -> term.field(Fields.TAG_IDS).value(tagId)));
         }
         return bool;
     }
@@ -72,8 +73,9 @@ class EsArticleSearcher {
         if (sort == SearchSort.RELEVANCE) {
             options.add(SortOptions.of(option -> option.score(score -> score.order(SortOrder.Desc))));
         }
-        options.add(SortOptions.of(option -> option.field(field -> field.field("publishedAt").order(SortOrder.Desc))));
-        options.add(SortOptions.of(option -> option.field(field -> field.field("id").order(SortOrder.Desc))));
+        options.add(SortOptions.of(option -> option.field(field -> field
+                .field(Fields.PUBLISHED_AT).order(SortOrder.Desc))));
+        options.add(SortOptions.of(option -> option.field(field -> field.field(Fields.ID).order(SortOrder.Desc))));
         return options;
     }
 
@@ -100,9 +102,9 @@ class EsArticleSearcher {
                             .preTags("<em>")
                             .postTags("</em>")
                             .encoder(HighlighterEncoder.Html)
-                            .fields(NamedValue.of("title", HighlightField.of(field -> field.numberOfFragments(0))))
+                            .fields(NamedValue.of(Fields.TITLE, HighlightField.of(field -> field.numberOfFragments(0))))
                             // plain 高亮器按字符数切片段；默认的 unified 按句切分，没有标点的长句会整句返回
-                            .fields(NamedValue.of("content", HighlightField.of(field -> field
+                            .fields(NamedValue.of(Fields.CONTENT, HighlightField.of(field -> field
                                     .type(HighlighterType.Plain)
                                     .fragmentSize(CONTENT_FRAGMENT_SIZE)
                                     .numberOfFragments(1))))), Void.class);
@@ -110,7 +112,8 @@ class EsArticleSearcher {
             throw new UncheckedIOException(e);
         }
         List<Match> list = response.hits().hits().stream()
-                .map(hit -> new Match(Long.parseLong(hit.id()), highlightOf(hit, "title"), highlightOf(hit, "content")))
+                .map(hit -> new Match(Long.parseLong(hit.id()), highlightOf(hit, Fields.TITLE),
+                        highlightOf(hit, Fields.CONTENT)))
                 .toList();
         long total = Objects.requireNonNull(response.hits().total()).value();
         return new PageResult<>(list, total, page, size);

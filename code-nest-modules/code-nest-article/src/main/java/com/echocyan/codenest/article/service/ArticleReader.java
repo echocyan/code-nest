@@ -68,8 +68,8 @@ public class ArticleReader implements ArticleApi, SmartInitializingSingleton {
     }
 
     @Override
-    public Optional<ArticleState> findState(long articleId) {
-        return Optional.ofNullable(articleService.getById(articleId)).map(articleConverter::toState);
+    public Optional<ArticleState> findPublished(long articleId) {
+        return articleService.findPublished(articleId).map(articleConverter::toState);
     }
 
     @Override

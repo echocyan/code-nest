@@ -2,7 +2,6 @@ package com.echocyan.codenest.article.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
-import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.Comment;
@@ -186,11 +185,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
      * @throws BizException 文章不存在、已删除或是草稿时 {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
      */
     private Article requirePublished(long articleId) {
-        Article article = articleService.getById(articleId);
-        if (article == null || article.getStatus() != ArticleStatus.PUBLISHED) {
-            throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
-        }
-        return article;
+        return articleService.findPublished(articleId)
+                .orElseThrow(() -> new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND));
     }
 
     private Function<Comment, CommentVO> commentVOMapper(List<Comment> comments) {

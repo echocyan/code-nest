@@ -150,6 +150,11 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
+    public Optional<Article> findPublished(long id) {
+        return Optional.ofNullable(getById(id)).filter(article -> article.getStatus() == ArticleStatus.PUBLISHED);
+    }
+
+    @Override
     public Article getIncludingDeleted(long id) {
         return baseMapper.selectByIdIncludingDeleted(id);
     }

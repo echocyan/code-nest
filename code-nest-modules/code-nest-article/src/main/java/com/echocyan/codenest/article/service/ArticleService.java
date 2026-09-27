@@ -7,6 +7,7 @@ import com.echocyan.codenest.common.exception.BizException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 文章的写作、发布与删除。读取见 {@link ArticleReader}。
@@ -41,6 +42,13 @@ public interface ArticleService extends IService<Article> {
      * @throws BizException 文章不存在、不是作者本人、并发修改导致版本冲突
      */
     void delete(long id, long userId);
+
+    /**
+     * 查询已发布的文章。直接读数据库、不经缓存，供写操作做前置检查。
+     *
+     * @return 文章不存在、已删除或是草稿时为空
+     */
+    Optional<Article> findPublished(long id);
 
     /**
      * 按 ID 查询，已删除的文章也返回。

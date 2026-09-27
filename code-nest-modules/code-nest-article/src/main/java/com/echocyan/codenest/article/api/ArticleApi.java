@@ -8,16 +8,17 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * article 模块对其他模块的门面。除 {@link #findSnapshot} 外，已删除的文章、评论视为不存在。
+ * article 模块对其他模块的门面。已删除的文章、评论视为不存在，
+ * {@link #findSnapshot} 与 {@link #listSnapshotsUpdatedSince} 除外。
  */
 public interface ArticleApi {
 
     /**
-     * 查询文章的状态与作者。
+     * 查询已发布文章的作者。直接读数据库、不经缓存，供写操作做前置检查（如只能对已发布文章点赞）。
      *
-     * @return 文章不存在时为空
+     * @return 文章不存在、已删除或是草稿时为空
      */
-    Optional<ArticleState> findState(long articleId);
+    Optional<ArticleState> findPublished(long articleId);
 
     /**
      * 批量查询文章摘要，草稿也会返回，由调用方按状态过滤。经缓存读取，文章编辑、发布、删除后失效。

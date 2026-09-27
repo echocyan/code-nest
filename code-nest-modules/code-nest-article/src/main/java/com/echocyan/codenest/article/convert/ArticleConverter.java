@@ -1,10 +1,14 @@
 package com.echocyan.codenest.article.convert;
 
 import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleCounts;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.api.ArticleState;
+import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.article.entity.Article;
-import com.echocyan.codenest.article.vo.*;
+import com.echocyan.codenest.article.vo.ArticleDetailVO;
+import com.echocyan.codenest.article.vo.TagVO;
 import com.echocyan.codenest.user.api.UserBrief;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -24,11 +28,11 @@ public interface ArticleConverter {
     /**
      * 分类、作者都有 id 属性，需指明取文章的。
      */
-    @Mapping(target = "id", source = "article.id")
-    ArticleItemVO toItemVO(Article article, CategoryVO category, UserBrief author, ArticleCountsVO counts);
+    @Mapping(target = "id", source = "brief.id")
+    ArticleItem toItem(ArticleBrief brief, CategoryBrief category, UserBrief author, ArticleCounts counts);
 
     @Mapping(target = "id", source = "article.id")
     @Mapping(target = "content", source = "content")
-    ArticleDetailVO toDetailVO(Article article, String content, CategoryVO category, List<TagVO> tags,
-                               UserBrief author, ArticleCountsVO counts);
+    ArticleDetailVO toDetailVO(Article article, String content, CategoryBrief category, List<TagVO> tags,
+                               UserBrief author, ArticleCounts counts);
 }

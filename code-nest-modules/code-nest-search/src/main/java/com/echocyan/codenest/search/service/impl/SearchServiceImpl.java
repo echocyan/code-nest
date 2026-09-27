@@ -1,18 +1,23 @@
 package com.echocyan.codenest.search.service.impl;
 
+import com.echocyan.codenest.article.api.ArticleApi;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.SearchErrorCode;
 import com.echocyan.codenest.search.dto.SearchSort;
 import com.echocyan.codenest.search.service.SearchService;
 import com.echocyan.codenest.search.vo.SearchArticleVO;
-import com.echocyan.codenest.user.api.UserApi;
-import com.echocyan.codenest.user.api.UserBrief;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+/**
+ * 命中的文章经 {@link ArticleApi#listPublishedItems} 组装，同步尚未跟上的已删除文章不会出现在结果里，total 仍按 ES 计。
+ */
 @Service
 @RequiredArgsConstructor
 class SearchServiceImpl implements SearchService {
@@ -23,7 +28,7 @@ class SearchServiceImpl implements SearchService {
     private static final long MAX_WINDOW = 1000;
 
     private final EsArticleSearcher articleSearcher;
-    private final UserApi userApi;
+    private final ArticleApi articleApi;
 
     @Override
     public PageResult<SearchArticleVO> search(String keyword, Long categoryId, Long tagId, SearchSort sort,
@@ -34,9 +39,13 @@ class SearchServiceImpl implements SearchService {
         }
         PageResult<EsArticleSearcher.Match> hits = articleSearcher.search(keyword.strip(), categoryId, tagId, sort, page,
                 size);
-        Map<Long, UserBrief> authors = userApi.getBriefs(
-                hits.list().stream().map(hit -> hit.article().authorId()).distinct().toList());
-        return hits.map(hit -> new SearchArticleVO(hit.article(), authors.get(hit.article().authorId()),
-                hit.titleHighlight(), hit.contentHighlight()));
+        Map<Long, ArticleItem> items = articleApi.listPublishedItems(
+                        hits.list().stream().map(EsArticleSearcher.Match::articleId).toList()).stream()
+                .collect(Collectors.toMap(ArticleItem::id, Function.identity()));
+        return new PageResult<>(hits.list().stream()
+                .filter(hit -> items.containsKey(hit.articleId()))
+                .map(hit -> new SearchArticleVO(items.get(hit.articleId()), hit.titleHighlight(),
+                        hit.contentHighlight()))
+                .toList(), hits.total(), page, size);
     }
 }

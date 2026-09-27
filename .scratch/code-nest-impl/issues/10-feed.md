@@ -6,7 +6,7 @@
 
 Status: closed
 
-- [x] **`GET /feed?cursor=&size=`**：以 articleId 作为游标，返回 `CursorResult`，列表项含文章摘要、作者信息和计数。没有关注任何人时返回空列表。
+- [x] **`GET /feed?cursor=&size=`**：以 articleId 作为游标，返回 `CursorResult`，列表项与文章列表项相同。没有关注任何人时返回空列表。
 - [x] **生产端事件**：article 在发布或删除时发出 `article.published` 和 `article.deleted`；social 发出 `follow.created` 和 `follow.deleted`。
 - [x] **Redis 结构**：每个作者一个发件箱（上限 100 条）、每个读者一个收件箱（上限 500 条，TTL 7 天）。member 和 score 都是 articleId。
 - [x] **推送**：消费者 `social.feed-push` 先写作者的发件箱。作者不是大 V 时，按每页 1000 个粉丝，给收件箱仍存在的粉丝执行 pipeline `ZADD` 并裁剪到上限。
@@ -30,10 +30,10 @@ Status: closed
 - **模块依赖**：social 的 pom 加上 article，文章摘要经 `ArticleApi` 获取。
 - **结构**：
   - `service/FeedStore`：推拉结合的 Redis 存储，对外只有 `addArticle`、`removeArticle`、`follow`、`unfollow`、`read` 和启动重建。`read` 返回一页按 ID 倒序、去重的文章 ID 和游标，不过滤。key 前缀（应用里为 `feed`）与大 V 阈值是构造参数。内部由同包、不对外的 `FeedBoxes`（发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本）和 `BigAuthors`（维护 `feed:followers` 并据此识别大 V）组成。
-  - `FeedService` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），交给 `FeedStore.read` 取一页文章 ID，经 `ArticleApi.getBriefs` 回查后滤掉已删除、非发布状态和已取关作者的文章，再经 `UserApi`、`CounterApi` 补全作者信息和计数。没有关注任何人时直接返回空。
+  - `FeedService` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），交给 `FeedStore.read` 取一页文章 ID，经 `ArticleApi.listPublishedItems` 组装并滤掉已删除和非发布状态的文章，再滤掉已取关作者的文章。没有关注任何人时直接返回空。
   - `listener/FeedPushListener`（`social.feed-push`，订阅 `article.published`）、`listener/FeedFixListener`（`social.feed-fix`，订阅 `follow.created`、`follow.deleted`、`article.deleted`），只把事件转给 `FeedStore`。
   - 推送按粉丝 ID 升序翻页（`FollowService.listFollowerIds`，走 (author_id, follower_id) 索引）。
-- **接口细节**：`GET /feed?cursor=&size=` 需要登录；size 默认 20、最大 50；列表项为 `{id, title, summary, coverUrl, publishedAt, author, counts}`，与文章列表项相比不含分类和状态。
+- **接口细节**：`GET /feed?cursor=&size=` 需要登录；size 默认 20、最大 50；列表项与文章列表项（见 06 号票）相同。
 - **事件**：`ArticlePublishedEvent`、`ArticleDeletedEvent` 在 article 的 `api/event`，`FollowDeletedEvent` 在 social 的 `api/event`，都只带两个 ID。发布只在草稿转为已发布时发出；删除草稿也会发出 `article.deleted`。
 - **大 V 识别**：`BigAuthors` 在 ZSet `feed:followers` 里存作者 ID → 粉丝数，关注、取关后按 follow 表重新统计，用脚本写入并取回旧值；读 Feed 时一条 `ZRANGEBYSCORE` 取出全部大 V，不必逐个读取关注的几百个作者的粉丝数。存粉丝数而不是大 V 名单，阈值不同的实例可以共用。
 - **大 V 身份变化**：升为大 V 时已推送的文章留在收件箱，读取时去重。这次写入让作者降为普通作者时，按粉丝 ID 分页，用 pipeline 把他的发件箱并入每个粉丝已存在的收件箱（与关注时并入同一个脚本），否则他当大 V 期间的文章既不在收件箱、也不再被拉取；收件箱不存在的粉丝读取时从发件箱重建，已包含这些文章。

@@ -8,7 +8,7 @@ Status: closed
 
 - [x] **search 模块**：新增模块，定义 6xxxx 错误码；不建表。
 - [x] **`GET /search/articles?q=&categoryId=&tagId=&sort=RELEVANCE|LATEST&page=&size=`**：匿名可访问，返回 `PageResult`。
-  - 结果项含文章摘要、作者昵称（通过 `UserApi` 获取）和高亮。
+  - 结果项是文章列表项加高亮。
   - `q` 为空时返回 400；`from + size > 1000` 时返回 400 和明确的错误码。
 - [x] **生产端事件**：article 发出 `article.published`、`article.updated`、`article.deleted`。编辑、发布、删除时 `version` 都会 +1。
 - [x] **ES 客户端**：用 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`）。
@@ -27,9 +27,9 @@ Status: closed
 - **错误码**：只定义了 60001（翻页超出上限，400）。`q` 为空或空白、`sort` 不是 RELEVANCE/LATEST、`page`/`size` 越界都走通用的 90400。
 - **接口细节**：
   - `sort` 默认 RELEVANCE；`page` 从 1 开始，`size` 为 1–50、默认 20；`page × size`（即 `from + size`）超过 1000 返回 60001，size 为 20 时最多到第 50 页。
-  - 结果项为 `{article: ArticleBrief, author: UserBrief, titleHighlight, contentHighlight}`；作者通过 `UserApi` 批量补全，未命中的高亮字段为 null。
+  - 结果项是文章列表项（见 06 号票）的全部字段加 `titleHighlight`、`contentHighlight`，平铺在同一层（`@JsonUnwrapped`）；未命中的高亮字段为 null。
   - 关键词去掉首尾空白后查询。
-- **结构**：翻页上限校验和作者补全在 `SearchServiceImpl`，ES 查询在 `EsArticleSearcher`，索引的建立、同步与重建在 `ArticleIndex`。
+- **结构**：翻页上限校验和列表项组装在 `SearchServiceImpl`，ES 查询在 `EsArticleSearcher`，索引的建立、同步与重建在 `ArticleIndex`。
 - **事件**：`ArticlePublishedEvent`、`ArticleUpdatedEvent`、`ArticleDeletedEvent`（`article/api/event/`）都只带 `articleId`、`authorId`。发布只在草稿首次发布时发出；编辑、删除对草稿也发出，由消费者回查状态决定。删除改为带版本号的更新，乐观锁插件把 `version` +1。
 - **ArticleApi**：`findSnapshot(id)` 返回正文、标签、状态、版本号，已删除的文章也返回（`deleted=true`），同步方据此拿到删除后的版本号；`listPublishedSnapshots(afterId, limit)` 按 ID 正序遍历已发布文章。
 - **索引**：mapping 在 search 模块的 `search/article-index.json`，单分片、无副本、`dynamic: strict`。除规格字段外多存一个 `tagIds`：`tags` 存标签名（lowercase normalizer）用于加分，`tagIds` 用于按标签筛选。写入带 `require_alias`，别名不存在时不会误建名为 `article` 的索引。
@@ -41,5 +41,5 @@ Status: closed
   - `multi_match` best_fields，`operator=and`（分词后的每个词都要出现在同一字段）；`tags` 上 `term` 加权 5。
   - RELEVANCE 按 `_score`、发布时间、ID 倒序；LATEST 按发布时间、ID 倒序。
   - 高亮经 HTML 转义；title 整体高亮，content 用 plain 高亮器取 1 个 100 字片段（unified 按句切分，无标点的长句会整句返回）；未命中的字段为 null。
-  - 只从 ES 取命中 ID 和高亮，文章摘要经 `ArticleApi.getBriefs` 回查，同步尚未跟上的已删除文章被滤掉（total 仍按 ES 计）。
+  - 只从 ES 取命中 ID 和高亮，列表项经 `ArticleApi.listPublishedItems` 组装，同步尚未跟上的已删除文章被滤掉（total 仍按 ES 计）。
 - **测试**：`SearchApiTest` 的搜索结果用 `eventually` 等待，需要确定顺序时按 LATEST；乱序测试直接调用 `ArticleIndex` 写入旧版本并读 ES 文档断言。`ArticleIndexStartupTest` 另建 `ArticleIndex`，用随机别名和桩化的 `ArticleApi`，覆盖导入中断后下次启动补全、两个实例同时启动都成功且只留一个索引。

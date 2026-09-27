@@ -99,10 +99,12 @@ class SearchApiTest extends ArticleTestSupport {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(byContent, bySummary, byTitle))
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(byContent, bySummary, byTitle))
                 .jsonPath("$.data.total").isEqualTo(3)
-                .jsonPath("$.data.list[2].article.title").isEqualTo("关于 " + keyword + " 的笔记")
-                .jsonPath("$.data.list[2].author.nickname").isEqualTo(username));
+                .jsonPath("$.data.list[2].title").isEqualTo("关于 " + keyword + " 的笔记")
+                .jsonPath("$.data.list[2].author.nickname").isEqualTo(username)
+                .jsonPath("$.data.list[2].category.name").isNotEmpty()
+                .jsonPath("$.data.list[2].counts.likeCount").isEqualTo(0));
     }
 
     @Test
@@ -137,11 +139,11 @@ class SearchApiTest extends ArticleTestSupport {
             client.get().uri(API + "/search/articles?q={q}&categoryId=5&tagId=7", keyword)
                     .exchange()
                     .expectBody()
-                    .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(match));
+                    .jsonPath("$.data.list[*].id").isEqualTo(List.of(match));
             client.get().uri(API + "/search/articles?q={q}&categoryId=5&sort=LATEST", keyword)
                     .exchange()
                     .expectBody()
-                    .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(otherTag, match));
+                    .jsonPath("$.data.list[*].id").isEqualTo(List.of(otherTag, match));
         });
     }
 
@@ -155,7 +157,7 @@ class SearchApiTest extends ArticleTestSupport {
         eventually(() -> client.get().uri(API + "/search/articles?q={q}&page=2&size=1", keyword)
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(first))
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(first))
                 .jsonPath("$.data.total").isEqualTo(2)
                 .jsonPath("$.data.page").isEqualTo(2)
                 .jsonPath("$.data.size").isEqualTo(1));
@@ -173,7 +175,7 @@ class SearchApiTest extends ArticleTestSupport {
         client.get().uri(API + "/search/articles?q={q}&size=1", keyword)
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(second));
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(second));
     }
 
     @Test
@@ -210,7 +212,7 @@ class SearchApiTest extends ArticleTestSupport {
         eventually(() -> client.get().uri(API + "/search/articles?q={q}", keyword)
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(byTitle, byContent)));
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(byTitle, byContent)));
     }
 
     @Test
@@ -376,7 +378,7 @@ class SearchApiTest extends ArticleTestSupport {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(articleIds));
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(articleIds));
     }
 
     private RestTestClient.ResponseSpec rebuild() {
@@ -402,7 +404,7 @@ class SearchApiTest extends ArticleTestSupport {
         client.get().uri(API + "/search/articles?q={q}&size=50", keyword)
                 .exchange()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").value(List.class, list -> ids.set(list));
+                .jsonPath("$.data.list[*].id").value(List.class, list -> ids.set(list));
         return ids.get();
     }
 }

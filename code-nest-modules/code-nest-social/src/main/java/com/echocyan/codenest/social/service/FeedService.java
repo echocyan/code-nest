@@ -1,7 +1,7 @@
 package com.echocyan.codenest.social.service;
 
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.common.result.CursorResult;
-import com.echocyan.codenest.social.vo.FeedItemVO;
 
 /**
  * 关注 Feed：我关注的作者已发布的文章。
@@ -13,5 +13,5 @@ public interface FeedService {
      *
      * @param cursor 上一页的 nextCursor，第一页为 null
      */
-    CursorResult<FeedItemVO> read(long userId, Long cursor, int size);
+    CursorResult<ArticleItem> read(long userId, Long cursor, int size);
 }

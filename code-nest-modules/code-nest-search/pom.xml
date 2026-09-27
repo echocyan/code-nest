@@ -15,9 +15,5 @@
             <groupId>com.echocyan</groupId>
             <artifactId>code-nest-article</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.echocyan</groupId>
-            <artifactId>code-nest-user</artifactId>
-        </dependency>
     </dependencies>
 </project>

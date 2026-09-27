@@ -2,8 +2,7 @@ package com.echocyan.codenest.interaction.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleApi;
-import com.echocyan.codenest.article.api.ArticleBrief;
-import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
@@ -22,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -76,13 +76,12 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
         if (page.isEmpty()) {
             return CursorResult.empty();
         }
-        Map<Long, ArticleBrief> briefs = articleApi.getBriefs(page.stream().map(Favorite::getArticleId).toList());
+        Map<Long, ArticleItem> items = articleApi.listPublishedItems(
+                        page.stream().map(Favorite::getArticleId).toList()).stream()
+                .collect(Collectors.toMap(ArticleItem::id, Function.identity()));
         List<FavoriteVO> list = page.stream()
-                .filter(favorite -> {
-                    ArticleBrief brief = briefs.get(favorite.getArticleId());
-                    return brief != null && brief.status() == ArticleStatus.PUBLISHED;
-                })
-                .map(favorite -> new FavoriteVO(briefs.get(favorite.getArticleId()), favorite.getCreatedAt()))
+                .filter(favorite -> items.containsKey(favorite.getArticleId()))
+                .map(favorite -> new FavoriteVO(items.get(favorite.getArticleId()), favorite.getCreatedAt()))
                 .toList();
         return new CursorResult<>(list, hasMore ? page.getLast().getId() : null, hasMore);
     }

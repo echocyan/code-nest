@@ -7,7 +7,6 @@ import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.ArticleContent;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.service.*;
-import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +29,6 @@ class ArticleApiImpl implements ArticleApi {
     private final ArticleConverter articleConverter;
     private final CommentService commentService;
     private final CommentConverter commentConverter;
-    private final TwoLevelCache<ArticleBrief> briefCache;
 
     @Override
     public Optional<ArticleState> findState(long articleId) {
@@ -39,9 +37,12 @@ class ArticleApiImpl implements ArticleApi {
 
     @Override
     public Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds) {
-        return briefCache.getAll(articleIds, ids -> articleService.listByIds(ids).stream()
-                .map(articleConverter::toBrief)
-                .collect(Collectors.toMap(ArticleBrief::id, Function.identity())));
+        return articleService.getBriefs(articleIds);
+    }
+
+    @Override
+    public List<ArticleItem> listPublishedItems(List<Long> articleIds) {
+        return articleService.listPublishedItems(articleIds);
     }
 
     @Override

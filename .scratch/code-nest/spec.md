@@ -193,7 +193,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - interaction → article、counter
     - social → user、article、counter
     - notification → user、article、interaction、social
-    - search → article、user
+    - search → article
 - **跨模块调用**：只能调用对方 `api` 包里的门面接口和 DTO。不联表；需要别的模块的数据时，由服务层批量调用对方的 API
   后组装。对外发布的事件类放在 `api/event/`。
 - **模块内分包**：`api/`（含 `api/event/`）、`controller/`、`listener/`（MQ 消费者）、`service/`、`mapper/`、`entity/`、`dto/`、`vo/`、`convert/`。
@@ -366,8 +366,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     3. 读取收件箱；不存在就用普通作者的发件箱重建。
     4. 拉取各大 V 的发件箱。
     5. 合并、去重、倒序取 size 条。
-    6. 用 `ArticleApi` 批量获取摘要，过滤已删除或非发布状态的文章，以及已取关作者的文章。
-    7. 补全作者信息和计数。
+    6. 用 `ArticleApi` 组装列表项，过滤已删除或非发布状态的文章，再过滤已取关作者的文章。
 - **修正**：
     - 关注、取关：先更新对方在 `feed:followers` 里的粉丝数。
     - 关注：把对方（普通作者）的发件箱合并进我的收件箱。
@@ -457,6 +456,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **ArticleApi**：
     - 判断文章是否存在、查询状态与作者。
     - 批量查询文章摘要（走 Redis 缓存）。
+    - 按给定顺序组装已发布文章的列表项（摘要、分类、作者、计数），供 Feed、搜索、收藏列表使用。
     - 按 id 游标遍历已发布文章；查询 `updated_at` 晚于某时间点的文章。
     - 查询某个时间点之后发布的文章 ID 与发布时间（热榜候选集）。
     - 查询某篇文章的完整索引数据。

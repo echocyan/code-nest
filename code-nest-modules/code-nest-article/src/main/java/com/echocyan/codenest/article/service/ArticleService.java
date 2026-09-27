@@ -2,10 +2,11 @@ package com.echocyan.codenest.article.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
 import com.echocyan.codenest.article.ArticleErrorCode;
+import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
-import com.echocyan.codenest.article.vo.ArticleItemVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.PageResult;
@@ -13,6 +14,7 @@ import com.echocyan.codenest.common.result.PageResult;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文章的写作、发布、删除与详情。
@@ -68,7 +70,7 @@ public interface ArticleService extends IService<Article> {
      * @param categoryId 为 null 时不按分类筛选
      * @param tagId      为 null 时不按标签筛选
      */
-    PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size);
+    PageResult<ArticleItem> pageLatest(Long categoryId, Long tagId, long page, long size);
 
     /**
      * 按 ID 查询，已删除的文章也返回。
@@ -104,17 +106,24 @@ public interface ArticleService extends IService<Article> {
     List<Article> listPublishedSince(LocalDateTime since);
 
     /**
-     * 按传入顺序补全列表项，已删除和未发布的文章被滤掉。
+     * 批量查询文章摘要，草稿也会返回。经缓存读取，文章编辑、发布、删除后失效。
+     *
+     * @return 以文章 ID 为 key；已删除和不存在的文章不出现在结果中
      */
-    List<ArticleItemVO> listPublishedItems(List<Long> ids);
+    Map<Long, ArticleBrief> getBriefs(Collection<Long> ids);
+
+    /**
+     * 按传入顺序组装已发布文章的列表项，草稿、已删除和不存在的文章被滤掉。摘要与作者经缓存读取。
+     */
+    List<ArticleItem> listPublishedItems(List<Long> ids);
 
     /**
      * 某位作者已发布的文章，按文章 ID 倒序，游标分页。
      */
-    CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size);
+    CursorResult<ArticleItem> listPublishedByAuthor(long authorId, Long cursor, int size);
 
     /**
      * 作者自己的草稿，按文章 ID 倒序，游标分页。
      */
-    CursorResult<ArticleItemVO> listDrafts(long authorId, Long cursor, int size);
+    CursorResult<ArticleItem> listDrafts(long authorId, Long cursor, int size);
 }

@@ -1,6 +1,6 @@
 package com.echocyan.codenest.article.service;
 
-import com.echocyan.codenest.article.vo.ArticleItemVO;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.common.result.PageResult;
 
 /**
@@ -34,5 +34,5 @@ public interface HotArticleService {
      * @param page 从 1 开始，不超过 {@value #MAX_PAGE}
      * @return total 为榜单上的文章数，含读取时被滤掉的
      */
-    PageResult<ArticleItemVO> page(int page);
+    PageResult<ArticleItem> page(int page);
 }

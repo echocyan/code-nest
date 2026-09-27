@@ -37,6 +37,7 @@ class FeedApiTest extends ArticleTestSupport {
                 .jsonPath("$.data.list[0].title").isEqualTo("Redis 计数实践")
                 .jsonPath("$.data.list[0].summary").isEqualTo("手写摘要")
                 .jsonPath("$.data.list[0].publishedAt").isNotEmpty()
+                .jsonPath("$.data.list[0].category.name").isNotEmpty()
                 .jsonPath("$.data.list[0].author.id").isEqualTo(authorId)
                 .jsonPath("$.data.list[0].author.nickname").isEqualTo(authorName)
                 .jsonPath("$.data.list[0].counts.likeCount").isEqualTo(1)

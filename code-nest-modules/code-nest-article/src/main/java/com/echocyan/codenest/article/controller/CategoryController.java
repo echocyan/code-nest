@@ -1,9 +1,9 @@
 package com.echocyan.codenest.article.controller;
 
 import cn.dev33.satoken.annotation.SaIgnore;
+import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.article.convert.CategoryConverter;
 import com.echocyan.codenest.article.service.CategoryService;
-import com.echocyan.codenest.article.vo.CategoryVO;
 import com.echocyan.codenest.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ public class CategoryController {
 
     @Operation(summary = "全部分类", description = "按预置顺序返回")
     @GetMapping("/categories")
-    public Result<List<CategoryVO>> list() {
-        return Result.ok(categoryConverter.toVOs(categoryService.listInOrder()));
+    public Result<List<CategoryBrief>> list() {
+        return Result.ok(categoryConverter.toBriefs(categoryService.listInOrder()));
     }
 }

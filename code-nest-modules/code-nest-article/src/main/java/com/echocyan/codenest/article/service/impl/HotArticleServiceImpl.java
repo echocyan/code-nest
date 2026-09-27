@@ -1,9 +1,9 @@
 package com.echocyan.codenest.article.service.impl;
 
 import com.echocyan.codenest.article.api.ArticleApi;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.service.ArticleService;
 import com.echocyan.codenest.article.service.HotArticleService;
-import com.echocyan.codenest.article.vo.ArticleItemVO;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.counter.api.CounterApi;
@@ -89,7 +89,7 @@ class HotArticleServiceImpl implements HotArticleService {
     }
 
     @Override
-    public PageResult<ArticleItemVO> page(int page) {
+    public PageResult<ArticleItem> page(int page) {
         long start = (long) (page - 1) * PAGE_SIZE;
         Set<String> members = redis.opsForZSet().reverseRange(KEY, start, start + PAGE_SIZE - 1);
         Long total = redis.opsForZSet().zCard(KEY);

@@ -1,6 +1,8 @@
 package com.echocyan.codenest.article.vo;
 
+import com.echocyan.codenest.article.api.ArticleCounts;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.user.api.UserBrief;
 
 import java.time.LocalDateTime;
@@ -22,8 +24,8 @@ public record ArticleDetailVO(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Integer version,
-        CategoryVO category,
+        CategoryBrief category,
         List<TagVO> tags,
         UserBrief author,
-        ArticleCountsVO counts) {
+        ArticleCounts counts) {
 }

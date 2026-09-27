@@ -1,7 +1,7 @@
 package com.echocyan.codenest.article.convert;
 
+import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.article.entity.Category;
-import com.echocyan.codenest.article.vo.CategoryVO;
 import org.mapstruct.Mapper;
 
 import java.util.List;
@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface CategoryConverter {
 
-    CategoryVO toVO(Category category);
+    CategoryBrief toBrief(Category category);
 
-    List<CategoryVO> toVOs(List<Category> categories);
+    List<CategoryBrief> toBriefs(List<Category> categories);
 }

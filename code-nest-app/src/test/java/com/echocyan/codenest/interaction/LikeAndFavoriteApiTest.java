@@ -79,7 +79,8 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
 
     @Test
     void myFavoritesArePagedNewestFirst() {
-        RestTestClient author = withToken(register(uniqueUsername()));
+        String authorName = uniqueUsername();
+        RestTestClient author = withToken(register(authorName));
         String first = publishedArticle(author);
         String second = publishedArticle(author);
         String third = publishedArticle(author);
@@ -93,8 +94,10 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(third, first))
-                .jsonPath("$.data.list[0].article.title").isEqualTo("点赞计数")
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(third, first))
+                .jsonPath("$.data.list[0].title").isEqualTo("点赞计数")
+                .jsonPath("$.data.list[0].author.nickname").isEqualTo(authorName)
+                .jsonPath("$.data.list[0].counts.favoriteCount").isNumber()
                 .jsonPath("$.data.list[0].favoritedAt").isNotEmpty()
                 .jsonPath("$.data.hasMore").isEqualTo(true)
                 .jsonPath("$.data.nextCursor").value(String.class, cursor::set);
@@ -103,7 +106,7 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(second))
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(second))
                 .jsonPath("$.data.hasMore").isEqualTo(false);
     }
 
@@ -122,7 +125,7 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.data.list[*].article.id").isEqualTo(List.of(kept))
+                .jsonPath("$.data.list[*].id").isEqualTo(List.of(kept))
                 .jsonPath("$.data.hasMore").isEqualTo(false);
     }
 
@@ -142,7 +145,7 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
 
         reader.get().uri(API + "/users/me/favorites")
                 .exchange()
-                .expectBody().jsonPath("$.data.list[0].article.title").isEqualTo("点赞计数（修订）");
+                .expectBody().jsonPath("$.data.list[0].title").isEqualTo("点赞计数（修订）");
     }
 
     @Test

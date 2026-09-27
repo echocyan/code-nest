@@ -1,11 +1,11 @@
 package com.echocyan.codenest.article.controller;
 
 import cn.dev33.satoken.annotation.SaIgnore;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.service.ArticleService;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
-import com.echocyan.codenest.article.vo.ArticleItemVO;
 import com.echocyan.codenest.article.vo.ArticleVersionVO;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.result.Result;
@@ -42,7 +42,7 @@ public class ArticleController {
     @SaIgnore
     @Operation(summary = "最新文章", description = "只含已发布文章，按发布时间倒序；可按分类、标签筛选")
     @GetMapping
-    public Result<PageResult<ArticleItemVO>> latest(
+    public Result<PageResult<ArticleItem>> latest(
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(defaultValue = "1") @Min(1) long page,

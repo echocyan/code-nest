@@ -10,7 +10,7 @@ Status: closed
 - [x] **`GET /users/{id}/articles?cursor=&size=`**：匿名可访问，以 articleId 作为游标，返回 `CursorResult`。
 - [x] **`GET /users/me/drafts?cursor=&size=`**：需要登录，只返回自己的草稿。
 - [x] **分页参数**：`size` 默认 20，最大 50；超出范围时返回 400。
-- [x] **列表项内容**：文章摘要、作者简要信息、计数。
+- [x] **列表项内容**：文章摘要、分类、作者简要信息、计数。热榜、Feed、搜索、收藏列表也用这个形状。
 - [x] **查询索引**：确认使用了 IDX(author_id, status, published_at) 和 IDX(category_id, status, published_at)。按标签筛选时经由 article_tag 的反向索引。
 - [x] **HTTP 测试**：覆盖筛选、分页边界、草稿不出现在公开列表中、已删除的文章不出现。
 
@@ -19,7 +19,7 @@ Status: closed
 - **排序**：
   - 最新文章按 `published_at` 倒序，同一秒发布的再按 ID 倒序。
   - 作者文章、我的草稿以文章 ID 作游标，所以按文章 ID 倒序。雪花 ID 约等于创建时间，与 Feed 用 articleId 作 score 的做法一致；代价是很早建好、很晚才发布的草稿会排在靠后的位置。
-- **对象转换**：列表项和详情都用 `ArticleConverter` 的多源映射（MapStruct）组装。
+- **对象转换**：列表项和详情都用 `ArticleConverter` 的多源映射（MapStruct）组装；列表项从文章摘要（`ArticleBrief`）组装，查库得到的文章先转成摘要。
 - **查询索引**：用 2 万篇文章做了 EXPLAIN。
   - 按分类筛选：走 `idx_category_status_published`，倒序扫描索引，没有 filesort。
   - 按标签筛选：先走 `article_tag` 的 `idx_tag_article` 取出文章 ID，再按主键回表，最后 filesort（标签下的文章数有限）。
@@ -29,5 +29,5 @@ Status: closed
   - `page` 从 1 开始；超过末页返回空列表，`total` 照常返回。
   - `size` 为 1–50；`page`、`size` 超出范围或不是数字都返回 400（90400）。
   - `/users/{id}/articles` 对不存在的用户返回空列表，不返回 404，因为用户不存在的错误码属于 user 模块。
-  - 列表项包含 id、标题、摘要、封面、分类、状态、发布时间、作者简要信息和四项计数，不含正文和标签。
+  - 列表项 `ArticleItem` 包含 id、标题、摘要、封面、分类、状态、发布时间、作者简要信息和四项计数，不含正文和标签。它和 `ArticleCounts`、`CategoryBrief` 放在 article 的 `api` 包，其他模块经 `ArticleApi.listPublishedItems(ids)` 取得：按传入顺序，只保留已发布的文章，摘要与作者经缓存读取，分类查库，计数经 `CounterApi` 读取。
   - 按标签筛选用 `inSql` 拼接子查询。tagId 是 Long 类型，不会注入。

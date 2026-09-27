@@ -10,9 +10,6 @@ import co.elastic.clients.elasticsearch.core.search.HighlightField;
 import co.elastic.clients.elasticsearch.core.search.HighlighterEncoder;
 import co.elastic.clients.elasticsearch.core.search.HighlighterType;
 import co.elastic.clients.util.NamedValue;
-import com.echocyan.codenest.article.api.ArticleApi;
-import com.echocyan.codenest.article.api.ArticleBrief;
-import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.dto.SearchSort;
 import com.echocyan.codenest.search.service.ArticleIndex;
@@ -23,7 +20,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -32,8 +28,6 @@ import java.util.Objects;
  * <p>标题、摘要、正文的权重为 3、1.5、1，分词后的每个词都要出现在同一个字段里；关键词与文章的某个标签名完全一致
  * （不区分大小写）时额外加分。分类、标签只做筛选，不参与打分。高亮文本经 HTML 转义，命中词用 {@code <em>} 包裹，
  * 字段未命中时为 null。
- *
- * <p>文章摘要按命中的 ID 从 article 模块回查，同步尚未跟上的已删除文章不会出现在结果里。
  */
 @Service
 @RequiredArgsConstructor
@@ -50,7 +44,6 @@ class EsArticleSearcher {
     private static final int CONTENT_FRAGMENT_SIZE = 100;
 
     private final ElasticsearchClient client;
-    private final ArticleApi articleApi;
 
     private static BoolQuery.Builder matching(BoolQuery.Builder bool, String keyword) {
         return bool
@@ -116,16 +109,9 @@ class EsArticleSearcher {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        var hits = response.hits().hits();
-        Map<Long, ArticleBrief> articles = articleApi.getBriefs(
-                hits.stream().map(hit -> Long.valueOf(hit.id())).toList());
-        List<Match> list = new ArrayList<>();
-        for (var hit : hits) {
-            ArticleBrief article = articles.get(Long.valueOf(hit.id()));
-            if (article != null && article.status() == ArticleStatus.PUBLISHED) {
-                list.add(new Match(article, highlightOf(hit, "title"), highlightOf(hit, "content")));
-            }
-        }
+        List<Match> list = response.hits().hits().stream()
+                .map(hit -> new Match(Long.parseLong(hit.id()), highlightOf(hit, "title"), highlightOf(hit, "content")))
+                .toList();
         long total = Objects.requireNonNull(response.hits().total()).value();
         return new PageResult<>(list, total, page, size);
     }
@@ -136,6 +122,6 @@ class EsArticleSearcher {
      * @param titleHighlight   高亮后的标题，未命中时为 null
      * @param contentHighlight 正文的高亮片段，未命中时为 null
      */
-    record Match(ArticleBrief article, String titleHighlight, String contentHighlight) {
+    record Match(long articleId, String titleHighlight, String contentHighlight) {
     }
 }

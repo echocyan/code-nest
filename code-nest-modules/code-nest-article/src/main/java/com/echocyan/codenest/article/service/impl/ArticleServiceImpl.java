@@ -5,7 +5,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleCounts;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.api.ArticleStatus;
+import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
 import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
 import com.echocyan.codenest.article.api.event.ArticleUpdatedEvent;
@@ -19,10 +22,7 @@ import com.echocyan.codenest.article.entity.Category;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.ArticleMapper;
 import com.echocyan.codenest.article.service.*;
-import com.echocyan.codenest.article.vo.ArticleCountsVO;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
-import com.echocyan.codenest.article.vo.ArticleItemVO;
-import com.echocyan.codenest.article.vo.CategoryVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
@@ -68,8 +68,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final TwoLevelCache<ArticleBrief> briefCache;
     private final BloomFilter articleBloomFilter;
 
-    private static ArticleCountsVO countsVO(Counts counts) {
-        return new ArticleCountsVO(
+    private static ArticleCounts countsOf(Counts counts) {
+        return new ArticleCounts(
                 counts.get(CounterMetric.ARTICLE_LIKE),
                 counts.get(CounterMetric.ARTICLE_FAVORITE),
                 counts.get(CounterMetric.ARTICLE_COMMENT),
@@ -211,9 +211,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size) {
+    public PageResult<ArticleItem> pageLatest(Long categoryId, Long tagId, long page, long size) {
         Page<Article> result = latestPublished(categoryId, tagId).page(new Page<>(page, size));
-        return new PageResult<>(toItems(result.getRecords()), result.getTotal(), page, size);
+        return new PageResult<>(toItems(toBriefs(result.getRecords())), result.getTotal(), page, size);
     }
 
     @Override
@@ -259,18 +259,23 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public List<ArticleItemVO> listPublishedItems(List<Long> ids) {
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, Article> articles = listByIds(ids).stream()
-                .filter(article -> article.getStatus() == ArticleStatus.PUBLISHED)
-                .collect(Collectors.toMap(Article::getId, Function.identity()));
-        return toItems(ids.stream().map(articles::get).filter(Objects::nonNull).toList());
+    public Map<Long, ArticleBrief> getBriefs(Collection<Long> ids) {
+        return briefCache.getAll(ids, missing -> listByIds(missing).stream()
+                .map(articleConverter::toBrief)
+                .collect(Collectors.toMap(ArticleBrief::id, Function.identity())));
     }
 
     @Override
-    public CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size) {
+    public List<ArticleItem> listPublishedItems(List<Long> ids) {
+        Map<Long, ArticleBrief> briefs = getBriefs(ids);
+        return toItems(ids.stream()
+                .map(briefs::get)
+                .filter(brief -> brief != null && brief.status() == ArticleStatus.PUBLISHED)
+                .toList());
+    }
+
+    @Override
+    public CursorResult<ArticleItem> listPublishedByAuthor(long authorId, Long cursor, int size) {
         return toCursorResult(lambdaQuery()
                 .eq(Article::getAuthorId, authorId)
                 .eq(Article::getStatus, ArticleStatus.PUBLISHED)
@@ -281,7 +286,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public CursorResult<ArticleItemVO> listDrafts(long authorId, Long cursor, int size) {
+    public CursorResult<ArticleItem> listDrafts(long authorId, Long cursor, int size) {
         return toCursorResult(lambdaQuery()
                 .eq(Article::getAuthorId, authorId)
                 .eq(Article::getStatus, ArticleStatus.DRAFT)
@@ -320,32 +325,36 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     /**
      * 多查了一条的结果转为游标分页：多出的那条只用来判断是否还有下一页。
      */
-    private CursorResult<ArticleItemVO> toCursorResult(List<Article> fetched, int size) {
+    private CursorResult<ArticleItem> toCursorResult(List<Article> fetched, int size) {
         boolean hasMore = fetched.size() > size;
         List<Article> page = hasMore ? fetched.subList(0, size) : fetched;
-        return new CursorResult<>(toItems(page), hasMore ? page.getLast().getId() : null, hasMore);
+        return new CursorResult<>(toItems(toBriefs(page)), hasMore ? page.getLast().getId() : null, hasMore);
+    }
+
+    private List<ArticleBrief> toBriefs(List<Article> articles) {
+        return articles.stream().map(articleConverter::toBrief).toList();
     }
 
     /**
      * 批量补全分类、作者与计数，保持传入顺序。
      */
-    private List<ArticleItemVO> toItems(List<Article> articles) {
+    private List<ArticleItem> toItems(List<ArticleBrief> articles) {
         if (articles.isEmpty()) {
             return List.of();
         }
-        Map<Long, CategoryVO> categories = categoryService.listByIds(
-                        articles.stream().map(Article::getCategoryId).distinct().toList()).stream()
-                .collect(Collectors.toMap(Category::getId, categoryConverter::toVO));
+        Map<Long, CategoryBrief> categories = categoryService.listByIds(
+                        articles.stream().map(ArticleBrief::categoryId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Category::getId, categoryConverter::toBrief));
         Map<Long, UserBrief> authors =
-                userApi.getBriefs(articles.stream().map(Article::getAuthorId).distinct().toList());
+                userApi.getBriefs(articles.stream().map(ArticleBrief::authorId).distinct().toList());
         Map<Long, Counts> counts =
-                counterApi.get(CounterTarget.ARTICLE, articles.stream().map(Article::getId).toList());
+                counterApi.get(CounterTarget.ARTICLE, articles.stream().map(ArticleBrief::id).toList());
         return articles.stream()
-                .map(article -> articleConverter.toItemVO(
+                .map(article -> articleConverter.toItem(
                         article,
-                        categories.get(article.getCategoryId()),
-                        authors.get(article.getAuthorId()),
-                        countsVO(counts.get(article.getId()))))
+                        categories.get(article.categoryId()),
+                        authors.get(article.authorId()),
+                        countsOf(counts.get(article.id()))))
                 .toList();
     }
 
@@ -363,7 +372,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return new CachedArticleDetail(
                 article,
                 articleContentService.getById(id).getContent(),
-                categoryConverter.toVO(categoryService.getById(article.getCategoryId())),
+                categoryConverter.toBrief(categoryService.getById(article.getCategoryId())),
                 tagConverter.toVOs(tags));
     }
 
@@ -406,7 +415,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
     }
 
-    private ArticleCountsVO countsOf(long id) {
-        return countsVO(counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id));
+    private ArticleCounts countsOf(long id) {
+        return countsOf(counterApi.get(CounterTarget.ARTICLE, List.of(id)).get(id));
     }
 }

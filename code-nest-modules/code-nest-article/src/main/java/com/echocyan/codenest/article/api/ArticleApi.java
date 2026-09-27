@@ -27,6 +27,11 @@ public interface ArticleApi {
     Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds);
 
     /**
+     * 按传入顺序组装已发布文章的列表项，草稿、已删除和不存在的文章被滤掉。摘要与作者经缓存读取，计数每次读取。
+     */
+    List<ArticleItem> listPublishedItems(List<Long> articleIds);
+
+    /**
      * 查询文章当前的完整内容与版本号，已删除的文章也会返回。
      *
      * @return 文章从未存在时为空

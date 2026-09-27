@@ -4,12 +4,7 @@ import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapp
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.ArticleErrorCode;
-import com.echocyan.codenest.article.api.ArticleBrief;
-import com.echocyan.codenest.article.api.ArticleCounts;
-import com.echocyan.codenest.article.api.ArticleItem;
-import com.echocyan.codenest.article.api.ArticleSnapshot;
-import com.echocyan.codenest.article.api.ArticleStatus;
-import com.echocyan.codenest.article.api.CategoryBrief;
+import com.echocyan.codenest.article.api.*;
 import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
 import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
 import com.echocyan.codenest.article.api.event.ArticleUpdatedEvent;

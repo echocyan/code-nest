@@ -134,16 +134,16 @@ class FeedBoxes {
         this.outboxReadyKey = keyPrefix + ":outbox:ready";
     }
 
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
     private String outboxKey(long authorId) {
         return keyPrefix + ":outbox:" + authorId;
     }
 
     private String inboxKey(long userId) {
         return keyPrefix + ":inbox:" + userId;
-    }
-
-    private static byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
     }
 
     void addToOutbox(long authorId, long articleId) {

@@ -37,8 +37,9 @@ class SearchServiceImpl implements SearchService {
         if (page > MAX_WINDOW / size) {
             throw new BizException(SearchErrorCode.PAGE_TOO_DEEP);
         }
-        PageResult<EsArticleSearcher.Match> hits = articleSearcher.search(keyword.strip(), categoryId, tagId, sort, page,
-                size);
+        PageResult<EsArticleSearcher.Match> hits =
+                articleSearcher.search(keyword.strip(), categoryId, tagId, sort, page,
+                        size);
         Map<Long, ArticleItem> items = articleApi.listPublishedItems(
                         hits.list().stream().map(EsArticleSearcher.Match::articleId).toList()).stream()
                 .collect(Collectors.toMap(ArticleItem::id, Function.identity()));

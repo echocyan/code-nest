@@ -26,7 +26,7 @@ public class FeedController {
     @Operation(summary = "关注 Feed", description = "我关注的作者已发布的文章，按文章 ID 倒序；cursor 为上一页返回的 nextCursor")
     @GetMapping
     public Result<CursorResult<ArticleItem>> feed(@RequestParam(required = false) Long cursor,
-                                                 @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+                                                  @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
         return Result.ok(feedService.read(AuthContext.currentUserId(), cursor, size));
     }
 }

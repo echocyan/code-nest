@@ -5,7 +5,7 @@
 //   warmup、steady：各 VUS 个 VU 持续跑 WARMUP、DURATION，setup() 直接返回 DATA_FILE 的内容，不再发起准备请求，
 //   服务端指标差值不含准备阶段的请求；steady 的指标写入 SUMMARY_FILE。
 import http from 'k6/http';
-import { Rate } from 'k6/metrics';
+import {Rate} from 'k6/metrics';
 
 export const BASE_URL = __ENV.BASE_URL || 'http://nginx/api/v1';
 export const PASSWORD = 'loadtest123';
@@ -21,7 +21,7 @@ const errors = new Rate('errors');
  * setup() 里用 http.batch 并发登录，登录要做 BCrypt 校验，数量多时耗时较长。
  */
 export const PREPARE_OPTIONS = {
-    scenarios: { prepare: { executor: 'shared-iterations', vus: 1, iterations: 1, exec: 'idle' } },
+    scenarios: {prepare: {executor: 'shared-iterations', vus: 1, iterations: 1, exec: 'idle'}},
     setupTimeout: '20m',
     batch: 50,
     batchPerHost: 50,
@@ -65,7 +65,7 @@ export function prepareWith(prepare) {
 }
 
 export function authHeaders(token) {
-    return { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+    return {headers: {Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'}};
 }
 
 /**
@@ -94,8 +94,8 @@ export function login(usernames) {
     const responses = http.batch(usernames.map((username) => ({
         method: 'POST',
         url: `${BASE_URL}/auth/login`,
-        body: JSON.stringify({ username, password: PASSWORD }),
-        params: { headers: { 'Content-Type': 'application/json' } },
+        body: JSON.stringify({username, password: PASSWORD}),
+        params: {headers: {'Content-Type': 'application/json'}},
     })));
     return responses.map(mustData);
 }
@@ -105,7 +105,7 @@ export function login(usernames) {
  */
 export function handleSummary(data) {
     if (PHASE === 'prepare') {
-        return { [__ENV.DATA_FILE]: JSON.stringify(data.setup_data) };
+        return {[__ENV.DATA_FILE]: JSON.stringify(data.setup_data)};
     }
     if (PHASE !== 'steady') {
         return {};
@@ -119,5 +119,5 @@ export function handleSummary(data) {
         p99Ms: duration['p(99)'],
         errorRate: data.metrics.errors.values.rate,
     };
-    return { [__ENV.SUMMARY_FILE]: JSON.stringify(result), stdout: `${JSON.stringify(result)}\n` };
+    return {[__ENV.SUMMARY_FILE]: JSON.stringify(result), stdout: `${JSON.stringify(result)}\n`};
 }

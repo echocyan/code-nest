@@ -1,8 +1,8 @@
 // 场景 A 计数：VUS 个 VU 各用一个普通用户账号，对同一篇文章反复点赞、取消
 import http from 'k6/http';
-import { BASE_URL, authHeaders, login, mustData, phaseOptions, prepareWith, track } from './lib.js';
+import {authHeaders, BASE_URL, login, mustData, phaseOptions, prepareWith, track} from './lib.js';
 
-export { handleSummary, idle } from './lib.js';
+export {handleSummary, idle} from './lib.js';
 
 const VUS = 200;
 
@@ -13,8 +13,8 @@ export const options = phaseOptions(VUS);
  */
 export const setup = prepareWith(() => {
     const article = mustData(http.get(`${BASE_URL}/articles?size=1`)).list[0];
-    const usernames = Array.from({ length: VUS }, (_, i) => `user_${20000 + i}`);
-    return { articleId: article.id, tokens: login(usernames).map((user) => user.token) };
+    const usernames = Array.from({length: VUS}, (_, i) => `user_${20000 + i}`);
+    return {articleId: article.id, tokens: login(usernames).map((user) => user.token)};
 });
 
 export default function (data) {

@@ -14,11 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,16 +51,6 @@ class SearchApiTest extends ArticleTestSupport {
     @Value("${local.management.port}")
     private int managementPort;
 
-    @BeforeEach
-    void hookImportBatches() {
-        doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<ArticleSnapshot> batch = (List<ArticleSnapshot>) invocation.callRealMethod();
-            onImportBatch.accept(batch);
-            return batch;
-        }).when(articleApi).listPublishedSnapshots(any(), anyInt());
-    }
-
     private static String uniqueKeyword() {
         return "kw" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
@@ -83,6 +69,16 @@ class SearchApiTest extends ArticleTestSupport {
         Map<String, Object> body = draft();
         body.put(field, value);
         return body;
+    }
+
+    @BeforeEach
+    void hookImportBatches() {
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<ArticleSnapshot> batch = (List<ArticleSnapshot>) invocation.callRealMethod();
+            onImportBatch.accept(batch);
+            return batch;
+        }).when(articleApi).listPublishedSnapshots(any(), anyInt());
     }
 
     @Test

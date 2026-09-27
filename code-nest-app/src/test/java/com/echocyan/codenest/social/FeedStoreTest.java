@@ -20,14 +20,8 @@ import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Feed 存储的推送、拉取、修正与重建。每个测试另建 {@link FeedStore}，用随机的 key 前缀和桩化的关注关系、文章，
@@ -49,6 +43,10 @@ class FeedStoreTest extends IntegrationTest {
     private StringRedisTemplate redis;
 
     private FeedStore store;
+
+    private static ArticleState state(long id, long authorId) {
+        return new ArticleState(id, authorId, ArticleStatus.PUBLISHED);
+    }
 
     @BeforeEach
     void createStore() {
@@ -169,10 +167,6 @@ class FeedStoreTest extends IntegrationTest {
         ids.forEach(id -> store.addArticle(id, NORMAL));
 
         assertThat(readAll(READER, List.of(NORMAL), 3)).containsExactlyElementsOf(ids.reversed());
-    }
-
-    private static ArticleState state(long id, long authorId) {
-        return new ArticleState(id, authorId, ArticleStatus.PUBLISHED);
     }
 
     private List<Long> readAll(long userId, List<Long> authorIds, int size) {

@@ -1,8 +1,8 @@
 // 场景 C 搜索：VUS 个 VU 匿名搜索，关键词从造数用的技术词库中随机抽取
 import http from 'k6/http';
-import { BASE_URL, phaseOptions, prepareWith, track } from './lib.js';
+import {BASE_URL, phaseOptions, prepareWith, track} from './lib.js';
 
-export { handleSummary, idle } from './lib.js';
+export {handleSummary, idle} from './lib.js';
 
 const VUS = 50;
 

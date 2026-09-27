@@ -2,22 +2,12 @@ package com.echocyan.codenest.loadtest;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.function.IntPredicate;
 
 /**
@@ -107,6 +97,35 @@ public class Seeder {
         }
     }
 
+    private static String username(int index) {
+        if (index < FIRST_HEAVY) {
+            return "bigv_%02d".formatted(index);
+        }
+        if (index < AUTHOR_4999) {
+            return "heavy_%03d".formatted(index - FIRST_HEAVY);
+        }
+        if (index == AUTHOR_4999) {
+            return "author_4999";
+        }
+        return "user_%05d".formatted(index - FIRST_REGULAR);
+    }
+
+    /**
+     * 第 index 个（共 total 个）在 [from, to] 上等距分布的时间，随 index 单调不减。
+     */
+    private static LocalDateTime spread(LocalDateTime from, LocalDateTime to, long index, long total) {
+        long span = Duration.between(from, to).toMillis();
+        return from.plus(span * index / total, ChronoUnit.MILLIS);
+    }
+
+    /**
+     * 雪花格式的 ID：高位是创建时间的毫秒数，低 22 位是行序号截断后的值。唯一性的前提见类注释。
+     */
+    private static long id(LocalDateTime at, long sequence) {
+        long millis = at.atZone(ZONE).toInstant().toEpochMilli();
+        return (millis - SNOWFLAKE_EPOCH) << SEQUENCE_BITS | (sequence & ((1L << SEQUENCE_BITS) - 1));
+    }
+
     private void run() throws SQLException {
         requireEmpty();
         long start = System.nanoTime();
@@ -116,7 +135,8 @@ public class Seeder {
         timed("article_like", this::seedLikes);
         timed("favorite", this::seedFavorites);
         timed("comment", this::seedComments);
-        System.out.printf("造数完成，共 %s%n", Duration.ofNanos(System.nanoTime() - start).truncatedTo(ChronoUnit.SECONDS));
+        System.out.printf("造数完成，共 %s%n",
+                Duration.ofNanos(System.nanoTime() - start).truncatedTo(ChronoUnit.SECONDS));
         for (String table : TABLES) {
             System.out.printf("%-16s %,d%n", table, count(table));
         }
@@ -132,8 +152,9 @@ public class Seeder {
         String hash = new BCryptPasswordEncoder().encode(PASSWORD);
         LocalDateTime from = now.minusDays(400);
         LocalDateTime to = now.minusDays(366);
-        try (Batch users = new Batch("INSERT INTO `user` (id, username, password_hash, nickname, created_at, updated_at)"
-                + " VALUES (?, ?, ?, ?, ?, ?)")) {
+        try (Batch users = new Batch(
+                "INSERT INTO `user` (id, username, password_hash, nickname, created_at, updated_at)"
+                        + " VALUES (?, ?, ?, ?, ?, ?)")) {
             for (int i = 0; i < USERS; i++) {
                 LocalDateTime at = spread(from, to, i, USERS);
                 userIds[i] = id(at, i);
@@ -141,19 +162,6 @@ public class Seeder {
                 users.add(userIds[i], username, hash, username, at, at);
             }
         }
-    }
-
-    private static String username(int index) {
-        if (index < FIRST_HEAVY) {
-            return "bigv_%02d".formatted(index);
-        }
-        if (index < AUTHOR_4999) {
-            return "heavy_%03d".formatted(index - FIRST_HEAVY);
-        }
-        if (index == AUTHOR_4999) {
-            return "author_4999";
-        }
-        return "user_%05d".formatted(index - FIRST_REGULAR);
     }
 
     /**
@@ -355,27 +363,11 @@ public class Seeder {
     }
 
     /**
-     * 第 index 个（共 total 个）在 [from, to] 上等距分布的时间，随 index 单调不减。
-     */
-    private static LocalDateTime spread(LocalDateTime from, LocalDateTime to, long index, long total) {
-        long span = Duration.between(from, to).toMillis();
-        return from.plus(span * index / total, ChronoUnit.MILLIS);
-    }
-
-    /**
      * [from, to] 上的随机时间，精确到秒。
      */
     private LocalDateTime between(LocalDateTime from, LocalDateTime to) {
         long seconds = Duration.between(from, to).toSeconds();
         return from.plusSeconds(seconds <= 0 ? 0 : random.nextLong(seconds + 1));
-    }
-
-    /**
-     * 雪花格式的 ID：高位是创建时间的毫秒数，低 22 位是行序号截断后的值。唯一性的前提见类注释。
-     */
-    private static long id(LocalDateTime at, long sequence) {
-        long millis = at.atZone(ZONE).toInstant().toEpochMilli();
-        return (millis - SNOWFLAKE_EPOCH) << SEQUENCE_BITS | (sequence & ((1L << SEQUENCE_BITS) - 1));
     }
 
     private long count(String table) throws SQLException {
@@ -389,7 +381,8 @@ public class Seeder {
     private void timed(String name, Step step) throws SQLException {
         long start = System.nanoTime();
         step.run();
-        System.out.printf("%-40s %s%n", name, Duration.ofNanos(System.nanoTime() - start).truncatedTo(ChronoUnit.SECONDS));
+        System.out.printf("%-40s %s%n", name,
+                Duration.ofNanos(System.nanoTime() - start).truncatedTo(ChronoUnit.SECONDS));
     }
 
     @FunctionalInterface

@@ -1,11 +1,6 @@
 package com.echocyan.codenest.article.convert;
 
-import com.echocyan.codenest.article.api.ArticleBrief;
-import com.echocyan.codenest.article.api.ArticleCounts;
-import com.echocyan.codenest.article.api.ArticleItem;
-import com.echocyan.codenest.article.api.ArticleSnapshot;
-import com.echocyan.codenest.article.api.ArticleState;
-import com.echocyan.codenest.article.api.CategoryBrief;
+import com.echocyan.codenest.article.api.*;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
 import com.echocyan.codenest.article.vo.TagVO;

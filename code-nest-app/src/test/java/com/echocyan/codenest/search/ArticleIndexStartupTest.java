@@ -22,9 +22,7 @@ import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +52,14 @@ class ArticleIndexStartupTest extends IntegrationTest {
                 .mapToObj(id -> new ArticleSnapshot(id, 1L, 1L, "标题 " + id, "摘要", "正文", List.of(), List.of(),
                         ArticleStatus.PUBLISHED, LocalDateTime.now(), 1, false))
                 .toList();
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @AfterEach
@@ -107,13 +113,5 @@ class ArticleIndexStartupTest extends IntegrationTest {
 
     private Set<String> indices() throws IOException {
         return client.indices().get(get -> get.index(alias + "_v*")).indices().keySet();
-    }
-
-    private static void await(CountDownLatch latch) {
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 }

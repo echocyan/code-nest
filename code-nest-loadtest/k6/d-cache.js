@@ -1,8 +1,8 @@
 // 场景 D 缓存：VUS 个 VU 匿名访问文章详情，文章按 Zipf 分布抽取，请求集中在排名前 10 的文章上
 import http from 'k6/http';
-import { BASE_URL, mustData, phaseOptions, prepareWith, track } from './lib.js';
+import {BASE_URL, mustData, phaseOptions, prepareWith, track} from './lib.js';
 
-export { handleSummary, idle } from './lib.js';
+export {handleSummary, idle} from './lib.js';
 
 const VUS = 300;
 
@@ -19,7 +19,7 @@ export const options = phaseOptions(VUS);
  * 按排名累加的概率，抽样时二分查找。
  */
 const cumulative = (() => {
-    const weights = Array.from({ length: POOL }, (_, k) => 1 / Math.pow(k + 1, EXPONENT));
+    const weights = Array.from({length: POOL}, (_, k) => 1 / Math.pow(k + 1, EXPONENT));
     const total = weights.reduce((sum, w) => sum + w, 0);
     let acc = 0;
     return weights.map((w) => (acc += w / total));
@@ -37,7 +37,7 @@ export const setup = prepareWith(() => {
         }
         ids.push(...list.map((article) => article.id));
     }
-    return { articleIds: ids.slice(0, POOL) };
+    return {articleIds: ids.slice(0, POOL)};
 });
 
 function zipfRank() {

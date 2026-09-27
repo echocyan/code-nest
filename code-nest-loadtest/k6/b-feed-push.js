@@ -4,15 +4,15 @@
 //   measure：作者发文，从发出发布请求起反复读最后一个粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，
 //            ID 最大的粉丝最后收到，这时推送完成。测完删除文章，数据保持不变。
 import http from 'k6/http';
-import { Trend } from 'k6/metrics';
-import { BASE_URL, PREPARE_OPTIONS, authHeaders, login, mustData, prepareWith } from './lib.js';
+import {Trend} from 'k6/metrics';
+import {authHeaders, BASE_URL, login, mustData, PREPARE_OPTIONS, prepareWith} from './lib.js';
 
-export { idle } from './lib.js';
+export {idle} from './lib.js';
 
 const PAGE_SIZE = 50;
 const TIMEOUT_MS = 60_000;
 
-export const options = __ENV.PHASE === 'prepare' ? PREPARE_OPTIONS : { vus: 1, iterations: 1 };
+export const options = __ENV.PHASE === 'prepare' ? PREPARE_OPTIONS : {vus: 1, iterations: 1};
 
 const pushDuration = new Trend('push_duration', true);
 
@@ -39,7 +39,7 @@ export const setup = prepareWith(() => {
             }
         }
     }
-    return { fans: fans.length, authorToken: author.token, lastFanToken: last.token };
+    return {fans: fans.length, authorToken: author.token, lastFanToken: last.token};
 });
 
 export default function (data) {
@@ -66,11 +66,11 @@ export default function (data) {
 
 export function handleSummary(summary) {
     if (__ENV.PHASE === 'prepare') {
-        return { [__ENV.DATA_FILE]: JSON.stringify(summary.setup_data) };
+        return {[__ENV.DATA_FILE]: JSON.stringify(summary.setup_data)};
     }
     if (!summary.metrics.push_duration) {
         throw new Error('没有测到推送耗时');
     }
-    const result = { pushMs: summary.metrics.push_duration.values.max };
-    return { [__ENV.SUMMARY_FILE]: JSON.stringify(result), stdout: `${JSON.stringify(result)}\n` };
+    const result = {pushMs: summary.metrics.push_duration.values.max};
+    return {[__ENV.SUMMARY_FILE]: JSON.stringify(result), stdout: `${JSON.stringify(result)}\n`};
 }

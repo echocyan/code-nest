@@ -64,6 +64,14 @@ class TextGenerator {
         }
     }
 
+    /**
+     * 与作者未填写摘要时一样，取正文开头 100 个字符。
+     */
+    static String summaryOf(String content) {
+        String text = content.strip();
+        return text.length() <= 100 ? text : text.substring(0, 100);
+    }
+
     String title() {
         return fill(pick(TITLES));
     }
@@ -86,14 +94,6 @@ class TextGenerator {
             }
         }
         return content.toString();
-    }
-
-    /**
-     * 与作者未填写摘要时一样，取正文开头 100 个字符。
-     */
-    static String summaryOf(String content) {
-        String text = content.strip();
-        return text.length() <= 100 ? text : text.substring(0, 100);
     }
 
     String comment() {

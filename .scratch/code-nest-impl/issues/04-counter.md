@@ -27,16 +27,16 @@ Status: closed
   - `CounterTables`：计数表读写。
 - **Redis 结构**：
   - Hash 字段名是去掉对象类型前缀的指标名，如 `like`、`like_received`；落库列名为字段名加 `_count`。
-  - Hash 要么不存在，要么含该类型的全部字段；读取时有字段为空就当作不存在。
+  - 新增指标后，已有的 Hash 里没有新字段。字段缺失与 Hash 不存在同样处理：累加前返回 MISS，读取和落库前从 MySQL 回填，回填只写入缺失的字段（`HSETNX`），已有的值不变。
 - **Lua 细节**：
   - 去重先 `EXISTS` 判断，累加并 `SADD` 之后才 `SET … EX 86400`，脚本中途出错时不会留下去重标记。
-  - MISS 后回填再重跑一次，仍然 MISS 就抛异常，交给 MQ 重试。
+  - 要累加的字段不存在（含 Hash 不存在）就返回 MISS；回填后再重跑一次，仍然 MISS 就抛异常，交给 MQ 重试。
   - 浏览量走同一个脚本，不带去重 key。
-- **读取**：`CounterApi.get` 保证每个传入的 ID 都有结果，没有计数的对象各项都是 0。缺失的对象从 MySQL 批量读出，用 pipeline 逐个执行"仅在 key 不存在时写入"的回填脚本；本次返回从 MySQL 读出的值。
+- **读取**：`CounterApi.get` 保证每个传入的 ID 都有结果，没有计数的对象各项都是 0。Hash 不存在或缺字段的对象从 MySQL 批量读出，用 pipeline 逐个执行"只写入缺失字段"的回填脚本，再从 Redis 读一次返回。
 - **落库**：
   - 每 5 秒一轮，依次处理三类对象。每类反复 `SPOP` 1000 个，直到取出的不足 1000 个。
   - 批量写入用 `INSERT … VALUES … AS new ON DUPLICATE KEY UPDATE col = new.col`，每行是对象 ID 加各列的值，列顺序与 `CounterTables.metrics` 一致。
-  - Hash 已不存在的对象跳过；写库失败时把这批 ID 放回待落库集合。
+  - 读取走与 `CounterApi.get` 相同的回填逻辑，Hash 或字段缺失的对象先从 MySQL 补齐再整行写回；写库失败时把这批 ID 放回待落库集合。
   - 已知缺陷：实例在 `SPOP` 之后、写库之前崩溃，这批对象的待落库标记会丢失。多个实例时，一个批次读出旧值后，同一对象再次变更并被另一实例先写入新值，前者随后会用旧值覆盖。两者都由下次变更或对账修正。
 - **reset**：先在 Hash 存在时改 Redis 并标记待落库，再改 MySQL；Hash 不存在时只改 MySQL，下次访问回填。
 - **用户主页**：`GET /users/me` 也带上四项计数，与 `GET /users/{id}` 返回同一个结构。

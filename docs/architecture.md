@@ -122,7 +122,7 @@ sequenceDiagram
 ```
 
 - 点赞关系在请求内同步写库；文章点赞数、作者获赞数这两行热点计数移出了请求事务，由 counter 模块异步累加，不再有行锁排队。
-- Redis 里的计数 Hash 不存在时，Lua 返回 MISS，消费者从 MySQL 读出计数回填后重跑。
+- Redis 里的计数 Hash 或要累加的字段不存在时，Lua 返回 MISS，消费者从 MySQL 读出计数、只回填缺失的字段后重跑。
 - 浏览量是近似计数，读详情时直接在 Redis 里累加并标记待落库，不经过 MQ，也不对账。
 - 每周一 04:00 对账（也可以手动触发）：掌握关系数据的模块分页 `GROUP BY` 重新统计，counter 模块只修正不一致的对象。
 - `like.created` 另由 notification 消费，给文章作者发通知。

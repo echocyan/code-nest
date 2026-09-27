@@ -336,8 +336,8 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 评论数、回复数、文章数由 article 上报；获赞数由 interaction 上报。
 - **浏览量**：近似计数，请求内直接执行 `HINCRBY` 并标记为待落库，不走 MQ，也不对账。
 - **Redis 结构**：每个对象一个 Hash（`counter:{article|user|comment}:{id}`），不设 TTL；Redis 开启 AOF everysec。
-- **消费端**：用一段 Lua 原子完成：Hash 不存在就返回 MISS → 用 `SET NX EX 86400` 按 messageId 去重 → `HINCRBY`（结果不低于
-  0）→ 把对象 ID 加入待落库集合。收到 MISS 时从 MySQL 读出计数，仅在 key 仍不存在时回填，然后重跑脚本。
+- **消费端**：用一段 Lua 原子完成：Hash 或要累加的字段不存在就返回 MISS → 用 `SET NX EX 86400` 按 messageId 去重 → `HINCRBY`（结果不低于
+  0）→ 把对象 ID 加入待落库集合。收到 MISS 时从 MySQL 读出计数，只回填仍缺失的字段，然后重跑脚本。
 - **落库**：每 5 秒用 `SPOP` 取出最多 1000 个待落库 ID，pipeline 读出 Hash，用批量 `INSERT … ON DUPLICATE KEY UPDATE`
   写入绝对值。
 - **读取**：pipeline 批量 `HMGET`，缺失的从 MySQL 回填。

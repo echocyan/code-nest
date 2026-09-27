@@ -12,7 +12,8 @@ import java.util.*;
 
 /**
  * 按指标逐页对账：取来源的一页精确计数，连同计数表里同一 ID 区间内不为 0、但这一页里没有的对象（精确计数为 0），
- * 与 {@link CounterApi#get} 读到的当前值、MySQL 计数表里的值分别比较，任一不一致就用 {@link CounterApi#reset} 修正。
+ * 与 Redis 里的当前值（不在 Redis 里的对象不比较，也不回填）、MySQL 计数表里的值分别比较，任一不一致就用
+ * {@link CounterApi#reset} 修正。
  * 待落库标记丢失时，Redis 是对的而 MySQL 停在旧值，只比较前者会漏掉。
  *
  * <p>已知缺陷：统计与修正之间发生的并发写入，可能让修正后的计数与真实值相差 ±1，由下一次对账修正。
@@ -36,6 +37,7 @@ class CounterReconcileServiceImpl implements CounterReconcileService {
     private static final Duration LOCK_TTL = Duration.ofHours(1);
 
     private final CounterApi counterApi;
+    private final RedisCounterStore redisCounterStore;
     private final CounterTables counterTables;
     private final RedisLock redisLock;
     private final Map<CounterMetric, CounterSource> sources = new EnumMap<>(CounterMetric.class);
@@ -43,9 +45,10 @@ class CounterReconcileServiceImpl implements CounterReconcileService {
     /**
      * @throws IllegalStateException 同一个指标有多个来源
      */
-    CounterReconcileServiceImpl(CounterApi counterApi, CounterTables counterTables, RedisLock redisLock,
-                                List<CounterSource> sources) {
+    CounterReconcileServiceImpl(CounterApi counterApi, RedisCounterStore redisCounterStore,
+                                CounterTables counterTables, RedisLock redisLock, List<CounterSource> sources) {
         this.counterApi = counterApi;
+        this.redisCounterStore = redisCounterStore;
         this.counterTables = counterTables;
         this.redisLock = redisLock;
         sources.forEach(source -> source.metrics().forEach(metric -> {
@@ -109,12 +112,13 @@ class CounterReconcileServiceImpl implements CounterReconcileService {
         List<Long> ids = List.copyOf(exact.keySet());
         for (int from = 0; from < ids.size(); from += BATCH) {
             List<Long> batch = ids.subList(from, Math.min(from + BATCH, ids.size()));
-            Map<Long, Counts> current = counterApi.get(metric.target(), batch);
+            Map<Long, Counts> current = redisCounterStore.getIfPresent(metric.target(), batch);
             Map<Long, Counts> stored = counterTables.select(metric.target(), batch);
             for (Long id : batch) {
                 long value = exact.get(id);
                 long storedValue = stored.containsKey(id) ? stored.get(id).get(metric) : 0;
-                if (current.get(id).get(metric) != value || storedValue != value) {
+                boolean redisWrong = current.containsKey(id) && current.get(id).get(metric) != value;
+                if (redisWrong || storedValue != value) {
                     counterApi.reset(metric, id, value);
                     corrected++;
                 }

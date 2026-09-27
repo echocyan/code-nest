@@ -106,6 +106,22 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
     }
 
     @Test
+    void hashMissingAFieldIsStillFlushed() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String articleId = publish(author, createDraft(author, draft()));
+        like(reader(), articleId);
+        await().atMost(FLUSHED).until(() -> stat("article_stat", "like_count", "article_id", articleId) == 1);
+
+        // 新增指标上线后，已有的 Hash 里没有这个字段
+        redis.opsForHash().delete("counter:article:" + articleId, "view");
+        like(reader(), articleId);
+
+        await().atMost(FLUSHED).untilAsserted(() ->
+                assertThat(stat("article_stat", "like_count", "article_id", articleId)).isEqualTo(2));
+        expectLikes(articleId, 2);
+    }
+
+    @Test
     void resetFixesBothRedisAndMysql() {
         long commentId = randomId();
         counterApi.reset(CounterMetric.COMMENT_REPLY, commentId, 5);

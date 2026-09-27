@@ -23,11 +23,11 @@ import java.util.concurrent.TimeUnit;
  * <p>key 设计：
  * <ul>
  *     <li>{@code counter:{type}:{id}}：一个对象的全部计数，Hash，字段名见 {@link CounterTables#field}，不设 TTL。
- *     Hash 要么不存在，要么含该类型的全部字段。</li>
+ *     新增指标后，已有的 Hash 里没有新字段，按缺失处理。</li>
  *     <li>{@code counter:dirty:{type}}：待落库的对象 ID，Set。</li>
  *     <li>{@code counter:dedup:{messageId}}：消费去重标记，24 小时过期。</li>
  * </ul>
- * Hash 不存在时一律先从 MySQL 回填、且只在 key 仍不存在时写入，不能直接累加，否则会从 0 开始把已有计数冲掉。
+ * Hash 或其中的字段不存在时一律先从 MySQL 回填、且只写入仍缺失的字段，不能直接累加，否则会从 0 开始把已有计数冲掉。
  */
 @Slf4j
 @Component
@@ -45,11 +45,11 @@ class RedisCounterStore {
 
     /**
      * KEYS：计数 Hash、待落库集合、去重 key（可选）；ARGV：字段、增量、对象 ID、去重 key 过期秒数。
-     * 返回 -1 表示 Hash 不存在（MISS），0 表示重复消息，1 表示已累加。
+     * 返回 -1 表示 Hash 或该字段不存在（MISS），0 表示重复消息，1 表示已累加。
      * 去重 key 在累加成功后才写入：脚本中途出错时不会留下标记，重试不会被误判为重复。
      */
     private static final RedisScript<Long> INCREMENT = RedisScript.of("""
-            if redis.call('EXISTS', KEYS[1]) == 0 then
+            if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 0 then
                 return -1
             end
             if KEYS[3] and redis.call('EXISTS', KEYS[3]) == 1 then
@@ -66,13 +66,12 @@ class RedisCounterStore {
             """, Long.class);
 
     /**
-     * KEYS：计数 Hash；ARGV：依次为各字段名和值。只在 Hash 不存在时写入。
+     * KEYS：计数 Hash；ARGV：依次为各字段名和值。只写入 Hash 中还不存在的字段，已有的值不变。
      */
     private static final byte[] BACKFILL = """
-            if redis.call('EXISTS', KEYS[1]) == 1 then
-                return 0
+            for i = 1, #ARGV, 2 do
+                redis.call('HSETNX', KEYS[1], ARGV[i], ARGV[i + 1])
             end
-            redis.call('HSET', KEYS[1], unpack(ARGV))
             return 1
             """.getBytes(StandardCharsets.UTF_8);
 
@@ -108,7 +107,7 @@ class RedisCounterStore {
      * 原子地增减一项计数（结果最小为 0），并把对象标记为待落库。
      *
      * @param messageId 不为 null 时按它去重，同一个 messageId 在 24 小时内只生效一次
-     * @throws IllegalStateException 回填后 Hash 仍然不存在
+     * @throws IllegalStateException 回填后 Hash 或该字段仍然不存在
      */
     void increment(CounterMetric metric, long targetId, long delta, String messageId) {
         CounterTarget target = metric.target();
@@ -124,11 +123,11 @@ class RedisCounterStore {
             }
             backfill(target, List.of(targetId));
         }
-        throw new IllegalStateException("计数 Hash 回填后仍不存在: " + hashKey(target, targetId));
+        throw new IllegalStateException("计数回填后仍不存在: " + hashKey(target, targetId) + " " + CounterTables.field(metric));
     }
 
     /**
-     * 批量读取，Redis 里没有的对象从 MySQL 批量读出并回填。
+     * 批量读取。Redis 里没有 Hash 或缺少字段的对象，先从 MySQL 批量回填缺失的部分再读一次。
      *
      * @return 每个传入的 ID 都有一项
      */
@@ -137,9 +136,21 @@ class RedisCounterStore {
         Map<Long, Counts> result = read(target, ids);
         List<Long> missing = ids.stream().filter(id -> !result.containsKey(id)).toList();
         if (!missing.isEmpty()) {
-            result.putAll(backfill(target, missing));
+            Map<Long, Counts> loaded = backfill(target, missing);
+            Map<Long, Counts> filled = read(target, missing);
+            // 回填后又被删除的对象，按 MySQL 的值返回
+            missing.forEach(id -> result.put(id, filled.getOrDefault(id, loaded.get(id))));
         }
         return result;
+    }
+
+    /**
+     * 只读 Redis，不回填。
+     *
+     * @return 只包含 Hash 存在且字段齐全的对象
+     */
+    Map<Long, Counts> getIfPresent(CounterTarget target, Collection<Long> targetIds) {
+        return read(target, List.copyOf(new LinkedHashSet<>(targetIds)));
     }
 
     /**
@@ -178,8 +189,8 @@ class RedisCounterStore {
             return true;
         }
         try {
-            // 对象的 Hash 已经不在（Redis 丢数据），读不到就跳过，由下次访问从 MySQL 回填
-            counterTables.upsert(target, read(target, ids.stream().map(Long::valueOf).toList()));
+            // Hash 或字段缺失时（Redis 丢数据、新增了指标）先从 MySQL 回填，再整行写回
+            counterTables.upsert(target, get(target, ids.stream().map(Long::valueOf).toList()));
             return true;
         } catch (RuntimeException e) {
             redis.opsForSet().add(dirtyKey(target), ids.toArray(String[]::new));
@@ -192,7 +203,7 @@ class RedisCounterStore {
     /**
      * 用 pipeline 批量 {@code HMGET}。
      *
-     * @return 只包含 Hash 存在的对象
+     * @return 只包含 Hash 存在且字段齐全的对象
      */
     private Map<Long, Counts> read(CounterTarget target, List<Long> ids) {
         List<CounterMetric> metrics = CounterTables.metrics(target);
@@ -217,7 +228,7 @@ class RedisCounterStore {
     }
 
     /**
-     * 从 MySQL 批量读出计数（没有计数行的对象按全 0），用 pipeline 逐个回填到 Redis。
+     * 从 MySQL 批量读出计数（没有计数行的对象按全 0），用 pipeline 逐个回填到 Redis，只写入缺失的字段。
      *
      * @return 从 MySQL 读出的计数，每个传入的 ID 都有一项
      */

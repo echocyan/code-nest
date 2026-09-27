@@ -32,7 +32,7 @@ Blocked by: 03, 05
    - 辅助 key：待落库集合 `counter:dirty:{type}`；去重 key `counter:dedup:{messageId}`，过期时间 24 小时。
    - Redis 开启 AOF，刷盘策略 `everysec`。
 5. **消费端 Lua（原子执行）**：
-   1. 计数 Hash 不存在，返回 `MISS`。
+   1. 计数 Hash 或要累加的字段不存在，返回 `MISS`。
    2. 执行 `SET counter:dedup:{messageId} NX EX 86400`，key 已存在则返回 `DUP`。
    3. `HINCRBY`，结果最小为 0。
    4. `SADD counter:dirty:{type} {id}`。
@@ -47,7 +47,7 @@ Blocked by: 03, 05
    - 用批量 `INSERT … ON DUPLICATE KEY UPDATE` 写入**绝对值**。重复写结果不变，所以落库是幂等的；同一对象的多次变更也合并成了一次写入。
    - `SPOP` 是原子操作，多个实例同时落库时不会重复处理同一个对象。
    - 已知缺陷：实例在 `SPOP` 之后、写库之前崩溃，这批对象的待落库标记会丢失。它们在 MySQL 中暂时停在旧值，直到下次变更或对账时修正。
-7. **读取**：用 pipeline 批量 `HMGET`。Redis 里没有的对象，从 MySQL 批量读出，按第 5 条"仅在 key 不存在时写入"的规则回填 Redis。
+7. **读取**：用 pipeline 批量 `HMGET`。Redis 里没有 Hash 或缺少字段的对象（新增指标后的旧 Hash），从 MySQL 批量读出，只回填缺失的字段。
 8. **对账与恢复**：
    - 谁掌握真实数据就由谁对账：点赞、收藏、获赞由 interaction 负责；评论、回复、文章数由 article 负责；粉丝、关注由 social 负责。
    - 对账方式：分页执行 `GROUP BY` 重新统计，再调用 `CounterApi.reset(metric, id, value)` 同时修正 Redis 和 MySQL。每周定时执行一次，也可以手动触发，不追踪哪些对象发生过变更。

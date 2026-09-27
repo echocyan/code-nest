@@ -19,7 +19,7 @@ Status: closed
 
 - **结构**：
   - 各模块实现 `counter.api.CounterSource`：声明自己负责的指标，按 `countAfter(metric, afterId, limit)` 返回一页 `GROUP BY` 结果（计数大于 0 的对象，按 ID 升序）。实现者是持有对应表的 ServiceImpl：`ArticleLikeServiceImpl`（点赞数、获赞数）、`FavoriteServiceImpl`、`CommentServiceImpl`（评论数、回复数）、`ArticleServiceImpl`（文章数）、`FollowServiceImpl`。
-  - counter 模块的 `CounterReconcileServiceImpl` 逐个指标驱动翻页，与 `CounterApi.get` 读到的当前值、MySQL 计数表里的值分别比较，任一不一致就调用 `CounterApi.reset`。待落库标记丢失（Redis 对、MySQL 旧）也能修正。同一指标注册了两个来源时启动失败。
+  - counter 模块的 `CounterReconcileServiceImpl` 逐个指标驱动翻页，与 Redis 里的当前值（只读已在 Redis 的对象，不回填）、MySQL 计数表里的值分别比较，任一不一致就调用 `CounterApi.reset`。待落库标记丢失（Redis 对、MySQL 旧）也能修正。同一指标注册了两个来源时启动失败。
 - **统计口径**（与增量上报一致）：
   - 点赞数、收藏数：关系行数，文章删除后的关系行照样计入。
   - 获赞数：`article_like.author_id` 分组计数。点赞时记下文章作者，获赞数不用跨模块查文章，已删除文章上的点赞同样计入。已有的点赞行由迁移脚本一次性回填。

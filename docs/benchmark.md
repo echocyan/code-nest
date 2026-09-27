@@ -42,7 +42,7 @@
 
 - 瓶颈判断：点赞关系每次插入的是不同的行，不会争锁；会排队的是 `UPDATE article_stat SET like_count = like_count + 1` 这类热点行更新。所以关系表仍同步写库，只把计数移出事务。
 - 业务模块在自己的事务里调用 `CounterApi.increment`，经 Outbox 发出计数事件，提交后投递到 MQ；counter 模块不依赖任何业务模块。
-- 消费端用一段 Lua 在 Redis 里原子完成：Hash 不存在返回 MISS（从 MySQL 懒加载后重试）→ 按 messageId 去重 → `HINCRBY` → 加入待落库集合。
+- 消费端用一段 Lua 在 Redis 里原子完成：Hash 或字段不存在返回 MISS（从 MySQL 懒加载后重试）→ 按 messageId 去重 → `HINCRBY` → 加入待落库集合。
 - 每 5 秒 `SPOP` 一批待落库对象，把**绝对值**批量 `INSERT … ON DUPLICATE KEY UPDATE` 写回 MySQL；重复写结果不变，同一对象的多次变更合并成一次写入。
 - 由掌握真实数据的模块每周对账，修正 Redis 与 MySQL。
 - 取舍：放弃"计数与点赞在同一事务里强一致"，换来热点行不再排队；计数有秒级延迟；Redis 数据丢失时，尚未落库的增量（最多约 5 秒）靠对账补回。

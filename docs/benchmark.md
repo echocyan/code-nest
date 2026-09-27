@@ -94,7 +94,7 @@
 计数优化档（`counter.mode=redis-async`）下同样补测了一组，结论一致：pull 577 → push-pull 794 QPS（+38%），P99 1723ms → 1365ms（−21%），推送耗时 151ms。
 
 - pull 用一条 `author_id IN (…500 个…) ORDER BY id DESC LIMIT 21` 在 MySQL 里归并 500 个作者的文章；push-pull 改读 1 个收件箱和 10 个大 V 的发件箱，省掉这条归并查询，MySQL 读取行数减半（剩下的主要是关注列表的 500 行）。
-- **压测中发现并修复的瓶颈**：第一版识别大 V 时，逐个读取关注的约 500 个作者的粉丝数（sync-db 档是一条 500 行的 `IN` 查询，redis-async 档是约 520 条 `HMGET`），push-pull 反而比 pull 慢：sync-db 档 332 vs 575 QPS（这组压测期间场景 A 积压的通知仍在消费，两档同样受影响），redis-async 档 258 vs 530 QPS、每个请求 535 条 Redis 命令，两个应用实例跑满 2 核。改为读 `feed:followers` 后，每个请求的 Redis 命令降到 15 条，push-pull 的 QPS 提升到修复前的 2.4–3.1 倍，反超 pull。修复前的原始结果保留在 `*-b-feed*-before-fix.json`。
+- **压测中发现并修复的瓶颈**：第一版识别大 V 时，逐个读取关注的约 500 个作者的粉丝数（sync-db 档是一条 500 行的 `IN` 查询，redis-async 档是约 520 条 `HMGET`），push-pull 反而比 pull 慢：sync-db 档 332 vs 575 QPS（这组压测期间场景 A 积压的通知仍在消费，两档同样受影响），redis-async 档 258 vs 530 QPS、每个请求 535 条 Redis 命令，两个应用实例跑满 2 核。改为读 `feed:followers` 后，每个请求的 Redis 命令降到 15 条（redis-async 档 35 条，多出的是读文章计数的 `HMGET`），push-pull 的 QPS 提升到修复前的 2.4–3.1 倍，反超 pull。修复前的原始结果保留在 `*-b-feed*-before-fix.json`。
 - 读 Feed 首页仍有 P99 1.2 秒左右：两个应用实例基本跑满 2 核，瓶颈在应用 CPU（每页要解析 500 个关注的作者、合并 11 个 ZSet、组装作者与计数）。
 
 ## C 搜索与数据同步

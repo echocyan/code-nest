@@ -4,7 +4,7 @@ import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
-import com.echocyan.codenest.social.service.FeedService;
+import com.echocyan.codenest.social.service.FeedStore;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
@@ -21,12 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class FeedController {
 
-    private final FeedService feedService;
+    private final FeedStore feedStore;
 
     @Operation(summary = "关注 Feed", description = "我关注的作者已发布的文章，按文章 ID 倒序；cursor 为上一页返回的 nextCursor")
     @GetMapping
     public Result<CursorResult<ArticleItem>> feed(@RequestParam(required = false) Long cursor,
                                                   @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return Result.ok(feedService.read(AuthContext.currentUserId(), cursor, size));
+        return Result.ok(feedStore.read(AuthContext.currentUserId(), cursor, size));
     }
 }

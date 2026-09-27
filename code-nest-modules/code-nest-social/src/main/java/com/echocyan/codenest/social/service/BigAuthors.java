@@ -45,14 +45,14 @@ class BigAuthors {
             """, Long.class);
 
     private final StringRedisTemplate redis;
-    private final FollowService followService;
+    private final FollowerGraph followerGraph;
     private final String key;
     private final String readyKey;
     private final long threshold;
 
-    BigAuthors(StringRedisTemplate redis, FollowService followService, String keyPrefix, long threshold) {
+    BigAuthors(StringRedisTemplate redis, FollowerGraph followerGraph, String keyPrefix, long threshold) {
         this.redis = redis;
-        this.followService = followService;
+        this.followerGraph = followerGraph;
         this.key = keyPrefix + ":followers";
         this.readyKey = key + ":ready";
         this.threshold = threshold;
@@ -79,7 +79,7 @@ class BigAuthors {
      * @return 这次写入是否让作者从大 V 降为普通作者
      */
     boolean refresh(long authorId) {
-        long followers = followService.countFollowers(authorId);
+        long followers = followerGraph.countFollowers(authorId);
         Long old = redis.execute(REPLACE, List.of(key), String.valueOf(authorId), String.valueOf(followers));
         return old >= threshold && followers < threshold;
     }
@@ -93,14 +93,14 @@ class BigAuthors {
             return;
         }
         long imported = 0;
-        List<IdCount> counts = followService.countFollowersAfter(0, REBUILD_BATCH);
+        List<IdCount> counts = followerGraph.countFollowersAfter(0, REBUILD_BATCH);
         while (!counts.isEmpty()) {
             Set<TypedTuple<String>> tuples = counts.stream()
                     .map(count -> TypedTuple.of(String.valueOf(count.id()), (double) count.count()))
                     .collect(Collectors.toSet());
             redis.opsForZSet().add(key, tuples);
             imported += counts.size();
-            counts = followService.countFollowersAfter(counts.getLast().id(), REBUILD_BATCH);
+            counts = followerGraph.countFollowersAfter(counts.getLast().id(), REBUILD_BATCH);
         }
         redis.opsForValue().set(readyKey, "1");
         log.info("Rebuilt follower counts of {} authors for the feed", imported);

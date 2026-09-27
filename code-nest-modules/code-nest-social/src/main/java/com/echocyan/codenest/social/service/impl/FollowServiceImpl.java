@@ -14,6 +14,7 @@ import com.echocyan.codenest.social.api.event.FollowDeletedEvent;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.mapper.FollowMapper;
 import com.echocyan.codenest.social.service.FollowService;
+import com.echocyan.codenest.social.service.FollowerGraph;
 import com.echocyan.codenest.social.vo.FollowUserVO;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements FollowService,
+public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements FollowService, FollowerGraph,
         CounterSource {
 
     private final UserApi userApi;

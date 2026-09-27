@@ -1,8 +1,11 @@
 package com.echocyan.codenest.social.service;
 
 import com.echocyan.codenest.article.api.ArticleApi;
+import com.echocyan.codenest.article.api.ArticleItem;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.common.result.CursorResult;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +23,8 @@ import java.util.function.Function;
  * 推拉结合的 Feed 存储，全部在 Redis 里：每个作者一个发件箱，每个读者一个收件箱。普通作者发文时推送到粉丝的收件箱；
  * 粉丝数不低于阈值的大 V 发文不推送，读取时从其发件箱拉取，避免写扩散。
  * <p>
- * 写入侧各操作重复执行结果不变，由 MQ 消费者在发文、删文、关注、取关后调用。收件箱与发件箱里可能残留已删除的文章、
- * 已取关作者的文章，{@link #read} 不过滤，由调用方按文章的最新状态过滤。
+ * 写入侧各操作重复执行结果不变，由 MQ 消费者在发文、删文、关注、取关后调用。事件乱序、删文与推送交错时，收件箱与发件箱里
+ * 可能残留已删除的文章、已取关作者的文章，{@link #read} 按文章的最新状态和当前的关注关系把它们滤掉。
  * <p>
  * 收件箱至多 {@value FeedBoxes#INBOX_CAP} 条、发件箱至多 {@value FeedBoxes#OUTBOX_CAP} 条，Feed 只能往回翻这么多。
  * <p>
@@ -30,6 +33,9 @@ import java.util.function.Function;
  * <p>
  * 发件箱与识别大 V 用的粉丝数只在启动时（所有单例创建完后）按数据库重建，见 {@link #afterSingletonsInstantiated}；
  * 收件箱在读取时懒重建。
+ * <p>
+ * 读取一页的整体耗时记在 Timer {@code feed.read}，其中查询关注列表的耗时另记在 {@code feed.read.follow-list}，
+ * 经管理端口的 metrics 端点查看；压测用它们判断关注列表要不要加缓存。
  */
 @Slf4j
 @Component
@@ -47,25 +53,29 @@ public class FeedStore implements SmartInitializingSingleton {
 
     private final FeedBoxes feedBoxes;
     private final BigAuthors bigAuthors;
-    private final FollowService followService;
+    private final FollowerGraph followerGraph;
     private final ArticleApi articleApi;
+    private final Timer readTimer;
+    private final Timer followListTimer;
 
     @Autowired
-    public FeedStore(StringRedisTemplate redis, FollowService followService, ArticleApi articleApi,
-                     @Value("${feed.big-author-threshold}") long bigAuthorThreshold) {
-        this(redis, followService, articleApi, "feed", bigAuthorThreshold);
+    public FeedStore(StringRedisTemplate redis, FollowerGraph followerGraph, ArticleApi articleApi,
+                     MeterRegistry meterRegistry, @Value("${feed.big-author-threshold}") long bigAuthorThreshold) {
+        this(redis, followerGraph, articleApi, meterRegistry, "feed", bigAuthorThreshold);
     }
 
     /**
      * @param keyPrefix          全部 Redis key 的前缀，应用里用 {@code feed}
      * @param bigAuthorThreshold 粉丝数不低于它的作者是大 V
      */
-    public FeedStore(StringRedisTemplate redis, FollowService followService, ArticleApi articleApi, String keyPrefix,
-                     long bigAuthorThreshold) {
+    public FeedStore(StringRedisTemplate redis, FollowerGraph followerGraph, ArticleApi articleApi,
+                     MeterRegistry meterRegistry, String keyPrefix, long bigAuthorThreshold) {
         this.feedBoxes = new FeedBoxes(redis, keyPrefix);
-        this.bigAuthors = new BigAuthors(redis, followService, keyPrefix, bigAuthorThreshold);
-        this.followService = followService;
+        this.bigAuthors = new BigAuthors(redis, followerGraph, keyPrefix, bigAuthorThreshold);
+        this.followerGraph = followerGraph;
         this.articleApi = articleApi;
+        this.readTimer = meterRegistry.timer("feed.read");
+        this.followListTimer = meterRegistry.timer("feed.read.follow-list");
     }
 
     /**
@@ -106,14 +116,22 @@ public class FeedStore implements SmartInitializingSingleton {
     }
 
     /**
-     * 读取一页：收件箱与各大 V 的发件箱合并，按文章 ID 去重、倒序截取。收件箱不存在（读者 7 天没来过）时先从普通作者的
-     * 发件箱重建，存在时续期。
+     * 读取一页：收件箱与所关注大 V 的发件箱合并，按文章 ID 去重、倒序截取，组装成列表项后滤掉已删除、非发布状态和已取关
+     * 作者的文章。过滤不影响翻页，所以一页可能不足 size 条。收件箱不存在（读者 7 天没来过）时先从普通作者的发件箱重建，
+     * 存在时续期。
      *
-     * @param authorIds 读者关注的全部作者，不为空
-     * @param cursor    上一页的 nextCursor，第一页为 null
-     * @return 文章 ID，可能含已删除的文章、已取关作者的文章；nextCursor 是这一页最后一个 ID
+     * @param cursor 上一页的 nextCursor，第一页为 null
+     * @return nextCursor 是这一页过滤前的最后一个文章 ID
      */
-    public CursorResult<Long> read(long userId, List<Long> authorIds, Long cursor, int size) {
+    public CursorResult<ArticleItem> read(long userId, Long cursor, int size) {
+        return readTimer.record(() -> doRead(userId, cursor, size));
+    }
+
+    private CursorResult<ArticleItem> doRead(long userId, Long cursor, int size) {
+        List<Long> authorIds = followListTimer.record(() -> followerGraph.listAllFollowedAuthorIds(userId));
+        if (authorIds.isEmpty()) {
+            return CursorResult.empty();
+        }
         Set<Long> big = bigAuthors.among(authorIds);
         feedBoxes.renewOrRebuildInbox(userId, authorIds.stream().filter(id -> !big.contains(id)).toList());
         // 多取一条，只用来判断是否还有下一页
@@ -122,7 +140,12 @@ public class FeedStore implements SmartInitializingSingleton {
                 .sorted(Comparator.reverseOrder())
                 .limit(size + 1)
                 .toList();
-        return CursorResult.ofOverfetched(ids, size, Function.identity());
+        CursorResult<Long> page = CursorResult.ofOverfetched(ids, size, Function.identity());
+        Set<Long> followed = Set.copyOf(authorIds);
+        List<ArticleItem> items = articleApi.listPublishedItems(page.list()).stream()
+                .filter(item -> item.author() != null && followed.contains(item.author().id()))
+                .toList();
+        return new CursorResult<>(items, page.nextCursor(), page.hasMore());
     }
 
     /**
@@ -141,7 +164,7 @@ public class FeedStore implements SmartInitializingSingleton {
         Long after = null;
         List<Long> followerIds;
         do {
-            followerIds = followService.listFollowerIds(authorId, after, FOLLOWER_PAGE);
+            followerIds = followerGraph.listFollowerIds(authorId, after, FOLLOWER_PAGE);
             if (!followerIds.isEmpty()) {
                 handler.accept(followerIds);
                 after = followerIds.getLast();

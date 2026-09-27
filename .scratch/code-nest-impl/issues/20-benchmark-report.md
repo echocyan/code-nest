@@ -18,5 +18,5 @@ Status: closed
 
 ## Comments
 
-- **30% 规则**：`FeedServiceImpl` 记 Timer `feed.read` 与 `feed.read.follow-list`，管理端口开放 `metrics`，`bench.sh` 在场景 B 采集差值。
+- **30% 规则**：`FeedStore` 记 Timer `feed.read` 与 `feed.read.follow-list`，管理端口开放 `metrics`，`bench.sh` 在场景 B 采集差值。
 - **结果**：`code-nest-loadtest/results/2026-09-27-*.json`。关注列表查询占 Feed 读取耗时 2.1%，不加缓存。

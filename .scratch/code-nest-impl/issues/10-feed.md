@@ -29,8 +29,8 @@ Status: closed
 
 - **模块依赖**：social 的 pom 加上 article，文章摘要经 `ArticleApi` 获取。
 - **结构**：
-  - `service/FeedStore`：推拉结合的 Redis 存储，对外只有 `addArticle`、`removeArticle`、`follow`、`unfollow`、`read` 和启动重建。`read` 返回一页按 ID 倒序、去重的文章 ID 和游标，不过滤。key 前缀（应用里为 `feed`）与大 V 阈值是构造参数。内部由同包、不对外的 `FeedBoxes`（发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本）和 `BigAuthors`（维护 `feed:followers` 并据此识别大 V）组成。
-  - `FeedService` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），交给 `FeedStore.read` 取一页文章 ID，经 `ArticleApi.listPublishedItems` 组装并滤掉已删除和非发布状态的文章，再滤掉已取关作者的文章。没有关注任何人时直接返回空。
+  - `service/FeedStore`：推拉结合的 Redis 存储，对外只有 `addArticle`、`removeArticle`、`follow`、`unfollow`、`read` 和启动重建。`read(userId, cursor, size)` 经 `FollowerGraph` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），没有关注任何人时直接返回空；否则取一页按 ID 倒序、去重的文章 ID，经 `ArticleApi.listPublishedItems` 组装并滤掉已删除和非发布状态的文章，再滤掉已取关作者的文章，游标是过滤前这一页的最后一个 ID。写入侧的幂等依赖这层过滤：乱序的关注、取关事件和删文后被写回的发件箱，残留都在这里滤掉。key 前缀（应用里为 `feed`）与大 V 阈值是构造参数。内部由同包、不对外的 `FeedBoxes`（发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本）和 `BigAuthors`（维护 `feed:followers` 并据此识别大 V）组成。
+  - `FollowerGraph`：`FeedStore` 依赖的关注关系查询（关注的全部作者、按粉丝 ID 分页的粉丝、粉丝数、按作者分批统计粉丝数），生产实现是 `FollowServiceImpl`，`FeedStoreTest` 用内存实现。`FeedController` 直接调用 `FeedStore.read`。
   - `listener/FeedPushListener`（`social.feed-push`，订阅 `article.published`）、`listener/FeedFixListener`（`social.feed-fix`，订阅 `follow.created`、`follow.deleted`、`article.deleted`），只把事件转给 `FeedStore`。
   - 推送按粉丝 ID 升序翻页（`FollowService.listFollowerIds`，走 (author_id, follower_id) 索引）。
 - **接口细节**：`GET /feed?cursor=&size=` 需要登录；size 默认 20、最大 50；列表项与文章列表项（见 06 号票）相同。

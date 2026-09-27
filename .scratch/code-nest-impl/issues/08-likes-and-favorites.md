@@ -6,7 +6,7 @@
 
 Status: closed
 
-- [x] **interaction 模块**：新增模块，建 article_like、favorite 表（`V3_`），定义 3xxxx 错误码。
+- [x] **interaction 模块**：新增模块，建 article_like、favorite 表（`V3_`）。
 - [x] **接口**：`PUT` 和 `DELETE` `/articles/{id}/like`，`PUT` 和 `DELETE` `/articles/{id}/favorite`。
   - 重复操作返回 200，不产生任何变化。
   - 对草稿、已删除或不存在的文章操作时返回 404。
@@ -18,7 +18,7 @@ Status: closed
 
 ## Comments
 
-- **错误码**：只定义了 30001（文章不存在，404），草稿、已删除、不存在的文章都返回它。ids 超出上限走通用的 90400。
+- **错误码**：interaction 不定义自己的错误码。草稿、已删除、不存在的文章都返回 article 的 20001（文章不存在，404，`ArticleErrorCode` 在 article 的 `api` 包）。ids 超出上限走通用的 90400。
 - **接口细节**：
   - `GET /users/me/favorites?cursor=&size=`：size 默认 20、最大 50；nextCursor 是收藏记录的 ID。列表项是文章列表项（见 06 号票）的全部字段加 `favoritedAt`，平铺在同一层（`@JsonUnwrapped`），经 `ArticleApi.listPublishedItems` 组装。
   - 已删除的文章在组装时滤掉，所以一页可能不足 size 条；是否翻完以 hasMore 为准。

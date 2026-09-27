@@ -1,4 +1,4 @@
-package com.echocyan.codenest.article;
+package com.echocyan.codenest.article.api;
 
 import com.echocyan.codenest.common.exception.ErrorCode;
 

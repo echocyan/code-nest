@@ -201,7 +201,7 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
                         reader.put().uri(API + "/articles/{id}/{action}", articleId, action).exchange(),
                         reader.delete().uri(API + "/articles/{id}/{action}", articleId, action).exchange())) {
                     response.expectStatus().isNotFound()
-                            .expectBody().jsonPath("$.code").isEqualTo(30001);
+                            .expectBody().jsonPath("$.code").isEqualTo(20001);
                 }
             }
         }

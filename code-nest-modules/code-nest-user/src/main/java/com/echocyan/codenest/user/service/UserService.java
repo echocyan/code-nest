@@ -2,7 +2,7 @@ package com.echocyan.codenest.user.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
 import com.echocyan.codenest.common.exception.BizException;
-import com.echocyan.codenest.user.UserErrorCode;
+import com.echocyan.codenest.user.api.UserErrorCode;
 import com.echocyan.codenest.user.dto.UpdateProfileRequest;
 import com.echocyan.codenest.user.entity.User;
 import com.echocyan.codenest.user.vo.UserProfileVO;

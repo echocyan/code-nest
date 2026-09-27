@@ -1,22 +1,21 @@
-package com.echocyan.codenest.interaction;
+package com.echocyan.codenest.user.api;
 
 import com.echocyan.codenest.common.exception.ErrorCode;
 
 /**
- * interaction 模块错误码，号段 3xxxx。
+ * user 模块错误码，号段 1xxxx。
  */
-public enum InteractionErrorCode implements ErrorCode {
+public enum UserErrorCode implements ErrorCode {
 
-    /**
-     * 文章不存在、已删除或还是草稿。
-     */
-    ARTICLE_NOT_FOUND(30001, "文章不存在", 404);
+    USERNAME_TAKEN(10001, "用户名已被占用", 409),
+    BAD_CREDENTIALS(10002, "用户名或密码错误", 401),
+    USER_NOT_FOUND(10003, "用户不存在", 404);
 
     private final int code;
     private final String message;
     private final int httpStatus;
 
-    InteractionErrorCode(int code, String message, int httpStatus) {
+    UserErrorCode(int code, String message, int httpStatus) {
         this.code = code;
         this.message = message;
         this.httpStatus = httpStatus;

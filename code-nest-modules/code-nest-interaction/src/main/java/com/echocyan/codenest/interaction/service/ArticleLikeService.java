@@ -1,8 +1,8 @@
 package com.echocyan.codenest.interaction.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
+import com.echocyan.codenest.article.api.ArticleErrorCode;
 import com.echocyan.codenest.common.exception.BizException;
-import com.echocyan.codenest.interaction.InteractionErrorCode;
 import com.echocyan.codenest.interaction.entity.ArticleLike;
 
 import java.util.Collection;
@@ -14,12 +14,12 @@ import java.util.Set;
 public interface ArticleLikeService extends IService<ArticleLike> {
 
     /**
-     * @throws BizException {@link InteractionErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
+     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
      */
     void like(long userId, long articleId);
 
     /**
-     * @throws BizException {@link InteractionErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
+     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
      */
     void unlike(long userId, long articleId);
 

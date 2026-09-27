@@ -7,8 +7,7 @@ import com.echocyan.codenest.common.exception.ErrorCode;
  */
 public enum SocialErrorCode implements ErrorCode {
 
-    CANNOT_FOLLOW_SELF(40001, "不能关注自己", 400),
-    USER_NOT_FOUND(40002, "用户不存在", 404);
+    CANNOT_FOLLOW_SELF(40001, "不能关注自己", 400);
 
     private final int code;
     private final String message;

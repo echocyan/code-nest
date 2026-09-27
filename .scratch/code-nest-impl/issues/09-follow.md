@@ -14,7 +14,7 @@ Status: closed
 
 ## Comments
 
-- **错误码**：40001 不能关注自己（400），40002 用户不存在（404）；关注和取关都先做这两项检查。ids 超出上限走通用的 90400。
+- **错误码**：40001 不能关注自己（400）；用户不存在复用 user 的 10003（404，`UserErrorCode` 在 user 的 `api` 包）；关注和取关都先做这两项检查。ids 超出上限走通用的 90400。
 - **接口细节**：
   - 两种列表按关注时间倒序，nextCursor 是关注记录的 ID，size 默认 20、最大 50；列表项为 `{user: UserBrief, followedAt}`。
   - 粉丝列表走 (author_id, id)，关注列表走 (follower_id, id)；(author_id, follower_id) 留给 Feed 推送按粉丝分页。

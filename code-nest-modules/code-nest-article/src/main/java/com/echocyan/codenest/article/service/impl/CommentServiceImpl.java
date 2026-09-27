@@ -1,7 +1,7 @@
 package com.echocyan.codenest.article.service.impl;
 
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
-import com.echocyan.codenest.article.ArticleErrorCode;
+import com.echocyan.codenest.article.api.ArticleErrorCode;
 import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.Comment;

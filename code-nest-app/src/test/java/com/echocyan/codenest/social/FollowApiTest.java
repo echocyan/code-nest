@@ -39,7 +39,7 @@ class FollowApiTest extends IntegrationTest {
         }
         for (RestTestClient.ResponseSpec response : List.of(follow(reader, "1"), unfollow(reader, "1"))) {
             response.expectStatus().isNotFound()
-                    .expectBody().jsonPath("$.code").isEqualTo(40002);
+                    .expectBody().jsonPath("$.code").isEqualTo(10003);
         }
         expectCounts(readerId, 0, 0);
     }

@@ -7,6 +7,7 @@ import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.social.SocialErrorCode;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.vo.FollowUserVO;
+import com.echocyan.codenest.user.api.UserErrorCode;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,13 +21,13 @@ public interface FollowService extends IService<Follow> {
 
     /**
      * @throws BizException {@link SocialErrorCode#CANNOT_FOLLOW_SELF} 对象是自己；
-     *                      {@link SocialErrorCode#USER_NOT_FOUND} 对象不存在
+     *                      {@link UserErrorCode#USER_NOT_FOUND} 对象不存在
      */
     void follow(long followerId, long authorId);
 
     /**
      * @throws BizException {@link SocialErrorCode#CANNOT_FOLLOW_SELF} 对象是自己；
-     *                      {@link SocialErrorCode#USER_NOT_FOUND} 对象不存在
+     *                      {@link UserErrorCode#USER_NOT_FOUND} 对象不存在
      */
     void unfollow(long followerId, long authorId);
 

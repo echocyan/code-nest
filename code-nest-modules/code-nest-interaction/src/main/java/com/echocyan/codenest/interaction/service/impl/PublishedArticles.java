@@ -1,9 +1,9 @@
 package com.echocyan.codenest.interaction.service.impl;
 
 import com.echocyan.codenest.article.api.ArticleApi;
+import com.echocyan.codenest.article.api.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleState;
 import com.echocyan.codenest.common.exception.BizException;
-import com.echocyan.codenest.interaction.InteractionErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,10 +17,10 @@ class PublishedArticles {
     private final ArticleApi articleApi;
 
     /**
-     * @throws BizException {@link InteractionErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
+     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
      */
     ArticleState require(long articleId) {
         return articleApi.findPublished(articleId)
-                .orElseThrow(() -> new BizException(InteractionErrorCode.ARTICLE_NOT_FOUND));
+                .orElseThrow(() -> new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND));
     }
 }

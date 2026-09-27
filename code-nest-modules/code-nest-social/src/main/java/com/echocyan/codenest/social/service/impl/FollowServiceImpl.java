@@ -17,6 +17,7 @@ import com.echocyan.codenest.social.service.FollowService;
 import com.echocyan.codenest.social.vo.FollowUserVO;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
+import com.echocyan.codenest.user.api.UserErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -170,7 +171,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             throw new BizException(SocialErrorCode.CANNOT_FOLLOW_SELF);
         }
         if (!userApi.exists(authorId)) {
-            throw new BizException(SocialErrorCode.USER_NOT_FOUND);
+            throw new BizException(UserErrorCode.USER_NOT_FOUND);
         }
     }
 

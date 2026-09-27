@@ -2,7 +2,7 @@ package com.echocyan.codenest.article.listener;
 
 import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
 import com.echocyan.codenest.article.api.event.ArticleUpdatedEvent;
-import com.echocyan.codenest.article.service.ArticleService;
+import com.echocyan.codenest.article.service.ArticleCache;
 import com.echocyan.codenest.framework.mq.EventQueues;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.Declarables;
@@ -23,7 +23,7 @@ public class ArticleCacheEvictListener {
 
     static final String QUEUE = "article.cache-evict";
 
-    private final ArticleService articleService;
+    private final ArticleCache articleCache;
 
     @Bean
     static Declarables articleCacheEvictQueue() {
@@ -32,11 +32,11 @@ public class ArticleCacheEvictListener {
 
     @RabbitHandler
     public void onUpdated(ArticleUpdatedEvent event) {
-        articleService.evictCache(event.articleId());
+        articleCache.evict(event.articleId());
     }
 
     @RabbitHandler
     public void onDeleted(ArticleDeletedEvent event) {
-        articleService.evictCache(event.articleId());
+        articleCache.evict(event.articleId());
     }
 }

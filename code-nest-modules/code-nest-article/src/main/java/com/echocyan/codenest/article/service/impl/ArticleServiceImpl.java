@@ -31,8 +31,6 @@ import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.common.util.Texts;
 import com.echocyan.codenest.counter.api.*;
-import com.echocyan.codenest.framework.cache.BloomFilter;
-import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.framework.mq.DomainEventPublisher;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
@@ -64,9 +62,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final DomainEventPublisher eventPublisher;
-    private final TwoLevelCache<CachedArticleDetail> detailCache;
-    private final TwoLevelCache<ArticleBrief> briefCache;
-    private final BloomFilter articleBloomFilter;
+    private final ArticleCache articleCache;
 
     private static ArticleCounts countsOf(Counts counts) {
         return new ArticleCounts(
@@ -119,7 +115,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setStatus(ArticleStatus.DRAFT);
         article.setVersion(0);
         save(article);
-        articleBloomFilter.add(article.getId());
+        articleCache.added(article.getId());
 
         articleContentService.save(contentOf(article.getId(), request));
         articleTagService.replaceTags(article.getId(), tagIds);
@@ -139,7 +135,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         articleContentService.updateById(contentOf(id, request));
         articleTagService.replaceTags(id, tagIds);
-        evictCache(id);
+        articleCache.evict(id);
         eventPublisher.publish(new ArticleUpdatedEvent(id, userId));
         return article;
     }
@@ -155,7 +151,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setPublishedAt(DateTimes.now());
         updateOrConflict(article);
         counterApi.increment(CounterMetric.USER_ARTICLE, userId, 1);
-        evictCache(id);
+        articleCache.evict(id);
         eventPublisher.publish(new ArticlePublishedEvent(id, userId));
         return article;
     }
@@ -178,19 +174,13 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (article.getStatus() == ArticleStatus.PUBLISHED) {
             counterApi.increment(CounterMetric.USER_ARTICLE, userId, -1);
         }
-        evictCache(id);
+        articleCache.evict(id);
         eventPublisher.publish(new ArticleDeletedEvent(id, userId));
     }
 
     @Override
-    public void evictCache(long id) {
-        detailCache.evict(id);
-        briefCache.evict(id);
-    }
-
-    @Override
     public ArticleDetailVO getDetail(long id, Long viewerId) {
-        CachedArticleDetail detail = detailCache.get(id, this::loadDetail);
+        ArticleCache.Detail detail = articleCache.getDetail(id, this::loadDetail);
         if (detail == null) {
             throw new BizException(ArticleErrorCode.ARTICLE_NOT_FOUND);
         }
@@ -260,7 +250,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public Map<Long, ArticleBrief> getBriefs(Collection<Long> ids) {
-        return briefCache.getAll(ids, missing -> listByIds(missing).stream()
+        return articleCache.getBriefs(ids, missing -> listByIds(missing).stream()
                 .map(articleConverter::toBrief)
                 .collect(Collectors.toMap(ArticleBrief::id, Function.identity())));
     }
@@ -384,7 +374,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
      *
      * @return 文章不存在或已删除时为 null
      */
-    private CachedArticleDetail loadDetail(long id) {
+    private ArticleCache.Detail loadDetail(long id) {
         Article article = getById(id);
         if (article == null) {
             return null;
@@ -394,7 +384,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         for (int i = 0; i < snapshot.tagIds().size(); i++) {
             tags.add(new TagVO(snapshot.tagIds().get(i), snapshot.tagNames().get(i)));
         }
-        return new CachedArticleDetail(
+        return new ArticleCache.Detail(
                 article,
                 snapshot.content(),
                 categoryConverter.toBrief(categoryService.getById(article.getCategoryId())),

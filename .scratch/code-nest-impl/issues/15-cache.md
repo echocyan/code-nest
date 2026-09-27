@@ -34,7 +34,7 @@ Status: closed
 - **组件**（framework 的 `cache` 包）：
   - `TwoLevelCache<V>` 以 ID（`long`）为 key，缓存值以 JSON 存入 Redis，key 为 `cache:<name>:<id>`。`get`、`getAll` 的加载函数对不存在的对象返回 null 或不放进结果；`getAll` 对未命中的 ID 只调用一次 batchLoader，用 pipeline 回填。
   - 空值缓存存 JSON `null`，TTL 60 秒；正常值 TTL 为 30 分钟加 0–5 分钟随机抖动。Redis 读写失败不降级，异常直接抛出。
-  - `TwoLevelCaches.create(name, type)` 创建只用 Redis 的缓存，`createTwoLevel(name, type, bloomFilter)` 创建两级缓存，各模块把它们注册成 Bean。只有 `article:detail` 是两级缓存；`article:brief`（`ArticleCacheConfig`）、`user:brief`（`UserCacheConfig`）只用 Redis。
+  - `TwoLevelCaches.create(name, type)` 创建只用 Redis 的缓存，`createTwoLevel(name, type, bloomFilter)` 创建两级缓存，只有 `article:detail` 是两级缓存；`article:brief`（都在 `ArticleCache` 里创建）、`user:brief`（`UserCacheConfig` 注册成 Bean）只用 Redis。
   - `get` 的读取顺序：本地缓存 → 布隆过滤器 → Redis → 加载函数。同 key 合并加载靠 Caffeine 的 `get(key, mappingFunction)`，只在单个实例内生效，同一时刻落到数据库的查询数最多等于实例数。空值不放进本地缓存，已删除的文章每次经布隆过滤器和 Redis 的空值缓存返回。`getAll` 经 Caffeine 的批量加载先读本地缓存，不经过布隆过滤器。
   - 本地缓存返回的是同一个对象，调用方不能修改。
   - `evict` 的顺序：删除 Redis → 清除本实例的本地缓存 → 在 `cache:invalidate` 上发布 Redis key。先删 Redis 再清本地，本实例不会从 Redis 读回旧值。有活跃事务时整体推迟到 afterCommit 执行，删除失败只记日志；没有事务时立即删除，失败直接抛出。写方只需在写库后调用，不用自己注册事务回调。
@@ -46,11 +46,12 @@ Status: closed
   - `add` 在过滤器不存在时先删除标记，再按同样的参数新建过滤器。导入期间创建的文章不会漏掉；运行期间过滤器丢失时退回放行，直到下次启动重建。
   - 已知局限：Redis 从较早的快照恢复时，过滤器和标记都在，但缺少快照之后创建的文章，它们会返回 404，需要手动删除标记后重启。
 - **接入**：
-  - 文章详情缓存 `CachedArticleDetail`：文章实体、正文、分类、标签。作者经 `UserApi`、计数经 `CounterApi` 每次另行组装。已删除的文章与不存在的 ID 一样缓存为空值。
+  - article 的缓存都收在 `service/ArticleCache`：它创建布隆过滤器 `bf:article`、详情缓存和摘要缓存，对外只有读取详情、批量读取摘要（加载函数由调用方传入，与 `TwoLevelCache` 一致）、`added`、`evict` 和启动重建。写方与二次删除的消费者只调用 `added`、`evict`，不需要知道有几份缓存。
+  - 文章详情缓存 `ArticleCache.Detail`：文章实体、正文、分类、标签。作者经 `UserApi`、计数经 `CounterApi` 每次另行组装。已删除的文章与不存在的 ID 一样缓存为空值。
   - `ArticleApi.getBriefs`、`UserApi.getBriefs` 走 `getAll`。`findState`、各列表查询不走缓存。
-  - 编辑、发布、删除都调用 `ArticleService.evictCache`，同时删除详情和摘要；`UserServiceImpl.updateProfile` 删除用户摘要。
-  - 消费者 `ArticleCacheEvictListener` 消费 `article.cache-evict`（绑定 `article.updated`、`article.deleted`），再调用一次 `evictCache`。发布不做第二次删除。事件经 Outbox 一定会投递，但消费重试耗尽后进入死信队列，这时第二次删除不会执行。删除本身幂等，所以不加 `@IdempotentConsumer`。
-  - `ArticleCacheConfig` 注册 `articleBloomFilter`（`bf:article`）与两个缓存。`ArticleServiceImpl.create` 在写库的事务里加入 ID，事务回滚只会留下一个误判。`ArticleBloomFilterLoader`（`SmartInitializingSingleton`）启动时按 `ArticleService.listIdsAfter` 每批 1000 个 ID 重建，包括草稿，不包括已删除的文章。
+  - 编辑、发布、删除都调用 `ArticleCache.evict`，同时删除详情和摘要；`UserServiceImpl.updateProfile` 删除用户摘要。
+  - 消费者 `ArticleCacheEvictListener` 消费 `article.cache-evict`（绑定 `article.updated`、`article.deleted`），再调用一次 `ArticleCache.evict`。发布不做第二次删除。事件经 Outbox 一定会投递，但消费重试耗尽后进入死信队列，这时第二次删除不会执行。删除本身幂等，所以不加 `@IdempotentConsumer`。
+  - `ArticleServiceImpl.create` 在写库的事务里调用 `ArticleCache.added`，事务回滚只会留下一个误判。`ArticleCache` 实现 `SmartInitializingSingleton`，启动时按 `ArticleService.listIdsAfter` 每批 1000 个 ID 重建布隆过滤器，包括草稿，不包括已删除的文章；`ArticleService` 依赖 `ArticleCache`，所以经 `ObjectProvider` 在重建时才取。
 - **Cache-Aside 残留的竞态**：读请求未命中，从数据库读到旧值后停顿；这期间写请求更新数据库并删除缓存；读请求随后把旧值回填。旧值最多保留到 TTL 过期，即 30–35 分钟。只有读库比"写库加删缓存"还慢时才会出现，窗口极小。经 MQ 的第二次删除能覆盖回填发生在它之前的情况。发布没有第二次删除，所以残留时间以 TTL 为上限。这段说明也写在 `TwoLevelCache` 的类注释里。
 - **测试**：
   - 编辑、发布、删除相关的测试先读一次详情，把它写进缓存，再断言写操作后详情立即更新。另外断言改昵称后详情里的作者昵称更新、编辑后收藏列表里的标题更新、不存在的 ID 连续访问都返回 404。文章创建后能读到详情，依赖创建时加入了过滤器。

@@ -12,6 +12,8 @@
 - **搜索**：按关键词搜索文章，支持分类、标签筛选
 - **热榜**：按互动数据和发布时间定期计算
 
+完整的需求与业务规则见[项目规格](.scratch/code-nest/spec.md)的 User Stories 与 Out of Scope 两节。
+
 ## 技术栈
 
 | 类别       | 技术                            |
@@ -32,6 +34,8 @@
 - **缓存**：Caffeine 与 Redis 两级缓存，写后删除缓存并通过 Pub/Sub 通知各实例清理本地缓存；用布隆过滤器、空值缓存和随机 TTL 应对穿透和雪崩。
 - **消息可靠性**：事务内写 Outbox、提交后发送，失败由定时任务补发；消费端按消息 ID 幂等，多次重试失败后进入死信队列。
 - **其他**：基于 Redis 的滑动窗口限流、定时计算的热榜、异步生成的通知。
+
+模块协作与关键链路见[架构总览](docs/architecture.md)，表、Redis key、MQ 队列与 ES 索引见[存储与消息清单](docs/data.md)。
 
 ## 项目结构
 
@@ -61,7 +65,7 @@ code-nest
 ├── code-nest-app                    # 启动类、配置与集成测试
 ├── code-nest-loadtest               # 造数程序、k6 脚本与压测结果
 ├── docker/elasticsearch             # 带 IK 分词插件的 ES 镜像
-├── docs                             # 文档：压测报告、架构决策记录等
+├── docs                             # 文档：架构总览、存储与消息清单、压测报告、架构决策记录
 ├── compose.yaml                     # 本地开发用的中间件
 ├── compose.loadtest.yaml            # 压测环境：2 个应用实例、Nginx 与 k6
 └── Dockerfile                       # 应用镜像

@@ -41,26 +41,26 @@ management:
 counter:
   # sync-db：在调用方事务里直接更新计数表（基线）
   # redis-async：计数经 Outbox 投递，在 Redis 里原子累加，每 5 秒批量落回计数表
-  mode: sync-db
+  mode: redis-async
 
 feed:
   # pull：读取时查出关注列表，对这些作者做一次 IN 查询（基线）
   # push-pull：普通作者发文推送到粉丝的收件箱，大 V 的文章读取时从其发件箱拉取
-  mode: pull
+  mode: push-pull
   # 粉丝数不低于它的作者是大 V，发文不推送
   big-author-threshold: 5000
 
 search:
   # mysql-like：LIKE '%kw%' 匹配标题、摘要、正文，按发布时间倒序（基线）
   # es：IK 分词、相关度排序、标签加权与高亮；文章经 MQ 同步到 ES，启动时别名不存在就建索引并全量导入
-  mode: mysql-like
+  mode: es
 
 cache:
   # none：直接查数据库（基线）
   # redis：文章详情、用户与文章的批量摘要经 Redis 缓存，写库提交后删除缓存，文章编辑、删除后经 MQ 再删一次
   # two-level：在 redis 档基础上，文章详情多一级 Caffeine 本地缓存，删除缓存时经 Pub/Sub 广播失效，
   #            布隆过滤器 bf:article 拦截不存在的文章 ID
-  mode: none
+  mode: two-level
 
 hot:
   # 热度 = (like·点赞 + favorite·收藏 + comment·评论 + view·浏览) / (发布小时数 + 2)^gravity

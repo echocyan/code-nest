@@ -93,14 +93,14 @@ com.echocyan.codenest.article
 
 ## 配置
 
-主要的四个开关分别对应四个优化场景，默认都是基线实现，可以在 `application.yaml` 中修改，也可以用同名环境变量覆盖（如 `COUNTER_MODE=redis-async`）：
+四个开关分别对应四个优化场景，默认都是优化后的实现，切到基线实现可用于对比。可以在 `application.yaml` 中修改，也可以用同名环境变量覆盖（如 `COUNTER_MODE=sync-db`）：
 
-| 配置项         | 说明                                         | 可选值                               |
-|----------------|----------------------------------------------|--------------------------------------|
-| `counter.mode` | 点赞、收藏、浏览等计数的更新方式             | `sync-db`（默认）、`redis-async`     |
-| `feed.mode`    | 关注 Feed 的读取方式                         | `pull`（默认）、`push-pull`          |
-| `search.mode`  | 文章搜索的实现                               | `mysql-like`（默认）、`es`           |
-| `cache.mode`   | 文章详情、用户与文章摘要的缓存方式           | `none`（默认）、`redis`、`two-level` |
+| 配置项         | 说明                               | 可选值                                       |
+|----------------|------------------------------------|----------------------------------------------|
+| `counter.mode` | 点赞、收藏、浏览等计数的更新方式   | `redis-async`（默认）、`sync-db`（基线）     |
+| `feed.mode`    | 关注 Feed 的读取方式               | `push-pull`（默认）、`pull`（基线）          |
+| `search.mode`  | 文章搜索的实现                     | `es`（默认）、`mysql-like`（基线）           |
+| `cache.mode`   | 文章详情、用户与文章摘要的缓存方式 | `two-level`（默认）、`redis`、`none`（基线） |
 
 其余配置（限流额度、热榜权重等）见 [application.yaml](code-nest-app/src/main/resources/application.yaml)。
 

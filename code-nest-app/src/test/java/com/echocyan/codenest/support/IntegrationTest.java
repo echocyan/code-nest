@@ -24,10 +24,13 @@ import static org.awaitility.Awaitility.await;
  * 通过 {@link #withToken} 以登录用户身份调用。
  * <p>
  * 所有测试都从本机发请求，默认关闭限流，避免互相占用额度；限流测试在子类上重新开启。
+ * <p>
+ * 模式开关固定在基线档，优化档由子类用 {@link RedisAsyncCounter} 等注解切换。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Import({TestcontainersConfiguration.class, SaTokenDaoRebinding.class})
-@TestPropertySource(properties = "rate-limit.enabled=false")
+@TestPropertySource(properties = {"rate-limit.enabled=false", "counter.mode=sync-db", "feed.mode=pull",
+        "search.mode=mysql-like", "cache.mode=none"})
 public abstract class IntegrationTest {
 
     protected static final String API = "/api/v1";

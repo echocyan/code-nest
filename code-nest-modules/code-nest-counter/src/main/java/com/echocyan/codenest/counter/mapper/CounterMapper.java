@@ -16,17 +16,6 @@ import java.util.Map;
 @Mapper
 public interface CounterMapper {
 
-    /**
-     * 计数行不存在时插入，存在时累加；结果不低于 0。
-     */
-    @Insert("""
-            INSERT INTO ${table} (${idColumn}, ${column}, created_at, updated_at)
-            VALUES (#{id}, GREATEST(#{delta}, 0), #{now}, #{now})
-            ON DUPLICATE KEY UPDATE ${column} = GREATEST(${column} + #{delta}, 0), updated_at = #{now}
-            """)
-    void increment(@Param("table") String table, @Param("idColumn") String idColumn, @Param("column") String column,
-                   @Param("id") long id, @Param("delta") long delta, @Param("now") LocalDateTime now);
-
     @Insert("""
             INSERT INTO ${table} (${idColumn}, ${column}, created_at, updated_at)
             VALUES (#{id}, #{value}, #{now}, #{now})

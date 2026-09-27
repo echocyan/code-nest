@@ -17,11 +17,6 @@ x-app: &app
     SPRING_RABBITMQ_USERNAME: codenest
     SPRING_RABBITMQ_PASSWORD: codenest
     SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
-    # 模式开关，启动前用同名环境变量覆盖
-    COUNTER_MODE: ${COUNTER_MODE:-sync-db}
-    FEED_MODE: ${FEED_MODE:-pull}
-    SEARCH_MODE: ${SEARCH_MODE:-mysql-like}
-    CACHE_MODE: ${CACHE_MODE:-none}
     RATELIMIT_ENABLED: "false"
     RATELIMIT_TRUSTEDPROXIES: 172.30.0.10
   healthcheck:

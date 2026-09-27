@@ -5,7 +5,6 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.event.CounterChangedEvent;
-import com.echocyan.codenest.support.RedisAsyncCounter;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
@@ -26,9 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 /**
- * redis-async 档的消费、落库与懒加载。落库每 5 秒一次，等待落库的断言留足时间。
+ * 计数的消费、落库与懒加载。落库每 5 秒一次，等待落库的断言留足时间。
  */
-@RedisAsyncCounter
 class RedisAsyncCounterTest extends ArticleTestSupport {
 
     private static final Duration FLUSHED = Duration.ofSeconds(20);

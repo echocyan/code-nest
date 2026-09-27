@@ -1,6 +1,5 @@
 package com.echocyan.codenest.article.api;
 
-import com.echocyan.codenest.common.result.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -26,23 +25,6 @@ public interface ArticleApi {
      * @return 以文章 ID 为 key；不存在的文章不出现在结果中
      */
     Map<Long, ArticleBrief> getBriefs(Collection<Long> articleIds);
-
-    /**
-     * 一批作者已发布的文章，按文章 ID 倒序（雪花 ID，约等于创建时间倒序），以文章 ID 作游标。
-     *
-     * @param cursor 只返回 ID 小于它的文章；为 null 时从最新的开始
-     * @param limit  最多返回的条数
-     */
-    List<ArticleBrief> listByAuthors(Collection<Long> authorIds, Long cursor, int limit);
-
-    /**
-     * 按关键词搜索已发布的文章：标题、摘要、正文任一包含关键词（{@code LIKE '%kw%'}，不分词）即命中，
-     * 按发布时间倒序，页码分页。关键词中的 {@code %}、{@code _} 按字面匹配。
-     *
-     * @param categoryId 为 null 时不按分类筛选
-     * @param tagId      为 null 时不按标签筛选
-     */
-    PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
 
     /**
      * 查询文章当前的完整内容与版本号，已删除的文章也会返回。

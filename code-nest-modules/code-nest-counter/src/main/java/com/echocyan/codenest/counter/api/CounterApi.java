@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * counter 模块对其他模块的门面，由 {@code counter.mode} 选择实现。计数最小为 0。
+ * counter 模块对其他模块的门面。计数最小为 0。
  */
 public interface CounterApi {
 

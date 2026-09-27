@@ -10,7 +10,7 @@ Label: wayfinder:map
 
 ## Notes
 
-- **用途**：求职简历上的 Java 后端项目，每个技术亮点都要能按 STAR 讲清，并用压测数据给出前后对比（R）。
+- **用途**：求职简历上的 Java 后端项目，每个技术亮点都要能按 STAR 讲清，并用压测数据说明效果（R）。
 - **分工**：全部代码由 Claude 编写，用户 review 与决策。
 - **技术栈**：Java 21、Maven、Spring Boot 4.1.1、MySQL、MyBatis-Plus、Redis、Sa-Token、RabbitMQ、Elasticsearch。
 - **压测镜像**：用户已同意使用 `grafana/k6`、`eclipse-temurin:21-jre`、`nginx`。
@@ -30,13 +30,13 @@ Label: wayfinder:map
 - [领域与数据模型](issues/03-domain-data-model.md)：分类单选、标签多选且均为系统预置；文章只有草稿和已发布两种状态；评论与回复同表；内容软删除、关系硬删除；只有文章能点赞；计数放在独立计数表，并拆出无依赖的 counter 模块以消除依赖环；不建外键；附完整表结构草案
 - [认证与鉴权方案](issues/04-auth.md)：只支持用户名加密码登录，密码用 BCrypt；token 以 `Authorization: Bearer <uuid>` 传递，有效期 7 天，允许多端登录；Session 只存用户 ID；不区分角色；默认要求登录，公开接口加 `@SaIgnore`；只有 Controller 通过 `AuthContext` 取当前用户
 - [消息可靠性底座](issues/05-mq-reliability.md)：跨模块副作用走 MQ；生产端用 Outbox 加 confirm，补发任务用 SKIP LOCKED 防止多实例重复；业务代码只调用 `publish(event)` 一个方法；消费端用 `@IdempotentConsumer` 和消费记录表做幂等；重试 3 次后进死信；只用一个 topic 交换机；事件是只带 ID 的轻量事件，放在 `api/event/`
-- [计数系统](issues/06-counter-system.md)：点赞关系同步写库，只对热点计数行做优化；各模块经 `CounterApi.increment`（走 Outbox）上报计数，counter 不依赖任何业务模块；Redis Hash 存计数，Lua 原子完成幂等去重、冷 key 判断和累加；每 5 秒 SPOP 待落库集合，把绝对值批量写入 MySQL；由掌握真实数据的模块每周对账；浏览量是近似计数，直接加 Redis；`sync-db` 与 `redis-async` 两种实现可切换，用于压测对比
-- [Feed 推拉结合](issues/07-feed.md)：普通作者推到粉丝收件箱，大 V 在读取时拉取；每个作者有发件箱（最近 100 篇）；收件箱 key 7 天过期，推送时跳过冷用户，用户回来时再重建；ZSet 的 score 直接用雪花 articleId，并作为分页游标；写入时尽量修正、读取时兜底过滤；`pull` 与 `push-pull` 两种实现可切换，用于压测对比
-- [搜索与数据同步](issues/08-search-sync.md)：通过 Outbox + MQ 同步，消费者回查文章最新状态；`article.version` 兼作 ES 外部版本号，防止旧数据覆盖新数据；索引走别名，可零停机重建；写入用 ik_max_word，查询用 ik_smart；作者昵称和计数不进 ES；最多翻 50 页；`mysql-like` 与 `es` 两种实现可切换，用于压测对比
-- [多级缓存与缓存治理](issues/09-multilevel-cache.md)：文章详情用 Caffeine+Redis 两级缓存，用户和文章摘要只用 Redis；业务代码只通过 `TwoLevelCache` 的 3 个方法访问缓存；提交后删缓存，再由 MQ 可靠地二次删除，本地缓存靠 Pub/Sub 广播失效；用 Redis 8 原生布隆过滤器加空值缓存防穿透；用 Caffeine 合并加载防击穿，不加分布式锁；TTL 加随机抖动防雪崩；`cache.mode` 三档可切换对比
+- [计数系统](issues/06-counter-system.md)：点赞关系同步写库，只对热点计数行做优化；各模块经 `CounterApi.increment`（走 Outbox）上报计数，counter 不依赖任何业务模块；Redis Hash 存计数，Lua 原子完成幂等去重、冷 key 判断和累加；每 5 秒 SPOP 待落库集合，把绝对值批量写入 MySQL；由掌握真实数据的模块每周对账；浏览量是近似计数，直接加 Redis
+- [Feed 推拉结合](issues/07-feed.md)：普通作者推到粉丝收件箱，大 V 在读取时拉取；每个作者有发件箱（最近 100 篇）；收件箱 key 7 天过期，推送时跳过冷用户，用户回来时再重建；ZSet 的 score 直接用雪花 articleId，并作为分页游标；写入时尽量修正、读取时兜底过滤
+- [搜索与数据同步](issues/08-search-sync.md)：通过 Outbox + MQ 同步，消费者回查文章最新状态；`article.version` 兼作 ES 外部版本号，防止旧数据覆盖新数据；索引走别名，可零停机重建；写入用 ik_max_word，查询用 ik_smart；作者昵称和计数不进 ES；最多翻 50 页
+- [多级缓存与缓存治理](issues/09-multilevel-cache.md)：文章详情用 Caffeine+Redis 两级缓存，用户和文章摘要只用 Redis；业务代码只通过 `TwoLevelCache` 的 3 个方法访问缓存；提交后删缓存，再由 MQ 可靠地二次删除，本地缓存靠 Pub/Sub 广播失效；用 Redis 8 原生布隆过滤器加空值缓存防穿透；用 Caffeine 合并加载防击穿，不加分布式锁；TTL 加随机抖动防雪崩
 - [热榜](issues/10-hot-list.md)：采用 Hacker News 式时间衰减公式，每 5 分钟由一个实例批量重算最近 7 天发布的文章，结果先写临时 ZSet，再用 RENAME 原子替换正式 ZSet，保留 Top 100；已删除的文章在读取时过滤；只有一个榜单
 - [限流防刷](issues/11-rate-limit.md)：用 Redis ZSet 加 Lua 实现滑动窗口日志，时间取 Redis `TIME`；已登录按用户、匿名按 IP 限流，只对可信代理解析 XFF；通过可重复的 `@RateLimit` 注解声明，由拦截器在 `SaInterceptor` 之后执行；超限返回 429 和 `Retry-After`；Redis 故障时放行；有总开关
-- [压测方案](issues/12-load-test.md)：k6，2 实例加 Nginx，每个容器限定 CPU 与内存；新增 loadtest 模块，用 JDBC 造 10 万级数据，派生数据走系统自带的重建路径生成；四组开关分别压测对比，每组 3 次取中位数，并采集服务端状态差值；结果按 STAR 写入 `docs/benchmark.md`；关注列表按 30% 规则实测后不加缓存
+- [压测方案](issues/12-load-test.md)：k6，2 实例加 Nginx，每个容器限定 CPU 与内存；新增 loadtest 模块，用 JDBC 造 10 万级数据，派生数据走系统自带的重建路径生成；四个场景各跑 3 次取中位数，并采集服务端状态差值；结果按 STAR 写入 `docs/benchmark.md`；关注列表按 30% 规则实测后不加缓存
 - [通知模块](issues/13-notification.md)：点赞、评论、回复、关注这四类事件产生通知，自己触发的不通知；不做聚合，同一动作靠 `dedup_key` 唯一键去重，防止反复操作刷屏；取消操作不撤回通知；表里只存 ID，展示信息读取时组装；未读数直接 COUNT，最多显示 99+；列表用游标分页
 - [API 设计规范](issues/14-api-conventions.md)：所有接口挂在 `/api/v1` 下；开关型动作用幂等的 PUT/DELETE；时间用 ISO-8601，ID 用字符串，枚举用大写字符串；模块编号同时决定错误码号段和 Flyway 前缀；给出 39 个业务接口和 2 个管理端点的完整清单，评估过删减方案后全部保留
 

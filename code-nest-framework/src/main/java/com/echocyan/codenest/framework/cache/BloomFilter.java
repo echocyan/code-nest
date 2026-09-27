@@ -12,8 +12,7 @@ import java.util.function.Function;
  * 以 ID 为元素的布隆过滤器，用 Redis 8 原生的 {@code BF.*} 命令，key 为 {@code bf:<name>}。
  * 由 {@link TwoLevelCaches#bloomFilter} 创建，交给 {@link TwoLevelCaches#createTwoLevel} 拦截一定不存在的 ID。
  *
- * <p>各档都要维护：对象创建时 {@link #add}，应用启动时 {@link #rebuildIfAbsent}。只在 two-level 档读取，
- * 但只在这一档维护的话，从别的档切过来时过滤器里会缺少期间创建的 ID，把它们误判为不存在。
+ * <p>使用方负责维护：对象创建时 {@link #add}，应用启动时 {@link #rebuildIfAbsent}。
  *
  * <p><b>导入完成标记：</b>全量导入完成后才写入 {@code bf:<name>:ready}。过滤器或标记任一不存在时，查询一律视为
  * "可能存在"，也就是不拦截，下次启动时重建。所以导入期间不会误判，导入中断后重启会重新导入；

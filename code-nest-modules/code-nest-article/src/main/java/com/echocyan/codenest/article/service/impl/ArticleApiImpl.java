@@ -7,7 +7,6 @@ import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.ArticleContent;
 import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.service.*;
-import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -43,19 +42,6 @@ class ArticleApiImpl implements ArticleApi {
         return briefCache.getAll(articleIds, ids -> articleService.listByIds(ids).stream()
                 .map(articleConverter::toBrief)
                 .collect(Collectors.toMap(ArticleBrief::id, Function.identity())));
-    }
-
-    @Override
-    public List<ArticleBrief> listByAuthors(Collection<Long> authorIds, Long cursor, int limit) {
-        return articleService.listPublishedByAuthors(authorIds, cursor, limit).stream()
-                .map(articleConverter::toBrief)
-                .toList();
-    }
-
-    @Override
-    public PageResult<ArticleBrief> searchPublished(String keyword, Long categoryId, Long tagId, long page,
-                                                    long size) {
-        return articleService.searchPublished(keyword, categoryId, tagId, page, size).map(articleConverter::toBrief);
     }
 
     @Override

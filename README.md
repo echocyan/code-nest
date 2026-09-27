@@ -93,16 +93,7 @@ com.echocyan.codenest.article
 
 ## 配置
 
-四个开关分别对应四个优化场景，默认都是优化后的实现，切到基线实现可用于对比。可以在 `application.yaml` 中修改，也可以用同名环境变量覆盖（如 `COUNTER_MODE=sync-db`）：
-
-| 配置项         | 说明                               | 可选值                                       |
-|----------------|------------------------------------|----------------------------------------------|
-| `counter.mode` | 点赞、收藏、浏览等计数的更新方式   | `redis-async`（默认）、`sync-db`（基线）     |
-| `feed.mode`    | 关注 Feed 的读取方式               | `push-pull`（默认）、`pull`（基线）          |
-| `search.mode`  | 文章搜索的实现                     | `es`（默认）、`mysql-like`（基线）           |
-| `cache.mode`   | 文章详情、用户与文章摘要的缓存方式 | `two-level`（默认）、`redis`、`none`（基线） |
-
-其余配置（限流额度、热榜权重等）见 [application.yaml](code-nest-app/src/main/resources/application.yaml)。
+限流额度、热榜权重、大 V 阈值等配置见 [application.yaml](code-nest-app/src/main/resources/application.yaml)。
 
 ## 测试
 
@@ -120,14 +111,3 @@ com.echocyan.codenest.article
 ```
 
 详细说明见 [code-nest-loadtest/README.md](code-nest-loadtest/README.md)。
-
-## 压测结果
-
-| 场景 | 基线 → 优化                       | 结果                                  |
-|------|-----------------------------------|---------------------------------------|
-| 计数 | 事务内更新计数表 → Redis 异步计数 | QPS 256 → 553，行锁等待减少 96%       |
-| Feed | 拉模式 → 推拉结合                 | QPS 605 → 791，P99 1670ms → 1173ms    |
-| 搜索 | `LIKE` 模糊匹配 → Elasticsearch   | QPS 1.7 → 136，P99 52s → 0.7s         |
-| 缓存 | 无缓存 → Redis 缓存               | QPS 1328 → 3882，MySQL 查询减少 99.5% |
-
-测试环境为单机，2 个应用实例加 Nginx，各容器限制了 CPU 和内存，数据量为 10 万用户、10 万篇文章、500 万条关注关系。数据只用于同一环境下的前后对比。完整的方案说明、瓶颈分析和已知问题见 [压测报告](docs/benchmark.md)。

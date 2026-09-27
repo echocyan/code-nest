@@ -71,11 +71,6 @@ public interface ArticleService extends IService<Article> {
     PageResult<ArticleItemVO> pageLatest(Long categoryId, Long tagId, long page, long size);
 
     /**
-     * 按关键词搜索已发布的文章，见 {@link com.echocyan.codenest.article.api.ArticleApi#searchPublished}。
-     */
-    PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size);
-
-    /**
      * 按 ID 查询，已删除的文章也返回。
      *
      * @return 文章从未存在时为 null
@@ -112,13 +107,6 @@ public interface ArticleService extends IService<Article> {
      * 按传入顺序补全列表项，已删除和未发布的文章被滤掉。
      */
     List<ArticleItemVO> listPublishedItems(List<Long> ids);
-
-    /**
-     * 一批作者已发布的文章，按文章 ID 倒序。
-     *
-     * @param cursor 只返回 ID 小于它的文章；为 null 时从最新的开始
-     */
-    List<Article> listPublishedByAuthors(Collection<Long> authorIds, Long cursor, int limit);
 
     /**
      * 某位作者已发布的文章，按文章 ID 倒序，游标分页。

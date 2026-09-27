@@ -19,9 +19,6 @@ step() {
     echo "== $1（已用 ${SECONDS}s）"
 }
 
-# es 档启动：首次启动建好空的 ES 索引，之后由 search-rebuild 全量导入
-export SEARCH_MODE=es
-
 step "启动压测环境"
 compose up -d --build --wait
 

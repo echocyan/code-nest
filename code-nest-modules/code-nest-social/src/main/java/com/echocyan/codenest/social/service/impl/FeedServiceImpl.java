@@ -6,7 +6,6 @@ import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
-import com.echocyan.codenest.social.service.FeedReader;
 import com.echocyan.codenest.social.service.FeedService;
 import com.echocyan.codenest.social.service.FollowService;
 import com.echocyan.codenest.social.vo.ArticleCountsVO;
@@ -28,13 +27,13 @@ import java.util.Map;
 class FeedServiceImpl implements FeedService {
 
     private final FollowService followService;
-    private final FeedReader feedReader;
+    private final PushPullFeedReader feedReader;
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final Timer readTimer;
     private final Timer followListTimer;
 
-    FeedServiceImpl(FollowService followService, FeedReader feedReader, UserApi userApi, CounterApi counterApi,
+    FeedServiceImpl(FollowService followService, PushPullFeedReader feedReader, UserApi userApi, CounterApi counterApi,
                     MeterRegistry meterRegistry) {
         this.followService = followService;
         this.feedReader = feedReader;

@@ -12,7 +12,6 @@ import com.echocyan.codenest.framework.lock.RedisLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -41,7 +40,6 @@ import java.util.function.Consumer;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "search.mode", havingValue = "es")
 @RequiredArgsConstructor
 public class ArticleIndex implements SmartInitializingSingleton {
 

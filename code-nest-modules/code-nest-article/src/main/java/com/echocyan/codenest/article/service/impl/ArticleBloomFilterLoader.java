@@ -7,8 +7,8 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.stereotype.Component;
 
 /**
- * 启动时如果文章的布隆过滤器不存在（首次部署或 Redis 数据丢失），按全部未删除文章（含草稿）的 ID 重建。
- * 各档都执行，见 {@link BloomFilter}。
+ * 启动时如果文章的布隆过滤器不存在（首次部署或 Redis 数据丢失），按全部未删除文章（含草稿）的 ID 重建，
+ * 见 {@link BloomFilter}。
  */
 @Component
 @RequiredArgsConstructor

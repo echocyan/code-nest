@@ -6,16 +6,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation;
 import org.springframework.boot.actuate.endpoint.web.WebEndpointResponse;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 /**
- * 手动触发搜索索引重建：{@code POST /actuator/search-rebuild}，只在管理端口上提供，只在 es 档装配。
+ * 手动触发搜索索引重建：{@code POST /actuator/search-rebuild}，只在管理端口上提供。
  */
 @Component
 @Endpoint(id = "search-rebuild")
-@ConditionalOnProperty(name = "search.mode", havingValue = "es")
 @RequiredArgsConstructor
 class SearchRebuildEndpoint {
 

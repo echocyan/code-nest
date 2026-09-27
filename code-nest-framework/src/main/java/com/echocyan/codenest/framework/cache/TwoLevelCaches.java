@@ -1,6 +1,5 @@
 package com.echocyan.codenest.framework.cache;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -14,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 按 {@code cache.mode} 创建 {@link TwoLevelCache}。每个缓存在所属模块里注册为一个 Bean：
+ * 创建 {@link TwoLevelCache}。每个缓存在所属模块里注册为一个 Bean：
  * <pre>{@code
  * @Bean
  * TwoLevelCache<UserBrief> userBriefCache(TwoLevelCaches caches) {
@@ -22,7 +21,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * }
  * }</pre>
  *
- * <p>two-level 档下订阅频道 {@value #INVALIDATE_CHANNEL}（见 {@link CacheInvalidationConfig}），
+ * <p>订阅频道 {@value #INVALIDATE_CHANNEL}（见 {@link CacheInvalidationConfig}），
  * 收到某个 Redis key 的失效广播时清除本实例对应的本地缓存。
  */
 @Component
@@ -33,7 +32,6 @@ public class TwoLevelCaches implements MessageListener {
      */
     static final String INVALIDATE_CHANNEL = "cache:invalidate";
 
-    private final CacheMode mode;
     private final StringRedisTemplate redis;
     private final JsonMapper jsonMapper;
 
@@ -42,31 +40,30 @@ public class TwoLevelCaches implements MessageListener {
      */
     private final Map<String, List<TwoLevelCache<?>>> localCaches = new ConcurrentHashMap<>();
 
-    public TwoLevelCaches(@Value("${cache.mode}") CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper) {
-        this.mode = mode;
+    public TwoLevelCaches(StringRedisTemplate redis, JsonMapper jsonMapper) {
         this.redis = redis;
         this.jsonMapper = jsonMapper;
     }
 
     /**
-     * 创建只用 Redis 的缓存，two-level 档下也不经过本地缓存。
+     * 创建只用 Redis 的缓存，不经过本地缓存。
      *
      * @param name 缓存名，格式为 {@code <模块>:<用途>}，同时是 Redis key 的前缀，全局唯一
      * @param type 缓存值的类型，以 JSON 存入 Redis
      */
     public <V> TwoLevelCache<V> create(String name, Class<V> type) {
-        return new TwoLevelCache<>(name, type, mode, redis, jsonMapper, false, null);
+        return new TwoLevelCache<>(name, type, redis, jsonMapper, false, null);
     }
 
     /**
-     * 创建两级缓存：two-level 档下先读本地缓存，本地未命中时先查布隆过滤器，再读 Redis；其他档与 {@link #create} 相同。
+     * 创建两级缓存：先读本地缓存，本地未命中时先查布隆过滤器，再读 Redis。
      *
      * @param name        同 {@link #create}
      * @param type        同 {@link #create}
      * @param bloomFilter 判定"一定不存在"的 ID 直接返回 null，不查 Redis 和数据库
      */
     public <V> TwoLevelCache<V> createTwoLevel(String name, Class<V> type, BloomFilter bloomFilter) {
-        TwoLevelCache<V> cache = new TwoLevelCache<>(name, type, mode, redis, jsonMapper, true, bloomFilter);
+        TwoLevelCache<V> cache = new TwoLevelCache<>(name, type, redis, jsonMapper, true, bloomFilter);
         localCaches.computeIfAbsent(TwoLevelCache.keyPrefixOf(name), prefix -> new CopyOnWriteArrayList<>())
                 .add(cache);
         return cache;

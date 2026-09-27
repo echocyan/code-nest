@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 
 /**
- * 三张计数表的读写，两种实现共用。
+ * 三张计数表的读写。
  *
  * <p>表名、列名按命名约定从枚举推导：{@code ARTICLE} → {@code article_stat.article_id}，
  * {@code ARTICLE_LIKE} → 字段 {@code like}、列 {@code like_count}。
@@ -50,14 +50,6 @@ class CounterTables {
 
     private static String column(CounterMetric metric) {
         return field(metric) + "_count";
-    }
-
-    /**
-     * 计数行不存在时插入，存在时累加；结果不低于 0。
-     */
-    void increment(CounterMetric metric, long targetId, long delta) {
-        CounterTarget target = metric.target();
-        counterMapper.increment(table(target), idColumn(target), column(metric), targetId, delta, DateTimes.now());
     }
 
     void reset(CounterMetric metric, long targetId, long value) {

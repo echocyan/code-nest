@@ -4,7 +4,6 @@ import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.SearchErrorCode;
 import com.echocyan.codenest.search.dto.SearchSort;
-import com.echocyan.codenest.search.service.ArticleSearcher;
 import com.echocyan.codenest.search.service.SearchService;
 import com.echocyan.codenest.search.vo.SearchArticleVO;
 import com.echocyan.codenest.user.api.UserApi;
@@ -23,7 +22,7 @@ class SearchServiceImpl implements SearchService {
      */
     private static final long MAX_WINDOW = 1000;
 
-    private final ArticleSearcher articleSearcher;
+    private final EsArticleSearcher articleSearcher;
     private final UserApi userApi;
 
     @Override
@@ -33,7 +32,7 @@ class SearchServiceImpl implements SearchService {
         if (page > MAX_WINDOW / size) {
             throw new BizException(SearchErrorCode.PAGE_TOO_DEEP);
         }
-        PageResult<ArticleSearcher.Hit> hits = articleSearcher.search(keyword.strip(), categoryId, tagId, sort, page,
+        PageResult<EsArticleSearcher.Match> hits = articleSearcher.search(keyword.strip(), categoryId, tagId, sort, page,
                 size);
         Map<Long, UserBrief> authors = userApi.getBriefs(
                 hits.list().stream().map(hit -> hit.article().authorId()).distinct().toList());

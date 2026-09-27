@@ -19,13 +19,13 @@ import java.util.function.Function;
 
 /**
  * 以 ID 为 key 的读缓存，采用 Cache-Aside：读取未命中时执行加载函数并回填，数据库更新后由写方调用 {@link #evict}。
- * 由 {@link TwoLevelCaches} 按 {@code cache.mode} 创建，{@code none} 档下每次都执行加载函数，{@link #evict} 什么也不做。
+ * 由 {@link TwoLevelCaches} 创建。
  *
  * <p>Redis 中的 key 为 {@code cache:<name>:<id>}，值是 JSON，TTL 为 30 分钟加 0–5 分钟的随机抖动，
  * 避免同一批写入的 key 同时过期。加载结果为空时缓存一个 JSON {@code null}，TTL 60 秒，
  * 反复查询不存在的 ID 不会反复打到数据库。
  *
- * <p><b>两级缓存：</b>经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存在 two-level 档下多一级 Caffeine 本地缓存，
+ * <p><b>两级缓存：</b>经 {@link TwoLevelCaches#createTwoLevel} 创建的缓存多一级 Caffeine 本地缓存，
  * 最多 10000 条，写入 60 秒后过期。{@link #get} 的读取顺序是本地缓存 → 布隆过滤器 → Redis → 加载函数；
  * 布隆过滤器判定一定不存在的 ID 直接返回 null。本地缓存未命中时，同一实例上对同一个 ID 的并发请求只加载一次，
  * 防止热点 key 过期时击穿到数据库。{@link #getAll} 同样先读本地缓存，但不经过布隆过滤器。
@@ -64,12 +64,11 @@ public class TwoLevelCache<V> {
 
     private final String keyPrefix;
     private final Class<V> type;
-    private final CacheMode mode;
     private final StringRedisTemplate redis;
     private final JsonMapper jsonMapper;
 
     /**
-     * 本地缓存，只在 two-level 档的两级缓存中存在，否则为 null。
+     * 本地缓存，只在两级缓存中存在，否则为 null。
      */
     private final Cache<Long, V> local;
 
@@ -78,14 +77,13 @@ public class TwoLevelCache<V> {
      */
     private final BloomFilter bloomFilter;
 
-    TwoLevelCache(String name, Class<V> type, CacheMode mode, StringRedisTemplate redis, JsonMapper jsonMapper,
-                  boolean twoLevel, BloomFilter bloomFilter) {
+    TwoLevelCache(String name, Class<V> type, StringRedisTemplate redis, JsonMapper jsonMapper, boolean twoLevel,
+                  BloomFilter bloomFilter) {
         this.keyPrefix = keyPrefixOf(name);
         this.type = type;
-        this.mode = mode;
         this.redis = redis;
         this.jsonMapper = jsonMapper;
-        this.local = twoLevel && mode == CacheMode.TWO_LEVEL
+        this.local = twoLevel
                 ? Caffeine.newBuilder().maximumSize(LOCAL_MAXIMUM_SIZE).expireAfterWrite(LOCAL_TTL).build()
                 : null;
         this.bloomFilter = bloomFilter;
@@ -109,9 +107,6 @@ public class TwoLevelCache<V> {
      * @return 不存在时为 null
      */
     public V get(long id, Function<Long, V> loader) {
-        if (mode == CacheMode.NONE) {
-            return loader.apply(id);
-        }
         if (local == null) {
             return getFromRedis(id, loader);
         }
@@ -139,9 +134,6 @@ public class TwoLevelCache<V> {
     public Map<Long, V> getAll(Collection<Long> ids, Function<Collection<Long>, Map<Long, V>> batchLoader) {
         if (ids.isEmpty()) {
             return Map.of();
-        }
-        if (mode == CacheMode.NONE) {
-            return batchLoader.apply(ids);
         }
         if (local == null) {
             return getAllFromRedis(ids, batchLoader);
@@ -183,9 +175,6 @@ public class TwoLevelCache<V> {
      * 删除缓存，有本地缓存时同时广播失效。有活跃事务时推迟到提交后执行，见类注释。
      */
     public void evict(long id) {
-        if (mode == CacheMode.NONE) {
-            return;
-        }
         String key = key(id);
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

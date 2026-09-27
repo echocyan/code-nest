@@ -2,7 +2,7 @@ package com.echocyan.codenest.social.service;
 
 /**
  * 推拉结合 Feed 的写入侧：发文时推送，关注、取关、删文时修正发件箱与收件箱。各操作重复执行结果不变，
- * 修正不到的残留由读 Feed 时过滤。与 {@code feed.mode} 无关，两档都维护，切换档位时不需要预热。
+ * 修正不到的残留由读 Feed 时过滤。
  */
 public interface FeedFanoutService {
 

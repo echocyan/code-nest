@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 各测试类共用一个数据库，每个测试用一个其他测试不用的标签隔离数据。本类在每个缓存档下各跑一遍，
- * 同一标签下可能已有另一档写入的文章，所以按发布时间倒序只断言开头的几篇，总数以测试前为基准。
+ * 各测试类共用一个数据库，每个测试用一个其他测试不用的标签隔离数据。不假设标签下没有别的文章，
+ * 所以按发布时间倒序只断言开头的几篇，总数以测试前为基准。
  */
 class ArticleListApiTest extends ArticleTestSupport {
 

@@ -49,10 +49,7 @@ Blocked by: 03, 05
      3. 原子切换别名。
      4. 追补：把 `updated_at` 晚于重建开始时间的文章再写入一次。依赖外部版本号，重复写入不会出错。
      5. 删除旧索引。
-6. **客户端与基线**：
-   - 客户端直接用官方的 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`），不用 Spring Data ES 的 Repository。
-   - 配置项 `search.mode` 可以在 `mysql-like`（基线，`LIKE '%kw%'` 全表扫描，没有分词也没有相关度排序）和 `es` 之间切换。
-   - 压测时在 10 万篇文章的数据量下，对比两种模式的延迟和结果质量。
+6. **客户端**：直接用官方的 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`），不用 Spring Data ES 的 Repository。
 
 **这张票对其他模块的接口要求**：
 - article 模块发布 `article.updated` 事件。

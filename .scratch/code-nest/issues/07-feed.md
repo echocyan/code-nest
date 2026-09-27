@@ -40,9 +40,9 @@ Blocked by: 03
    6. 用 `ArticleApi` 批量获取文章摘要，过滤掉已删除或非发布状态的文章，以及作者已不在关注列表中的文章（取关后的残留）。过滤后一页可能不足 size 条，这是允许的。
    7. 通过 `UserApi` 和 `CounterApi` 补全作者信息和计数。
 
-   关注列表不缓存：走覆盖索引，按[压测方案](12-load-test.md)的 30% 规则实测，它占 push-pull 下 Feed 读取耗时不到 30%。
+   关注列表不缓存：走覆盖索引，按[压测方案](12-load-test.md)的 30% 规则实测，它占 Feed 读取耗时不到 30%。
 6. **推送**：
-   - 消费者 `social.feed-push` 订阅 `article.published`，先把文章写入作者的发件箱。推送与下面的修正都与 `feed.mode` 无关，两档都维护，切换档位时不需要预热。
+   - 消费者 `social.feed-push` 订阅 `article.published`，先把文章写入作者的发件箱。
    - 如果作者是大 V，到此结束。
    - 如果作者不是大 V，按 `IDX(author_id, follower_id)` 每页取 1000 个粉丝，用 pipeline 对收件箱 key 存在的粉丝执行 `ZADD` 并裁剪到上限。
    - 普通作者的粉丝数低于阈值，所以不需要拆成子任务。
@@ -53,10 +53,5 @@ Blocked by: 03
    - **取关**：消费 `follow.deleted`，先更新对方在 `feed:followers` 里的粉丝数，再按对方发件箱里的文章从我的收件箱中尽量 `ZREM`。更早的、不在发件箱里的残留，由读取时过滤。
    - **删文**：消费 `article.deleted`，把文章从作者的发件箱中移除。粉丝收件箱里的不逐个删除，读取时过滤。
    - **编辑**：不需要处理。Feed 只存 ID，文章内容在读取时实时查询。
-8. **基线对比**：配置项 `feed.mode` 切换两种实现：
-   - `pull`：基线，调用 `ArticleApi.listByAuthors(authorIds, cursor, limit)`，由 article 模块执行 `author_id IN (…) AND status = 1 ORDER BY id DESC LIMIT n`。
-   - `push-pull`：优化后的推拉结合。
 
-   压测场景：一个关注了几百个作者的用户读 Feed，比较两种模式的 P99；再观察大 V 发文时的写扩散量。
-
-**这张票对其他模块提出的接口要求**：article 模块发布 `article.published` 和 `article.deleted` 事件，并提供 `ArticleApi.listByAuthors` 和批量查询文章摘要的接口；social 模块发布 `follow.created` 和 `follow.deleted` 事件。[搜索与数据同步](08-search-sync.md)另外要求 article 模块发布 `article.updated` 事件，并提供按 id 游标遍历已发布文章的接口。
+**这张票对其他模块提出的接口要求**：article 模块发布 `article.published` 和 `article.deleted` 事件，并提供批量查询文章摘要的接口；social 模块发布 `follow.created` 和 `follow.deleted` 事件。[搜索与数据同步](08-search-sync.md)另外要求 article 模块发布 `article.updated` 事件，并提供按 id 游标遍历已发布文章的接口。

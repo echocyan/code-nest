@@ -13,8 +13,7 @@
 
 - 构建与测试都在同一次 reactor 构建里带上依赖模块，例如 `./mvnw -pl code-nest-app -am test -Dtest=FollowApiTest -Dsurefire.failIfNoSpecifiedTests=false`。
 - 所有测试类共用同一组容器和同一个库（MySQL、Redis、RabbitMQ、ES），测试数据用唯一的用户、标签等隔离，不能假设表或索引为空，也不要清库。
-- 模式开关的测试矩阵：每档一个 `@TestPropertySource` 注解（参照 `support/RedisAsyncCounter`），给受该开关影响的已有 HTTP 测试类各加一个继承它的子类。
-- 不同档的 Spring 上下文会同时存活并共用同一个 RabbitMQ：一个上下文发出的消息可能被另一个上下文的消费者消费。按档装配的消费者、本地缓存失效等逻辑，写测试时要考虑这一点。
+- 配置不同的 Spring 上下文（如开启限流）会同时存活并共用同一个 RabbitMQ：一个上下文发出的消息可能被另一个上下文的消费者消费，写测试时要考虑这一点。
 - Do not backfill tests after implementing business code.
 - Tautological tests considered harmful.
 - Change-detector tests considered harmful.

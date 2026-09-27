@@ -1,7 +1,6 @@
 package com.echocyan.codenest.framework.cache;
 
 import com.echocyan.codenest.support.IntegrationTest;
-import com.echocyan.codenest.support.TwoLevelCacheMode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -24,10 +23,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 /**
- * two-level 档的本地缓存失效广播、同 key 合并加载与布隆过滤器。单个应用上下文无法模拟两个实例，
+ * 两级缓存的本地缓存失效广播、同 key 合并加载与布隆过滤器。单个应用上下文无法模拟两个实例，
  * 这里另建一个 {@link TwoLevelCaches} 和它自己的订阅代表另一个实例，两边的本地缓存只经 Redis Pub/Sub 互相通知。
  */
-@TwoLevelCacheMode
 class TwoLevelCacheTest extends IntegrationTest {
 
     private static final long ID = 1;
@@ -66,7 +64,7 @@ class TwoLevelCacheTest extends IntegrationTest {
     void evictOnOneInstanceInvalidatesLocalCacheOfTheOther() throws Exception {
         String name = uniqueName();
         BloomFilter bloomFilter = bloomFilterOf(name, ID);
-        TwoLevelCaches otherInstance = new TwoLevelCaches(CacheMode.TWO_LEVEL, redis, jsonMapper);
+        TwoLevelCaches otherInstance = new TwoLevelCaches(redis, jsonMapper);
         RedisMessageListenerContainer otherSubscription = new CacheInvalidationConfig()
                 .cacheInvalidationListenerContainer(connectionFactory, otherInstance);
         otherSubscription.afterPropertiesSet();

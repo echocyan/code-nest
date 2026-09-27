@@ -5,7 +5,6 @@ import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,7 +18,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * redis-async 档的 Redis 计数存储，MySQL 计数表是它的持久副本。
+ * Redis 计数存储，MySQL 计数表是它的持久副本。
  *
  * <p>key 设计：
  * <ul>
@@ -32,7 +31,6 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(name = "counter.mode", havingValue = "redis-async")
 @RequiredArgsConstructor
 class RedisCounterStore {
 

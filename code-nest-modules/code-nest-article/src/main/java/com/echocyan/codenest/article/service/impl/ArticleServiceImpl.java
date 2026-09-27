@@ -217,20 +217,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public PageResult<Article> searchPublished(String keyword, Long categoryId, Long tagId, long page, long size) {
-        // 转义 LIKE 通配符，MySQL 默认的转义字符是反斜杠
-        String escaped = keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        Page<Article> result = latestPublished(categoryId, tagId)
-                .and(match -> match
-                        .like(Article::getTitle, escaped)
-                        .or().like(Article::getSummary, escaped)
-                        .or().apply("id IN (SELECT article_id FROM article_content WHERE content LIKE {0})",
-                                "%" + escaped + "%"))
-                .page(new Page<>(page, size));
-        return new PageResult<>(result.getRecords(), result.getTotal(), page, size);
-    }
-
-    @Override
     public Article getIncludingDeleted(long id) {
         return baseMapper.selectByIdIncludingDeleted(id);
     }
@@ -284,22 +270,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public List<Article> listPublishedByAuthors(Collection<Long> authorIds, Long cursor, int limit) {
-        if (authorIds.isEmpty()) {
-            return List.of();
-        }
-        return lambdaQuery()
-                .in(Article::getAuthorId, authorIds)
+    public CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size) {
+        return toCursorResult(lambdaQuery()
+                .eq(Article::getAuthorId, authorId)
                 .eq(Article::getStatus, ArticleStatus.PUBLISHED)
                 .lt(cursor != null, Article::getId, cursor)
                 .orderByDesc(Article::getId)
-                .last("LIMIT " + limit)
-                .list();
-    }
-
-    @Override
-    public CursorResult<ArticleItemVO> listPublishedByAuthor(long authorId, Long cursor, int size) {
-        return toCursorResult(listPublishedByAuthors(List.of(authorId), cursor, size + 1), size);
+                .last("LIMIT " + (size + 1))
+                .list(), size);
     }
 
     @Override

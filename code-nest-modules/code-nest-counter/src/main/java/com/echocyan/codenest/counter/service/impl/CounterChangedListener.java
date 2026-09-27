@@ -6,17 +6,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 /**
- * 消费 redis-async 档的计数变更事件。去重在 Redis 里与累加一起原子执行，不用基于 MySQL 的
+ * 消费计数变更事件。去重在 Redis 里与累加一起原子执行，不用基于 MySQL 的
  * {@code @IdempotentConsumer}。
  */
 @Component
-@ConditionalOnProperty(name = "counter.mode", havingValue = "redis-async")
 @RequiredArgsConstructor
 class CounterChangedListener {
 

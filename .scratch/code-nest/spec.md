@@ -392,9 +392,10 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 高亮用 `<em>`，content 只取 1 个约 100 字的片段。
     - 页码分页，`from + size ≤ 1000`。
 - **重建**：
-    - 启动时如果别名不存在，自动建索引并全量导入。
-    - 也可以通过 `POST /actuator/search-rebuild` 手动触发：新建下一版本索引 → 按 id 游标每批 500 篇 bulk 写入 →
-      原子切换别名 → 用 `updated_at` 追补重建期间的变更 → 删除旧索引。
+    - 流程：新建下一版本索引 → 按 id 游标每批 500 篇 bulk 写入 → 原子切换别名 → 用 `updated_at` 追补重建期间的变更 →
+      删除旧索引与此前中断的重建留下的索引。多实例之间用 Redis 锁互斥。
+    - 启动时如果别名不存在，自动执行一次重建，导入完成后才挂上别名；导入中断时下次启动重来。
+    - 也可以通过 `POST /actuator/search-rebuild` 手动触发。
 - **客户端**：直接用 `elasticsearch-java`，不用 Spring Data Repository。
 
 ### 多级缓存（主打亮点 D，见[多级缓存与缓存治理](issues/09-multilevel-cache.md)）

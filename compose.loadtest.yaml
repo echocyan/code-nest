@@ -103,7 +103,7 @@ services:
     <<: *app
     ports:
       - "8082:8081"
-    # 等 app-1 跑完 Flyway、建好 ES 索引再启动，避免两个实例同时初始化
+    # 等 app-1 跑完 Flyway、建好 ES 索引再启动，app-2 一启动就能正常搜索和同步
     depends_on:
       app-1:
         condition: service_healthy

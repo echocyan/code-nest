@@ -5,13 +5,14 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.VersionType;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
+import co.elastic.clients.elasticsearch.indices.IndexState;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.framework.lock.RedisLock;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -22,10 +23,12 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * ES 中的文章索引。真实索引名为 {@code article_v{n}}，读写都经别名 {@value #ALIAS}。
@@ -33,19 +36,17 @@ import java.util.function.Consumer;
  * 写入与删除都以 {@link ArticleSnapshot#version()} 作外部版本号：ES 只接受比已有版本更大的写入，
  * 所以旧版本的数据晚到时被拒绝（409），直接忽略。
  * <p>
- * 启动时如果别名不存在，就新建索引并从 article 模块全量导入。这一步在所有单例创建完、MQ 消费者启动前完成，
- * 消费者不会写入不存在的别名。
- * <p>
  * {@link #rebuild()} 零停机重建：导入期间读写仍走旧索引，切换别名是原子的，切换后再追补导入期间的变更。
+ * <p>
+ * 启动时如果别名不存在，就在所有单例创建完、MQ 消费者启动前执行一次重建：全量导入完成后才挂上别名，
+ * 导入中断时别名仍不存在，下次启动重来。多个实例同时启动时只有抢到重建锁的实例建索引，其余跳过；
+ * 别名出现前跳过的实例搜索和同步都会失败，这期间的变更由重建最后的追补写入。
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ArticleIndex implements SmartInitializingSingleton {
 
     public static final String ALIAS = "article";
-
-    private static final String INDEX_PREFIX = ALIAS + "_v";
 
     private static final String MAPPING = "search/article-index.json";
 
@@ -56,8 +57,6 @@ public class ArticleIndex implements SmartInitializingSingleton {
 
     private static final int VERSION_CONFLICT = 409;
 
-    private static final String REBUILD_LOCK_KEY = "search:rebuild:lock";
-
     /**
      * 锁的过期时间，要长于一次重建的耗时；实例崩溃时锁最迟在这之后释放。
      */
@@ -66,10 +65,41 @@ public class ArticleIndex implements SmartInitializingSingleton {
     private final ElasticsearchClient client;
     private final ArticleApi articleApi;
     private final RedisLock redisLock;
+    private final String alias;
+    private final String indexPrefix;
+    private final String rebuildLockKey;
+
+    @Autowired
+    public ArticleIndex(ElasticsearchClient client, ArticleApi articleApi, RedisLock redisLock) {
+        this(client, articleApi, redisLock, ALIAS);
+    }
+
+    /**
+     * @param alias 读写经过的别名；真实索引名为 {@code <alias>_v{n}}，重建锁为 {@code search:<alias>:rebuild:lock}
+     */
+    public ArticleIndex(ElasticsearchClient client, ArticleApi articleApi, RedisLock redisLock, String alias) {
+        this.client = client;
+        this.articleApi = articleApi;
+        this.redisLock = redisLock;
+        this.alias = alias;
+        this.indexPrefix = alias + "_v";
+        this.rebuildLockKey = "search:" + alias + ":rebuild:lock";
+    }
 
     @Override
     public void afterSingletonsInstantiated() {
-        createIfAbsent().ifPresent(this::importAll);
+        if (aliasExists()) {
+            return;
+        }
+        // 拿到锁后再判断一次：别的实例可能刚建好并释放了锁
+        boolean ran = redisLock.tryRun(rebuildLockKey, REBUILD_LOCK_TTL, () -> {
+            if (!aliasExists()) {
+                rebuildLocked();
+            }
+        });
+        if (!ran) {
+            log.info("Another instance is building search index for alias {}, skipped", alias);
+        }
     }
 
     /**
@@ -79,14 +109,15 @@ public class ArticleIndex implements SmartInitializingSingleton {
      *     <li>在一个请求里把别名从旧索引移到新索引；</li>
      *     <li>把 {@code updated_at} 不早于重建开始时间的文章按最新状态写入新索引。导入期间的变更由消费者写进了旧索引，
      *     新索引里可能是旧版本；外部版本号保证重复写入无害；</li>
-     *     <li>删除旧索引。</li>
+     *     <li>删除其余的 {@code article_v{n}}：旧索引，以及此前中断的重建留下、没挂别名的索引。</li>
      * </ol>
+     * 别名不存在时同样适用，只是没有旧索引可切走。
      * 多实例之间用 Redis 锁互斥，同一时刻只有一个重建在运行。
      *
      * @return 新索引名与导入、追补的文章数；已有重建在运行时为空
      */
     public Optional<RebuildResult> rebuild() {
-        Optional<RebuildResult> result = redisLock.tryRun(REBUILD_LOCK_KEY, REBUILD_LOCK_TTL, this::rebuildLocked);
+        Optional<RebuildResult> result = redisLock.tryRun(rebuildLockKey, REBUILD_LOCK_TTL, this::rebuildLocked);
         if (result.isEmpty()) {
             log.info("Search index rebuild is already running, skipped");
         }
@@ -100,22 +131,26 @@ public class ArticleIndex implements SmartInitializingSingleton {
         try {
             // updated_at 是秒级 DATETIME，写入时四舍五入；向下取整到秒，不漏掉开始那一秒内的变更
             LocalDateTime startedAt = DateTimes.now().truncatedTo(ChronoUnit.SECONDS);
-            Set<String> oldIndices = client.indices().getAlias(get -> get.name(ALIAS)).aliases().keySet();
-            String index = INDEX_PREFIX + nextVersion();
-            create(index, false);
+            Map<String, IndexState> existing = client.indices().get(get -> get.index(indexPrefix + "*")).indices();
+            Set<String> oldIndices = existing.entrySet().stream()
+                    .filter(entry -> entry.getValue().aliases().containsKey(alias))
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
+            String index = indexPrefix + nextVersion(existing.keySet());
+            create(index);
             long imported = importAll(index);
             client.indices().refresh(refresh -> refresh.index(index));
             client.indices().updateAliases(update -> {
                 oldIndices.forEach(old -> update.actions(action -> action
-                        .remove(remove -> remove.index(old).alias(ALIAS))));
-                return update.actions(action -> action.add(add -> add.index(index).alias(ALIAS)));
+                        .remove(remove -> remove.index(old).alias(alias))));
+                return update.actions(action -> action.add(add -> add.index(index).alias(alias)));
             });
             long caughtUp = catchUp(startedAt);
-            if (!oldIndices.isEmpty()) {
-                client.indices().delete(delete -> delete.index(List.copyOf(oldIndices)));
+            if (!existing.isEmpty()) {
+                client.indices().delete(delete -> delete.index(List.copyOf(existing.keySet())));
             }
             log.info("Rebuilt search index {}: imported {}, caught up {}, deleted {}", index, imported, caughtUp,
-                    oldIndices);
+                    existing.keySet());
             return new RebuildResult(index, imported, caughtUp);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -142,7 +177,7 @@ public class ArticleIndex implements SmartInitializingSingleton {
      */
     public void save(ArticleSnapshot snapshot) {
         ignoringVersionConflict(() -> client.index(index -> index
-                .index(ALIAS)
+                .index(alias)
                 .requireAlias(true)
                 .id(String.valueOf(snapshot.id()))
                 .version((long) snapshot.version())
@@ -155,51 +190,36 @@ public class ArticleIndex implements SmartInitializingSingleton {
      */
     public void remove(long articleId, long version) {
         ignoringVersionConflict(() -> client.delete(delete -> delete
-                .index(ALIAS)
+                .index(alias)
                 .id(String.valueOf(articleId))
                 .version(version)
                 .versionType(VersionType.External)));
     }
 
-    /**
-     * 别名不存在时新建下一版本的索引并挂上别名。
-     *
-     * @return 新建的索引名；别名已存在时为空
-     */
-    private Optional<String> createIfAbsent() {
+    private boolean aliasExists() {
         try {
-            if (client.indices().existsAlias(exists -> exists.name(ALIAS)).value()) {
-                return Optional.empty();
-            }
-            String index = INDEX_PREFIX + nextVersion();
-            create(index, true);
-            return Optional.of(index);
+            return client.indices().existsAlias(exists -> exists.name(alias)).value();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
     }
 
     /**
-     * 按 mapping 新建索引。
-     *
-     * @param withAlias 是否同时挂上别名
+     * 按 mapping 新建索引，不挂别名。
      */
-    private void create(String index, boolean withAlias) throws IOException {
+    private void create(String index) throws IOException {
         try (InputStream mapping = new ClassPathResource(MAPPING).getInputStream()) {
-            client.indices().create(create -> {
-                create.withJson(mapping).index(index);
-                return withAlias ? create.aliases(ALIAS, alias -> alias) : create;
-            });
+            client.indices().create(create -> create.withJson(mapping).index(index));
         }
-        log.info("Created search index {}{}", index, withAlias ? " with alias " + ALIAS : "");
+        log.info("Created search index {}", index);
     }
 
     /**
      * 已有 {@code article_v{n}} 中最大的 n 加 1，没有时为 1。
      */
-    private int nextVersion() throws IOException {
-        return client.indices().get(get -> get.index(INDEX_PREFIX + "*")).indices().keySet().stream()
-                .mapToInt(name -> Integer.parseInt(name.substring(INDEX_PREFIX.length())))
+    private int nextVersion(Set<String> indices) {
+        return indices.stream()
+                .mapToInt(name -> Integer.parseInt(name.substring(indexPrefix.length())))
                 .max()
                 .orElse(0) + 1;
     }

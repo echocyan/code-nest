@@ -41,14 +41,14 @@ Blocked by: 03, 05
    - 高亮：`title` 整体高亮；`content` 只取 1 个约 100 字的片段；高亮标签用 `<em>`。
    - 分页：页码分页，返回 `PageResult`，且 `from + size ≤ 1000`，避免深分页。`search_after` 只作为面试时可以提的扩展方案，不实现。
 5. **全量重建**：
-   - 启动时如果别名不存在，自动建索引并做一次全量导入。
+   - 启动时如果别名不存在，按下面的重建流程建索引并全量导入，导入完成后才挂上别名：导入中断时别名仍不存在，下次启动重来；多个实例同时启动时只有一个执行。
    - 手动重建通过管理端口上的自定义 Actuator 端点 `POST /actuator/search-rebuild` 触发。
    - 重建流程：
      1. 新建 `article_v{n+1}`。
      2. 通过 `ArticleApi` 按 id 游标分批读取已发布文章，每批 500 篇，用 bulk 写入。
      3. 原子切换别名。
      4. 追补：把 `updated_at` 晚于重建开始时间的文章再写入一次。依赖外部版本号，重复写入不会出错。
-     5. 删除旧索引。
+     5. 删除旧索引，以及此前中断的重建留下的索引。
 6. **客户端**：直接用官方的 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`），不用 Spring Data ES 的 Repository。
 
 **这张票对其他模块的接口要求**：

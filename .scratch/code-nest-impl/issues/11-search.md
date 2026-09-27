@@ -1,6 +1,6 @@
 # 11: 搜索与 ES 同步
 
-**What to build:** 访客可以按关键词搜索已发布的文章：中文分词、相关度排序、标签加权和高亮，支持按分类、标签筛选，按相关度或最新发布排序，页码分页，最多翻到第 50 页。文章发布、编辑、删除后，搜索结果在秒级内同步更新，而且旧数据永远不会覆盖新数据。应用启动时如果别名不存在，就自动建索引并全量导入。详见决策票 08。
+**What to build:** 访客可以按关键词搜索已发布的文章：中文分词、相关度排序、标签加权和高亮，支持按分类、标签筛选，按相关度或最新发布排序，页码分页，最多翻到第 50 页。文章发布、编辑、删除后，搜索结果在秒级内同步更新，而且旧数据永远不会覆盖新数据。应用启动时如果别名不存在，就自动建索引并全量导入；导入中断或多个实例同时启动都不会留下残缺的索引。详见决策票 08。
 
 **Blocked by:** 03, 05
 
@@ -14,7 +14,7 @@ Status: closed
 - [x] **ES 客户端**：用 `elasticsearch-java`（Spring Boot 自动配置的 `ElasticsearchClient`）。
 - [x] **索引结构**：真实索引 `article_v{n}` 加别名 `article`。写入用 ik_max_word 分词、查询用 ik_smart；字段按规格定义。
 - [x] **同步消费者 `search.article-sync`**：用 `ArticleApi` 回查最新状态，已发布就写入 ES，否则从 ES 删除。写入和删除都带 `version_type=external`；返回 409 说明是旧版本，直接忽略。
-- [x] **启动时建索引**：别名不存在时，新建索引，并通过 `ArticleApi` 按 id 游标分批全量导入。
+- [x] **启动时建索引**：别名不存在时，新建索引，并通过 `ArticleApi` 按 id 游标分批全量导入，导入完成后才挂上别名。
 - [x] **查询**：
   - `multi_match` 匹配 title^3、summary^1.5、content^1；关键词与某个标签名完全一致时额外加分。
   - 分类、标签作为 filter；排序支持 RELEVANCE 和 LATEST。
@@ -34,10 +34,12 @@ Status: closed
 - **ArticleApi**：`findSnapshot(id)` 返回正文、标签、状态、版本号，已删除的文章也返回（`deleted=true`），同步方据此拿到删除后的版本号；`listPublishedSnapshots(afterId, limit)` 按 ID 正序遍历已发布文章。
 - **索引**：mapping 在 search 模块的 `search/article-index.json`，单分片、无副本、`dynamic: strict`。除规格字段外多存一个 `tagIds`：`tags` 存标签名（lowercase normalizer）用于加分，`tagIds` 用于按标签筛选。写入带 `require_alias`，别名不存在时不会误建名为 `article` 的索引。
 - **同步**：`ArticleIndex.sync` 回查快照，`searchable()` 就写入，否则删除；写入和删除都带 `version_type=external`，409 忽略，删除不存在的文档不报错。队列 `search.article-sync` 由 `ArticleSyncListener` 声明。
-- **启动建索引**：`ArticleIndex` 实现 `SmartInitializingSingleton`，在 MQ 消费者启动前检查别名；不存在就新建 `article_v{n}`（n 取已有最大值 +1）并挂别名，再按 500 篇一批 bulk 导入，除 409 外的失败直接抛出，阻止启动。
+- **启动建索引**：`ArticleIndex` 实现 `SmartInitializingSingleton`，在 MQ 消费者启动前检查别名；不存在就在重建锁内再检查一次，仍不存在则执行一次 `rebuild` 的流程（见 12 号票）：新建 `article_v{n}`（n 取已有最大值 +1），按 500 篇一批 bulk 导入，除 409 外的失败直接抛出、阻止启动；导入完成才挂别名，所以中断后别名仍不存在，下次启动重来，残留的索引由那次重建删除。
+  - 多个实例同时启动时，抢不到锁的实例跳过、照常启动；别名出现前它的搜索和同步都会失败，这期间的变更由重建最后的追补写入。
+  - `ArticleIndex` 的别名是构造参数，索引名前缀和重建锁都由它派生，应用里用 `article`。
 - **查询**（`EsArticleSearcher`）：
   - `multi_match` best_fields，`operator=and`（分词后的每个词都要出现在同一字段）；`tags` 上 `term` 加权 5。
   - RELEVANCE 按 `_score`、发布时间、ID 倒序；LATEST 按发布时间、ID 倒序。
   - 高亮经 HTML 转义；title 整体高亮，content 用 plain 高亮器取 1 个 100 字片段（unified 按句切分，无标点的长句会整句返回）；未命中的字段为 null。
   - 只从 ES 取命中 ID 和高亮，文章摘要经 `ArticleApi.getBriefs` 回查，同步尚未跟上的已删除文章被滤掉（total 仍按 ES 计）。
-- **测试**：`SearchApiTest` 的搜索结果用 `eventually` 等待，需要确定顺序时按 LATEST；乱序测试直接调用 `ArticleIndex` 写入旧版本并读 ES 文档断言。
+- **测试**：`SearchApiTest` 的搜索结果用 `eventually` 等待，需要确定顺序时按 LATEST；乱序测试直接调用 `ArticleIndex` 写入旧版本并读 ES 文档断言。`ArticleIndexStartupTest` 另建 `ArticleIndex`，用随机别名和桩化的 `ArticleApi`，覆盖导入中断后下次启动补全、两个实例同时启动都成功且只留一个索引。

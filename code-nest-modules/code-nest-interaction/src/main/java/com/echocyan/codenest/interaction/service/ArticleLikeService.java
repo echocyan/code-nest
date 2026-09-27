@@ -19,7 +19,7 @@ public interface ArticleLikeService extends IService<ArticleLike> {
     void like(long userId, long articleId);
 
     /**
-     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
+     * 不检查文章状态：文章删除后仍可取消，没有点过赞时什么也不做。
      */
     void unlike(long userId, long articleId);
 

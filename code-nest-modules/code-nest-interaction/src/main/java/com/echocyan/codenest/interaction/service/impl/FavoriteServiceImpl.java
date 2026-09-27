@@ -52,7 +52,6 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
     @Override
     @Transactional
     public void unfavorite(long userId, long articleId) {
-        publishedArticles.require(articleId);
         boolean removed = lambdaUpdate()
                 .eq(Favorite::getUserId, userId)
                 .eq(Favorite::getArticleId, articleId)

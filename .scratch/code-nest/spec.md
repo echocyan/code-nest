@@ -223,6 +223,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 资源名用复数、kebab-case；只对有明确从属关系的资源使用嵌套路径。
     - 当前用户用 `me` 表示。
 - **开关型动作**：点赞、收藏、关注都用 `PUT` 开启、`DELETE` 关闭，两者都幂等。只有数据库里真的插入或删除了一行，才上报计数、发出事件。
+  开启时检查目标（文章已发布、用户存在）；取消点赞与收藏不检查文章状态，文章删除后仍可取消。
 - **返回体**：统一为 `{code, message, data}`，同时按语义设置 HTTP 状态码（200/400/401/403/404/409/429/500）。
     - 版本冲突返回 409，错误码归 article 号段。
 - **JSON**：
@@ -264,7 +265,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - `article_tag`：主键 (article_id, tag_id)，外加反向索引。
     - `comment`：用 `root_id = 0` 区分评论和回复，回复带 `reply_to_user_id`。
 - **counter 模块**：`article_stat`、`user_stat`、`comment_stat`。
-- **interaction 模块**：`article_like`、`favorite`，两张表都有 (user_id, article_id) 唯一键；`article_like` 另存被点赞文章的 `author_id`，供对账统计获赞数。
+- **interaction 模块**：`article_like`、`favorite`，两张表都有 (user_id, article_id) 唯一键；`article_like` 另存被点赞文章的 `author_id`，供对账统计获赞数；获赞数统计作者全部文章（含已删除）收到的点赞。
 - **social 模块**：`follow`，唯一键 (follower_id, author_id)。
     - 索引 (author_id, follower_id) 供 Feed 推送按粉丝分页。
     - 索引 (author_id, id)、(follower_id, id) 供粉丝列表、关注列表按关注时间翻页。

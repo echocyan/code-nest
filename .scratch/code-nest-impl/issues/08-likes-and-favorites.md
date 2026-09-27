@@ -1,6 +1,6 @@
 # 08: 点赞与收藏
 
-**What to build:** 读者可以点赞、取消点赞、收藏、取消收藏已发布的文章，所有操作都幂等。可以按收藏时间倒序、游标翻阅自己的收藏，也可以批量查询一组文章是否已点赞、已收藏。文章的点赞数、收藏数和作者的获赞数随之变化。
+**What to build:** 读者可以点赞、收藏已发布的文章，也可以随时取消（包括文章已删除之后），所有操作都幂等。可以按收藏时间倒序、游标翻阅自己的收藏，也可以批量查询一组文章是否已点赞、已收藏。文章的点赞数、收藏数和作者的获赞数随之变化。
 
 **Blocked by:** 05
 
@@ -9,7 +9,7 @@ Status: closed
 - [x] **interaction 模块**：新增模块，建 article_like、favorite 表（`V3_`）。
 - [x] **接口**：`PUT` 和 `DELETE` `/articles/{id}/like`，`PUT` 和 `DELETE` `/articles/{id}/favorite`。
   - 重复操作返回 200，不产生任何变化。
-  - 对草稿、已删除或不存在的文章操作时返回 404。
+  - 对草稿、已删除或不存在的文章点赞、收藏时返回 404；取消不检查文章，没有这条关系时直接返回成功。
 - [x] **计数上报**：只有真的插入或删除了一行，才调用 `CounterApi.increment`。点赞影响文章点赞数和作者获赞数；收藏影响文章收藏数。
 - [x] **`GET /users/me/favorites?cursor=`**：按 favorite.id 倒序，列表项为文章列表项加收藏时间；已删除的文章会被过滤掉。
 - [x] **`GET /articles/states?ids=`**：返回每篇文章的 `{liked, favorited}`，查询走唯一索引。ids 数量有上限，超出返回 400。
@@ -18,12 +18,12 @@ Status: closed
 
 ## Comments
 
-- **错误码**：interaction 不定义自己的错误码。草稿、已删除、不存在的文章都返回 article 的 20001（文章不存在，404，`ArticleErrorCode` 在 article 的 `api` 包）。ids 超出上限走通用的 90400。
+- **错误码**：interaction 不定义自己的错误码。点赞、收藏草稿、已删除、不存在的文章都返回 article 的 20001（文章不存在，404，`ArticleErrorCode` 在 article 的 `api` 包）。ids 超出上限走通用的 90400。
 - **接口细节**：
   - `GET /users/me/favorites?cursor=&size=`：size 默认 20、最大 50；nextCursor 是收藏记录的 ID。列表项是文章列表项（见 06 号票）的全部字段加 `favoritedAt`，平铺在同一层（`@JsonUnwrapped`），经 `ArticleApi.listPublishedItems` 组装。
   - 已删除的文章在组装时滤掉，所以一页可能不足 size 条；是否翻完以 hasMore 为准。
   - `GET /articles/states?ids=`：需要登录，ids 最多 50 个（与列表最大 size 一致）。返回以文章 ID 为 key 的 `{liked, favorited}`，不存在的文章按两个 false 返回。
-  - 取消点赞、取消收藏同样要求文章已发布；文章删除后无法再取消，关系行留在表里，由对账处理计数。
-- **幂等与并发**：插入直接 `save`，捕获 `DuplicateKeyException` 视为已存在（MySQL 只回滚这一条语句，事务继续）；删除按影响行数判断。只有插入或删除成功才调用 `CounterApi.increment`，并发重复请求也只计一次。
+  - 取消点赞、取消收藏不检查文章状态，文章删除后读者仍可清掉自己的点赞与收藏。取消点赞时从关系行读出作者，同步扣减获赞数；获赞数统计作者全部文章（含已删除）收到的点赞。
+- **幂等与并发**：插入直接 `save`，捕获 `DuplicateKeyException` 视为已存在（MySQL 只回滚这一条语句，事务继续）；删除按影响行数判断（取消点赞先按唯一键读出关系行拿到作者，再按 ID 删除）。只有插入或删除成功才调用 `CounterApi.increment`，并发重复请求也只计一次。
 - **并发取舍**：先查文章状态再写关系行，期间文章被删除仍可能点赞成功；计数由对账修正，可以接受。
 - **测试**：断言计数时用 `eventually`（Awaitility）等计数最终生效。计数落库与懒加载恢复在 `RedisAsyncCounterTest` 里经点赞接口验证。

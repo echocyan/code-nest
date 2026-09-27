@@ -44,26 +44,26 @@ public class ArticleLikeServiceImpl extends ServiceImpl<ArticleLikeMapper, Artic
             // 已点过赞（包括并发的重复请求），不产生变化；MySQL 只回滚这一条语句，事务可以继续
             return;
         }
-        countLike(article, 1);
+        countLike(articleId, article.authorId(), 1);
         eventPublisher.publish(new LikeCreatedEvent(articleId, userId, article.authorId()));
     }
 
     @Override
     @Transactional
     public void unlike(long userId, long articleId) {
-        ArticleState article = publishedArticles.require(articleId);
-        boolean removed = lambdaUpdate()
+        ArticleLike like = lambdaQuery()
                 .eq(ArticleLike::getUserId, userId)
                 .eq(ArticleLike::getArticleId, articleId)
-                .remove();
-        if (removed) {
-            countLike(article, -1);
+                .one();
+        // 并发的重复取消只有一个能删掉这一行
+        if (like != null && removeById(like.getId())) {
+            countLike(articleId, like.getAuthorId(), -1);
         }
     }
 
-    private void countLike(ArticleState article, long delta) {
-        counterApi.increment(CounterMetric.ARTICLE_LIKE, article.id(), delta);
-        counterApi.increment(CounterMetric.USER_LIKE_RECEIVED, article.authorId(), delta);
+    private void countLike(long articleId, long authorId, long delta) {
+        counterApi.increment(CounterMetric.ARTICLE_LIKE, articleId, delta);
+        counterApi.increment(CounterMetric.USER_LIKE_RECEIVED, authorId, delta);
     }
 
     @Override

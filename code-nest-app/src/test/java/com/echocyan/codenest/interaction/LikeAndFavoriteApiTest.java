@@ -197,14 +197,33 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
 
         for (String articleId : List.of(draftId, deletedId, "1")) {
             for (String action : List.of("like", "favorite")) {
-                for (RestTestClient.ResponseSpec response : List.of(
-                        reader.put().uri(API + "/articles/{id}/{action}", articleId, action).exchange(),
-                        reader.delete().uri(API + "/articles/{id}/{action}", articleId, action).exchange())) {
-                    response.expectStatus().isNotFound()
-                            .expectBody().jsonPath("$.code").isEqualTo(20001);
-                }
+                reader.put().uri(API + "/articles/{id}/{action}", articleId, action).exchange()
+                        .expectStatus().isNotFound()
+                        .expectBody().jsonPath("$.code").isEqualTo(20001);
+                // 取消不检查文章，没有这条关系时什么也不做
+                reader.delete().uri(API + "/articles/{id}/{action}", articleId, action).exchange()
+                        .expectStatus().isOk();
             }
         }
+    }
+
+    @Test
+    void likesAndFavoritesOnADeletedArticleCanStillBeCancelled() {
+        RestTestClient author = withToken(register(uniqueUsername()));
+        String articleId = publishedArticle(author);
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        like(reader, articleId).expectStatus().isOk();
+        favorite(reader, articleId).expectStatus().isOk();
+        expectLikes(articleId, 1);
+        String authorId = authorIdOf(articleId);
+        author.delete().uri(API + "/articles/{id}", articleId).exchange().expectStatus().isOk();
+
+        unlike(reader, articleId).expectStatus().isOk();
+        unfavorite(reader, articleId).expectStatus().isOk();
+
+        eventually(() -> client.get().uri(API + "/users/{id}", authorId)
+                .exchange()
+                .expectBody().jsonPath("$.data.counts.likeReceivedCount").isEqualTo(0));
     }
 
     private RestTestClient.ResponseSpec like(RestTestClient reader, String articleId) {
@@ -243,6 +262,14 @@ class LikeAndFavoriteApiTest extends IntegrationTest {
         eventually(() -> client.get().uri(API + "/users/{id}", authorId.get())
                 .exchange()
                 .expectBody().jsonPath("$.data.counts.likeReceivedCount").isEqualTo(expected));
+    }
+
+    private String authorIdOf(String articleId) {
+        AtomicReference<String> authorId = new AtomicReference<>();
+        client.get().uri(API + "/articles/{id}", articleId)
+                .exchange()
+                .expectBody().jsonPath("$.data.author.id").value(String.class, authorId::set);
+        return authorId.get();
     }
 
     private String publishedArticle(RestTestClient author) {

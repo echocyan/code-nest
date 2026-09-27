@@ -21,7 +21,7 @@ public interface FavoriteService extends IService<Favorite> {
     void favorite(long userId, long articleId);
 
     /**
-     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND} 文章不存在、已删除或是草稿
+     * 不检查文章状态：文章删除后仍可取消，没有收藏过时什么也不做。
      */
     void unfavorite(long userId, long articleId);
 

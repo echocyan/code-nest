@@ -112,17 +112,19 @@ WARMUP=5s DURATION=10s ./code-nest-loadtest/bench.sh c 1   # 缩短时长，检�
 
 1. 切换：停掉两个应用、清空 Redis，以新的档启动，每档都从同样的状态开始；启动时重建布隆过滤器与 Feed 发件箱。再重启 Nginx，让它重新解析应用容器的地址。
 2. 准备（k6 的 prepare 阶段）：登录账号、查出要访问的文章，写到 `target/k6/<脚本>.data.json`。之后的阶段直接读这个文件，登录等准备请求不计入压测和服务端指标。
-3. 每轮：预热 `WARMUP`（默认 30s）→ 采集服务端状态 → 稳态压测 `DURATION`（默认 2m）→ 再采集一次，取差值。
+3. 每轮：等有消费者的 MQ 队列清空（上一档、上一轮积压的消息，如场景 a 的点赞产生的通知，会在压测期间抢占 MySQL 与应用 CPU；30 分钟内清不空就报错退出）→ 预热 `WARMUP`（默认 30s）→ 采集服务端状态 → 稳态压测 `DURATION`（默认 2m）→ 再采集一次，取差值。
    - 服务端状态：MySQL `SHOW GLOBAL STATUS` 的数值项、Redis `INFO commandstats` 各命令的调用次数。
    - 场景 a 压测后先等落库完成再采集：每 6 秒比较一次 `article_stat.like_count` 与这篇文章的点赞行数（redis-async 每 5 秒落库一次），连续两次相等即通过，60 秒内做不到就报错退出。
    - 场景 b 在稳态压测前后各读一次两个实例管理端口上的 Timer `feed.read`（读一页 Feed 的服务端耗时）与 `feed.read.follow-list`（其中查询关注列表的耗时），取差值，用来判断关注列表要不要加缓存。
    - 场景 b 在 push-pull 档额外测量推送耗时（`k6/b-feed-push.js`）：准备时登录 `author_4999` 的全部 4999 个粉丝，各读一次 Feed，建好收件箱（推送会跳过收件箱不存在的冷用户）；每轮压测后作者发一篇文章，从发出发布请求起反复读 ID 最大的粉丝的 Feed，直到出现这篇文章。推送按粉丝 ID 升序进行，这就是推送完成的时刻；测完删除文章。pull 档不推送，不测。
 
-每轮打印 QPS、延迟、错误率（场景 b 另有 Feed 读取耗时及关注列表查询的占比），以及 `Innodb_row_lock_waits`、`Com_select` 和 Redis 命令总数的差值。全部跑完后写入 `results/<日期>-<场景>.json`：
+每轮打印 QPS、延迟、错误率（场景 b 另有 Feed 读取耗时及关注列表查询的占比），以及 `Innodb_row_lock_waits`、`Com_select` 和 Redis 命令总数的差值。全部跑完后写入 `results/<日期>-<场景>.json`。其余三个开关沿用当前环境变量，未设置的取默认档；不是默认档的值追加到文件名，例如 `COUNTER_MODE=redis-async ./code-nest-loadtest/bench.sh d` 写入 `results/<日期>-d-cache-redis-async.json`：
 
 ```json
 {
-  "scenario": "a-counter", "switch": "COUNTER_MODE", "startedAt": "…", "warmup": "30s", "duration": "2m", "runs": 3,
+  "scenario": "a-counter", "switch": "COUNTER_MODE",
+  "fixed": { "FEED_MODE": "pull", "SEARCH_MODE": "mysql-like", "CACHE_MODE": "none" },
+  "startedAt": "…", "warmup": "30s", "duration": "2m", "runs": 3,
   "modes": {
     "sync-db": {
       "median": { "k6": { … }, "mysql": { … }, "redis": { … }, "counter": { … } },
@@ -133,6 +135,7 @@ WARMUP=5s DURATION=10s ./code-nest-loadtest/bench.sh c 1   # 缩短时长，检�
 }
 ```
 
+- `fixed`：其余三个开关在这次压测中的档。
 - `k6`：`requests`、`qps`、`avgMs`、`p95Ms`、`p99Ms`、`errorRate`（HTTP 状态不是 200 或返回体 `code` 不是 0 的比例）。
 - `mysql`、`redis`：稳态压测前后的差值，只列有变化的项；后台任务（Outbox 补发、落库、对账等）和场景 a 等待落库时的查询也会计入。
 - `feed`（场景 b）：`readCount`、`readAvgMs`（服务端读一页 Feed 的平均耗时）、`followListAvgMs`（其中查询关注列表的平均耗时）、`followListShare`（关注列表查询占 Feed 读取耗时的比例）。

@@ -18,6 +18,17 @@ case $scenario in
     *) echo "未知场景：$scenario" >&2; exit 1 ;;
 esac
 
+# 其余开关取当前环境变量，未设置的是 compose 里的默认档；不是默认档的值追加到结果文件名，不覆盖默认环境下的结果
+fixed='{}'
+suffix=
+for other in COUNTER_MODE:sync-db FEED_MODE:pull SEARCH_MODE:mysql-like CACHE_MODE:none; do
+    key=${other%%:*} default=${other#*:}
+    [ "$key" = "$switch" ] && continue
+    value=${!key:-$default}
+    fixed=$(jq --arg key "$key" --arg value "$value" '. + {($key): $value}' <<<"$fixed")
+    [ "$value" = "$default" ] || suffix+="-$value"
+done
+
 # 中间文件：宿主机路径与 k6 容器内的路径
 work=code-nest-loadtest/target/k6
 k6_work=/loadtest/target/k6
@@ -88,6 +99,22 @@ switch_mode() {
         || { echo "Nginx 未就绪" >&2; exit 1; }
 }
 
+# 等有消费者的 MQ 队列清空：上一档、上一轮积压的消息（如点赞产生的通知）会在压测期间抢占 MySQL 与应用 CPU。
+# 没有消费者的队列（死信队列、当前档不消费的计数队列）不等；30 分钟内清不空就退出
+wait_queues() {
+    local backlog
+    for _ in $(seq 360); do
+        backlog=$(compose exec -T rabbitmq rabbitmqctl list_queues -q name messages consumers \
+            | awk 'NR > 1 && $3 > 0 {sum += $2} END {print sum + 0}')
+        if [ "$backlog" = 0 ]; then
+            return
+        fi
+        sleep 5
+    done
+    echo "MQ 队列 30 分钟内未清空，还剩 $backlog 条" >&2
+    exit 1
+}
+
 # 场景 A：等待落库完成并断言计数表里的点赞数等于点赞行数。计数经 Outbox、MQ 进入 Redis，redis-async 每 5 秒
 # 落库一次；每 6 秒查一次，连续两次相等才算落库完成，60 秒内做不到就报错退出
 wait_counter() {
@@ -132,6 +159,8 @@ for mode in "${modes[@]}"; do
     runs_file="$work/$name.$mode.runs.jsonl"
     : >"$runs_file"
     for run in $(seq "$runs"); do
+        step "$switch=$mode 第 $run/$runs 轮：等待 MQ 队列清空"
+        wait_queues
         step "$switch=$mode 第 $run/$runs 轮：预热 $WARMUP"
         run_k6 "$name" warmup
         mysql_before=$(mysql_status)
@@ -177,9 +206,9 @@ for mode in "${modes[@]}"; do
     modes_json=$(jq --arg mode "$mode" --argjson result "$mode_json" '. + {($mode): $result}' <<<"$modes_json")
 done
 
-output="code-nest-loadtest/results/$(date +%F)-$name.json"
-jq -n --arg scenario "$name" --arg switch "$switch" --arg startedAt "$started_at" --arg warmup "$WARMUP" \
-    --arg duration "$DURATION" --argjson runs "$runs" --argjson modes "$modes_json" \
-    '{scenario: $scenario, switch: $switch, startedAt: $startedAt, warmup: $warmup, duration: $duration, runs: $runs,
-      modes: $modes}' >"$output"
+output="code-nest-loadtest/results/$(date +%F)-$name$suffix.json"
+jq -n --arg scenario "$name" --arg switch "$switch" --argjson fixed "$fixed" --arg startedAt "$started_at" \
+    --arg warmup "$WARMUP" --arg duration "$DURATION" --argjson runs "$runs" --argjson modes "$modes_json" \
+    '{scenario: $scenario, switch: $switch, fixed: $fixed, startedAt: $startedAt, warmup: $warmup, duration: $duration,
+      runs: $runs, modes: $modes}' >"$output"
 step "完成，结果写入 $output"

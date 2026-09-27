@@ -99,6 +99,9 @@ class FeedBoxes {
             return 1
             """, Long.class);
 
+    private static final byte[] MERGE_IF_PRESENT_BYTES = MERGE_IF_PRESENT.getScriptAsString()
+            .getBytes(StandardCharsets.UTF_8);
+
     /**
      * KEYS：收件箱、各发件箱；ARGV：上限、TTL 秒数。发件箱都为空时收件箱仍不存在。
      */
@@ -189,6 +192,19 @@ class FeedBoxes {
      */
     void mergeOutboxIntoInbox(long userId, long authorId) {
         redis.execute(MERGE_IF_PRESENT, List.of(inboxKey(userId), outboxKey(authorId)), String.valueOf(INBOX_CAP));
+    }
+
+    /**
+     * 用 pipeline 把作者发件箱里的文章并入一批读者的收件箱，收件箱不存在的读者跳过。
+     */
+    void mergeOutboxIntoInboxes(Collection<Long> userIds, long authorId) {
+        byte[] outbox = bytes(outboxKey(authorId));
+        byte[] cap = bytes(String.valueOf(INBOX_CAP));
+        redis.executePipelined((RedisCallback<Object>) connection -> {
+            userIds.forEach(userId -> connection.scriptingCommands().eval(MERGE_IF_PRESENT_BYTES, ReturnType.INTEGER,
+                    2, bytes(inboxKey(userId)), outbox, cap));
+            return null;
+        });
     }
 
     /**

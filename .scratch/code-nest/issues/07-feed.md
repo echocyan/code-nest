@@ -25,7 +25,8 @@ Blocked by: 03
    - 配置项 `feed.big-author-threshold`，默认 5000。
    - 粉丝数存在 ZSet `feed:followers`（member 是作者 ID，score 是粉丝数），由 social 在关注、取关后按 `follow` 表重新统计写入，启动时如果重建完成标记 `feed:followers:ready` 不存在，就按全部关注关系重建，完成后写入标记。存粉丝数而不是大 V 名单，与阈值无关。读 Feed 时一条 `ZRANGEBYSCORE` 取出全部大 V，不必逐个读取关注的几百个作者的计数。
    - 并发修正同一作者时可能写入先统计出的旧值，只在粉丝数恰好跨过阈值时影响判定，到这个作者下次被关注或取关时纠正。
-   - 作者跨过阈值时不迁移历史数据，之后按新身份处理。同一篇文章可能既在收件箱里又被拉取到，读 Feed 时按 articleId 去重。
+   - 作者升为大 V 时，已推送的文章留在收件箱里，之后按新身份处理；同一篇文章可能既在收件箱里又被拉取到，读 Feed 时按 articleId 去重。
+   - 作者降为普通作者时，把他的发件箱并入全部粉丝已存在的收件箱，否则他当大 V 期间的文章既不在收件箱里、也不再被拉取。写入粉丝数用一个脚本同时取回旧值，由写入这次变化的修正判断是否跨过阈值。
 4. **结构**：
    - 收件箱 `feed:inbox:{userId}`、发件箱 `feed:outbox:{authorId}`，都是 ZSet。
    - member 是 articleId，**score 也用 articleId**。雪花 ID 本身按时间有序且唯一。score 是 double，大于 2^53 的 ID 会舍入，相邻 ID 可能得到相同的 score；同 score 的 member 按字典序排列，位数相同的 ID 字典序即数值序，所以顺序仍然正确。按游标读取时，把与游标 score 相同的那一组单独取出、按 ID 精确比较，分页不会跳过或重复。

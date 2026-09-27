@@ -82,6 +82,24 @@ class FeedStoreTest extends IntegrationTest {
         verify(followService, never()).listFollowerIds(eq(BIG), any(), anyInt());
     }
 
+    /**
+     * 作者当大 V 期间的文章没有推送；降为普通作者后不再拉取，这些文章仍要出现在粉丝的 Feed 里。
+     */
+    @Test
+    void articlesOfAnAuthorNoLongerBigStayInTheFeed() {
+        givenFollowers(NORMAL, READER);
+        givenFollowers(BIG, READER, FAN);
+        store.addArticle(1, NORMAL);
+        assertThat(readAll(READER, List.of(NORMAL, BIG), 20)).containsExactly(1L);
+        store.addArticle(2, BIG);
+
+        when(followService.countFollowers(BIG)).thenReturn(1L);
+        when(followService.listFollowerIds(eq(BIG), isNull(), anyInt())).thenReturn(List.of(READER));
+        store.unfollow(FAN, BIG);
+
+        assertThat(readAll(READER, List.of(NORMAL, BIG), 20)).containsExactly(2L, 1L);
+    }
+
     @Test
     void followMergesRecentArticlesOfTheAuthorIntoTheInbox() {
         givenFollowers(NORMAL, READER);

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * 推拉结合的 Feed 存储，全部在 Redis 里：每个作者一个发件箱，每个读者一个收件箱。普通作者发文时推送到粉丝的收件箱；
@@ -22,6 +23,9 @@ import java.util.Set;
  * 已取关作者的文章，{@link #read} 不过滤，由调用方按文章的最新状态过滤。
  * <p>
  * 收件箱至多 {@value FeedBoxes#INBOX_CAP} 条、发件箱至多 {@value FeedBoxes#OUTBOX_CAP} 条，Feed 只能往回翻这么多。
+ * <p>
+ * 作者升为大 V 时，已推送的文章留在粉丝的收件箱里，读取时与拉取的按 ID 去重；降为普通作者时，把他的发件箱并入全部粉丝
+ * 已存在的收件箱，否则他当大 V 期间的文章既不在收件箱里、也不再被拉取。
  * <p>
  * 发件箱与识别大 V 用的粉丝数只在启动时（所有单例创建完后）按数据库重建，见 {@link #afterSingletonsInstantiated}；
  * 收件箱在读取时懒重建。
@@ -70,18 +74,9 @@ public class FeedStore implements SmartInitializingSingleton {
      */
     public void addArticle(long articleId, long authorId) {
         feedBoxes.addToOutbox(authorId, articleId);
-        if (bigAuthors.isBig(authorId)) {
-            return;
+        if (!bigAuthors.isBig(authorId)) {
+            forEachFollowerPage(authorId, followerIds -> feedBoxes.pushToInboxes(followerIds, articleId));
         }
-        Long after = null;
-        List<Long> followerIds;
-        do {
-            followerIds = followService.listFollowerIds(authorId, after, FOLLOWER_PAGE);
-            if (!followerIds.isEmpty()) {
-                feedBoxes.pushToInboxes(followerIds, articleId);
-                after = followerIds.getLast();
-            }
-        } while (followerIds.size() == FOLLOWER_PAGE);
     }
 
     /**
@@ -95,7 +90,7 @@ public class FeedStore implements SmartInitializingSingleton {
      * 更新作者的粉丝数；关注的是普通作者时，把他的发件箱并入读者已存在的收件箱。大 V 的文章在读取时拉取，不需要并入。
      */
     public void follow(long followerId, long authorId) {
-        bigAuthors.refresh(authorId);
+        refreshFollowers(authorId);
         if (!bigAuthors.isBig(authorId)) {
             feedBoxes.mergeOutboxIntoInbox(followerId, authorId);
         }
@@ -105,7 +100,7 @@ public class FeedStore implements SmartInitializingSingleton {
      * 更新作者的粉丝数，并按作者的发件箱，从读者的收件箱中移除他的文章；更早的、已不在发件箱里的留在收件箱中。
      */
     public void unfollow(long followerId, long authorId) {
-        bigAuthors.refresh(authorId);
+        refreshFollowers(authorId);
         feedBoxes.removeOutboxFromInbox(followerId, authorId);
     }
 
@@ -129,6 +124,30 @@ public class FeedStore implements SmartInitializingSingleton {
         boolean hasMore = ids.size() > size;
         List<Long> page = hasMore ? ids.subList(0, size) : ids;
         return new CursorResult<>(page, hasMore ? page.getLast() : null, hasMore);
+    }
+
+    /**
+     * 按关注表更新作者的粉丝数；作者因此降为普通作者时，把他的发件箱并入全部粉丝已存在的收件箱。
+     */
+    private void refreshFollowers(long authorId) {
+        if (bigAuthors.refresh(authorId)) {
+            forEachFollowerPage(authorId, followerIds -> feedBoxes.mergeOutboxIntoInboxes(followerIds, authorId));
+        }
+    }
+
+    /**
+     * 按粉丝 ID 升序，每页 {@value #FOLLOWER_PAGE} 个遍历作者的全部粉丝。
+     */
+    private void forEachFollowerPage(long authorId, Consumer<List<Long>> handler) {
+        Long after = null;
+        List<Long> followerIds;
+        do {
+            followerIds = followService.listFollowerIds(authorId, after, FOLLOWER_PAGE);
+            if (!followerIds.isEmpty()) {
+                handler.accept(followerIds);
+                after = followerIds.getLast();
+            }
+        } while (followerIds.size() == FOLLOWER_PAGE);
     }
 
     /**

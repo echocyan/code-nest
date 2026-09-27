@@ -4,6 +4,7 @@ import com.echocyan.codenest.counter.api.IdCount;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.Collection;
 import java.util.List;
@@ -11,8 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * {@link FeedStore} 按粉丝数识别大 V：粉丝数不低于阈值的作者。作者跨过阈值时不迁移已推送或未推送的文章，
- * 读 Feed 时按文章 ID 去重。
+ * {@link FeedStore} 按粉丝数识别大 V：粉丝数不低于阈值的作者。
  *
  * <p>粉丝数存在 ZSet {@code feed:followers}（{@code feed} 是 key 前缀）（member 是作者 ID，score 是粉丝数，没有粉丝的作者不在其中），
  * 关注、取关后由修正消费者按关注表重新统计写入。另有 String {@code feed:followers:ready}：全部重建完成的标记，
@@ -30,6 +30,19 @@ class BigAuthors {
      * 重建时每批统计的作者数。
      */
     private static final int REBUILD_BATCH = 1000;
+
+    /**
+     * KEYS：粉丝数 ZSet；ARGV：作者 ID、粉丝数。写入粉丝数（为 0 时移除），返回原来的粉丝数，没有时为 0。
+     */
+    private static final RedisScript<Long> REPLACE = RedisScript.of("""
+            local old = redis.call('ZSCORE', KEYS[1], ARGV[1])
+            if tonumber(ARGV[2]) == 0 then
+                redis.call('ZREM', KEYS[1], ARGV[1])
+            else
+                redis.call('ZADD', KEYS[1], ARGV[2], ARGV[1])
+            end
+            return tonumber(old or 0)
+            """, Long.class);
 
     private final StringRedisTemplate redis;
     private final FollowService followService;
@@ -62,14 +75,13 @@ class BigAuthors {
 
     /**
      * 按关注表重新统计作者的粉丝数并写入；统计的是绝对值，重复执行结果不变。
+     *
+     * @return 这次写入是否让作者从大 V 降为普通作者
      */
-    void refresh(long authorId) {
+    boolean refresh(long authorId) {
         long followers = followService.countFollowers(authorId);
-        if (followers == 0) {
-            redis.opsForZSet().remove(key, String.valueOf(authorId));
-        } else {
-            redis.opsForZSet().add(key, String.valueOf(authorId), followers);
-        }
+        Long old = redis.execute(REPLACE, List.of(key), String.valueOf(authorId), String.valueOf(followers));
+        return old >= threshold && followers < threshold;
     }
 
     /**

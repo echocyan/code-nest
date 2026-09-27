@@ -1,12 +1,9 @@
-package com.echocyan.codenest.social.service.impl;
+package com.echocyan.codenest.social.service;
 
 import com.echocyan.codenest.counter.api.IdCount;
-import com.echocyan.codenest.social.service.FollowService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
-import org.springframework.stereotype.Component;
 
 import java.util.Collection;
 import java.util.List;
@@ -14,10 +11,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 按粉丝数识别大 V：粉丝数不低于 {@code feed.big-author-threshold} 的作者。作者跨过阈值时不迁移已推送或未推送的文章，
+ * {@link FeedStore} 按粉丝数识别大 V：粉丝数不低于阈值的作者。作者跨过阈值时不迁移已推送或未推送的文章，
  * 读 Feed 时按文章 ID 去重。
  *
- * <p>粉丝数存在 ZSet {@code feed:followers}（member 是作者 ID，score 是粉丝数，没有粉丝的作者不在其中），
+ * <p>粉丝数存在 ZSet {@code feed:followers}（{@code feed} 是 key 前缀）（member 是作者 ID，score 是粉丝数，没有粉丝的作者不在其中），
  * 关注、取关后由修正消费者按关注表重新统计写入。另有 String {@code feed:followers:ready}：全部重建完成的标记，
  * 启动时不存在就按全部关注关系重建；重建中途失败时标记不会写入，下次启动重来。
  * 读 Feed 时一条 {@code ZRANGEBYSCORE} 取出全部大 V，不必逐个查读者关注的几百个作者的粉丝数。
@@ -27,12 +24,7 @@ import java.util.stream.Collectors;
  * 到这个作者下次被关注或取关时纠正。
  */
 @Slf4j
-@Component
 class BigAuthors {
-
-    private static final String KEY = "feed:followers";
-
-    private static final String READY = "feed:followers:ready";
 
     /**
      * 重建时每批统计的作者数。
@@ -41,12 +33,15 @@ class BigAuthors {
 
     private final StringRedisTemplate redis;
     private final FollowService followService;
+    private final String key;
+    private final String readyKey;
     private final long threshold;
 
-    BigAuthors(StringRedisTemplate redis, FollowService followService,
-               @Value("${feed.big-author-threshold}") long threshold) {
+    BigAuthors(StringRedisTemplate redis, FollowService followService, String keyPrefix, long threshold) {
         this.redis = redis;
         this.followService = followService;
+        this.key = keyPrefix + ":followers";
+        this.readyKey = key + ":ready";
         this.threshold = threshold;
     }
 
@@ -54,14 +49,14 @@ class BigAuthors {
      * @return 给定作者中的大 V
      */
     Set<Long> among(Collection<Long> authorIds) {
-        Set<String> big = redis.opsForZSet().rangeByScore(KEY, threshold, Double.POSITIVE_INFINITY);
+        Set<String> big = redis.opsForZSet().rangeByScore(key, threshold, Double.POSITIVE_INFINITY);
         return authorIds.stream()
                 .filter(id -> big.contains(String.valueOf(id)))
                 .collect(Collectors.toSet());
     }
 
     boolean isBig(long authorId) {
-        Double followers = redis.opsForZSet().score(KEY, String.valueOf(authorId));
+        Double followers = redis.opsForZSet().score(key, String.valueOf(authorId));
         return followers != null && followers >= threshold;
     }
 
@@ -71,9 +66,9 @@ class BigAuthors {
     void refresh(long authorId) {
         long followers = followService.countFollowers(authorId);
         if (followers == 0) {
-            redis.opsForZSet().remove(KEY, String.valueOf(authorId));
+            redis.opsForZSet().remove(key, String.valueOf(authorId));
         } else {
-            redis.opsForZSet().add(KEY, String.valueOf(authorId), followers);
+            redis.opsForZSet().add(key, String.valueOf(authorId), followers);
         }
     }
 
@@ -82,7 +77,7 @@ class BigAuthors {
      * 重建，完成后写入标记；多个实例同时启动时各自重建一遍。
      */
     void rebuildIfAbsent() {
-        if (Boolean.TRUE.equals(redis.hasKey(READY))) {
+        if (Boolean.TRUE.equals(redis.hasKey(readyKey))) {
             return;
         }
         long imported = 0;
@@ -91,11 +86,11 @@ class BigAuthors {
             Set<TypedTuple<String>> tuples = counts.stream()
                     .map(count -> TypedTuple.of(String.valueOf(count.id()), (double) count.count()))
                     .collect(Collectors.toSet());
-            redis.opsForZSet().add(KEY, tuples);
+            redis.opsForZSet().add(key, tuples);
             imported += counts.size();
             counts = followService.countFollowersAfter(counts.getLast().id(), REBUILD_BATCH);
         }
-        redis.opsForValue().set(READY, "1");
+        redis.opsForValue().set(readyKey, "1");
         log.info("Rebuilt follower counts of {} authors for the feed", imported);
     }
 }

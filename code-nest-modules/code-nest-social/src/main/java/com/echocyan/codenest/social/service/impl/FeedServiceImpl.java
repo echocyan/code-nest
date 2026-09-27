@@ -1,12 +1,15 @@
 package com.echocyan.codenest.social.service.impl;
 
+import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
+import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.counter.api.CounterApi;
 import com.echocyan.codenest.counter.api.CounterMetric;
 import com.echocyan.codenest.counter.api.CounterTarget;
 import com.echocyan.codenest.counter.api.Counts;
 import com.echocyan.codenest.social.service.FeedService;
+import com.echocyan.codenest.social.service.FeedStore;
 import com.echocyan.codenest.social.service.FollowService;
 import com.echocyan.codenest.social.vo.ArticleCountsVO;
 import com.echocyan.codenest.social.vo.FeedItemVO;
@@ -18,8 +21,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
+ * 从 {@link FeedStore} 取一页文章 ID，滤掉已删除、非发布状态和已取关作者的文章，再补全作者信息和计数；
+ * 过滤不影响翻页，所以一页可能不足 size 条。
+ * <p>
  * 读取一页 Feed 的整体耗时记在 Timer {@code feed.read}，其中查询关注列表的耗时另记在 {@code feed.read.follow-list}，
  * 经管理端口的 metrics 端点查看；压测用它们判断关注列表要不要加缓存。
  */
@@ -27,16 +35,18 @@ import java.util.Map;
 class FeedServiceImpl implements FeedService {
 
     private final FollowService followService;
-    private final PushPullFeedReader feedReader;
+    private final FeedStore feedStore;
+    private final ArticleApi articleApi;
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final Timer readTimer;
     private final Timer followListTimer;
 
-    FeedServiceImpl(FollowService followService, PushPullFeedReader feedReader, UserApi userApi, CounterApi counterApi,
-                    MeterRegistry meterRegistry) {
+    FeedServiceImpl(FollowService followService, FeedStore feedStore, ArticleApi articleApi, UserApi userApi,
+                    CounterApi counterApi, MeterRegistry meterRegistry) {
         this.followService = followService;
-        this.feedReader = feedReader;
+        this.feedStore = feedStore;
+        this.articleApi = articleApi;
         this.userApi = userApi;
         this.counterApi = counterApi;
         this.readTimer = meterRegistry.timer("feed.read");
@@ -61,7 +71,14 @@ class FeedServiceImpl implements FeedService {
         if (authorIds.isEmpty()) {
             return CursorResult.empty();
         }
-        CursorResult<ArticleBrief> articles = feedReader.read(userId, authorIds, cursor, size);
+        CursorResult<Long> ids = feedStore.read(userId, authorIds, cursor, size);
+        Set<Long> followed = Set.copyOf(authorIds);
+        Map<Long, ArticleBrief> briefs = articleApi.getBriefs(ids.list());
+        CursorResult<ArticleBrief> articles = new CursorResult<>(ids.list().stream()
+                .map(briefs::get)
+                .filter(Objects::nonNull)
+                .filter(brief -> brief.status() == ArticleStatus.PUBLISHED && followed.contains(brief.authorId()))
+                .toList(), ids.nextCursor(), ids.hasMore());
         Map<Long, UserBrief> authors = userApi.getBriefs(
                 articles.list().stream().map(ArticleBrief::authorId).distinct().toList());
         Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE,

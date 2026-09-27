@@ -1,7 +1,6 @@
-package com.echocyan.codenest.social.service.impl;
+package com.echocyan.codenest.social.service;
 
 import com.echocyan.codenest.article.api.ArticleState;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
 import org.springframework.data.redis.connection.RedisZSetCommands;
@@ -9,7 +8,6 @@ import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -20,22 +18,19 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * 推拉结合 Feed 的 Redis 存储。
+ * {@link FeedStore} 的发件箱与收件箱。
  *
- * <p>key 设计，都是 ZSet，member 与 score 都是文章 ID：
+ * <p>key 设计，都是 ZSet，member 与 score 都是文章 ID（{@code feed} 是 key 前缀）：
  * <ul>
  *     <li>{@code feed:outbox:{authorId}}：作者的发件箱，最近发布的 {@value #OUTBOX_CAP} 篇文章，不设 TTL。</li>
  *     <li>{@code feed:inbox:{userId}}：读者的收件箱，推送来的普通作者的文章，至多 {@value #INBOX_CAP} 条，
  *     TTL 7 天、读取时续期。key 不存在说明读者 7 天没来过：推送时跳过，读取时从发件箱重建。</li>
  * </ul>
- * 另有 String {@code feed:outbox:ready}：发件箱全部重建完成的标记，见 {@link FeedFanoutServiceImpl#rebuildIfAbsent}。
- * 识别大 V 用的粉丝数 {@code feed:followers} 见 {@link BigAuthors}。
+ * 另有 String {@code feed:outbox:ready}：发件箱全部重建完成的标记。
  * score 是 double，大于 2^53 的雪花 ID 转换时会舍入，相邻的 ID 可能得到相同的 score。score 相同的 member 按字典序排列，
  * 位数相同的 ID 字典序就是数值序，所以 ZSet 内的顺序仍与 ID 一致；按游标读取时，与游标 score 相同的那一组单独取出，
  * 在 Java 里按 ID 精确比较。
  */
-@Component
-@RequiredArgsConstructor
 class FeedBoxes {
 
     static final int OUTBOX_CAP = 100;
@@ -43,8 +38,6 @@ class FeedBoxes {
     static final int INBOX_CAP = 500;
 
     private static final Duration INBOX_TTL = Duration.ofDays(7);
-
-    private static final String OUTBOX_READY = "feed:outbox:ready";
 
     /**
      * 只保留最新的 ARGV[1] 条：ZSet 按 score 升序，最旧的排在前面。各脚本的 ARGV[1] 都是上限。
@@ -129,13 +122,21 @@ class FeedBoxes {
             """, Long.class);
 
     private final StringRedisTemplate redis;
+    private final String keyPrefix;
+    private final String outboxReadyKey;
 
-    private static String outboxKey(long authorId) {
-        return "feed:outbox:" + authorId;
+    FeedBoxes(StringRedisTemplate redis, String keyPrefix) {
+        this.redis = redis;
+        this.keyPrefix = keyPrefix;
+        this.outboxReadyKey = keyPrefix + ":outbox:ready";
     }
 
-    private static String inboxKey(long userId) {
-        return "feed:inbox:" + userId;
+    private String outboxKey(long authorId) {
+        return keyPrefix + ":outbox:" + authorId;
+    }
+
+    private String inboxKey(long userId) {
+        return keyPrefix + ":inbox:" + userId;
     }
 
     private static byte[] bytes(String value) {
@@ -159,11 +160,11 @@ class FeedBoxes {
     }
 
     boolean outboxesReady() {
-        return Boolean.TRUE.equals(redis.hasKey(OUTBOX_READY));
+        return Boolean.TRUE.equals(redis.hasKey(outboxReadyKey));
     }
 
     void markOutboxesReady() {
-        redis.opsForValue().set(OUTBOX_READY, "1");
+        redis.opsForValue().set(outboxReadyKey, "1");
     }
 
     void removeFromOutbox(long authorId, long articleId) {
@@ -217,7 +218,7 @@ class FeedBoxes {
      * @return 各 ZSet 结果的合集，未排序、未去重
      */
     List<Long> readBefore(long userId, Collection<Long> authorIds, Long cursor, int limit) {
-        List<byte[]> keys = Stream.concat(Stream.of(inboxKey(userId)), authorIds.stream().map(FeedBoxes::outboxKey))
+        List<byte[]> keys = Stream.concat(Stream.of(inboxKey(userId)), authorIds.stream().map(this::outboxKey))
                 .map(FeedBoxes::bytes)
                 .toList();
         List<Object> replies = redis.executePipelined((RedisCallback<Object>) connection -> {

@@ -2,7 +2,7 @@ package com.echocyan.codenest.social.listener;
 
 import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
 import com.echocyan.codenest.framework.mq.EventQueues;
-import com.echocyan.codenest.social.service.FeedFanoutService;
+import com.echocyan.codenest.social.service.FeedStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -18,7 +18,7 @@ public class FeedPushListener {
 
     static final String QUEUE = "social.feed-push";
 
-    private final FeedFanoutService feedFanoutService;
+    private final FeedStore feedStore;
 
     @Bean
     static Declarables feedPushQueue() {
@@ -27,6 +27,6 @@ public class FeedPushListener {
 
     @RabbitListener(queues = QUEUE)
     public void onPublished(ArticlePublishedEvent event) {
-        feedFanoutService.push(event.articleId(), event.authorId());
+        feedStore.addArticle(event.articleId(), event.authorId());
     }
 }

@@ -56,17 +56,54 @@ class FeedApiTest extends ArticleTestSupport {
             newestFirst.addFirst(publish(author, createDraft(author, draft())));
         }
         RestTestClient reader = withToken(register(uniqueUsername()));
-        for (RestTestClient author : List.of(alice, bob)) {
-            reader.put().uri(API + "/users/{id}/follow", idOf(author)).exchange().expectStatus().isOk();
+        follow(reader, alice);
+        follow(reader, bob);
+
+        eventually(() -> assertThat(readAllPages(reader, 2)).isEqualTo(newestFirst));
+    }
+
+    @Test
+    void articlesPublishedAfterTheFirstReadShowUpNewestFirst() {
+        RestTestClient alice = withToken(register(uniqueUsername()));
+        RestTestClient bob = withToken(register(uniqueUsername()));
+        List<String> newestFirst = new ArrayList<>();
+        newestFirst.addFirst(publish(alice, createDraft(alice, draft())));
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        follow(reader, alice);
+        follow(reader, bob);
+        eventually(() -> assertThat(readAllPages(reader, 20)).isEqualTo(newestFirst));
+
+        for (RestTestClient author : List.of(bob, alice, bob, alice)) {
+            newestFirst.addFirst(publish(author, createDraft(author, draft())));
         }
 
         eventually(() -> assertThat(readAllPages(reader, 2)).isEqualTo(newestFirst));
     }
 
+    @Test
+    void historyOfNewlyFollowedAuthorShowsUp() {
+        RestTestClient newcomer = withToken(register(uniqueUsername()));
+        String first = publish(newcomer, createDraft(newcomer, draft()));
+        String second = publish(newcomer, createDraft(newcomer, draft()));
+        RestTestClient followed = withToken(register(uniqueUsername()));
+        String latest = publish(followed, createDraft(followed, draft()));
+        RestTestClient reader = withToken(register(uniqueUsername()));
+        follow(reader, followed);
+        eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(latest));
+
+        follow(reader, newcomer);
+
+        eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(latest, second, first));
+    }
+
+    private void follow(RestTestClient follower, RestTestClient author) {
+        follower.put().uri(API + "/users/{id}/follow", idOf(author)).exchange().expectStatus().isOk();
+    }
+
     /**
      * 按 size 连续翻页直到没有下一页，返回依次看到的文章 ID。
      */
-    protected List<String> readAllPages(RestTestClient reader, int size) {
+    private List<String> readAllPages(RestTestClient reader, int size) {
         List<String> seen = new ArrayList<>();
         AtomicReference<String> cursor = new AtomicReference<>();
         AtomicReference<Boolean> hasMore = new AtomicReference<>(true);
@@ -85,7 +122,7 @@ class FeedApiTest extends ArticleTestSupport {
         return seen;
     }
 
-    protected void expectFeed(RestTestClient reader, List<String> articleIds) {
+    private void expectFeed(RestTestClient reader, List<String> articleIds) {
         reader.get().uri(API + "/feed")
                 .exchange()
                 .expectStatus().isOk()
@@ -94,7 +131,7 @@ class FeedApiTest extends ArticleTestSupport {
                 .jsonPath("$.data.hasMore").isEqualTo(false);
     }
 
-    protected String idOf(RestTestClient user) {
+    private String idOf(RestTestClient user) {
         AtomicReference<String> id = new AtomicReference<>();
         user.get().uri(API + "/users/me")
                 .exchange()

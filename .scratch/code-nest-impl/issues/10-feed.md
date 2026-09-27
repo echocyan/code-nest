@@ -29,14 +29,14 @@ Status: closed
 
 - **模块依赖**：social 的 pom 加上 article，文章摘要经 `ArticleApi` 获取。
 - **结构**：
-  - `FeedService` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），交给 `PushPullFeedReader` 取一页文章，再经 `UserApi`、`CounterApi` 补全作者信息和计数。没有关注任何人时直接返回空。
-  - `listener/FeedPushListener`（`social.feed-push`，订阅 `article.published`）、`listener/FeedFixListener`（`social.feed-fix`，订阅 `follow.created`、`follow.deleted`、`article.deleted`），都调用 `FeedFanoutService`。
-  - `service/impl/FeedBoxes`：发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本；`BigAuthors`：维护 `feed:followers` 并据此识别大 V。
+  - `service/FeedStore`：推拉结合的 Redis 存储，对外只有 `addArticle`、`removeArticle`、`follow`、`unfollow`、`read` 和启动重建。`read` 返回一页按 ID 倒序、去重的文章 ID 和游标，不过滤。key 前缀（应用里为 `feed`）与大 V 阈值是构造参数。内部由同包、不对外的 `FeedBoxes`（发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本）和 `BigAuthors`（维护 `feed:followers` 并据此识别大 V）组成。
+  - `FeedService` 查出关注的全部作者（只读 (follower_id, author_id) 唯一索引），交给 `FeedStore.read` 取一页文章 ID，经 `ArticleApi.getBriefs` 回查后滤掉已删除、非发布状态和已取关作者的文章，再经 `UserApi`、`CounterApi` 补全作者信息和计数。没有关注任何人时直接返回空。
+  - `listener/FeedPushListener`（`social.feed-push`，订阅 `article.published`）、`listener/FeedFixListener`（`social.feed-fix`，订阅 `follow.created`、`follow.deleted`、`article.deleted`），只把事件转给 `FeedStore`。
   - 推送按粉丝 ID 升序翻页（`FollowService.listFollowerIds`，走 (author_id, follower_id) 索引）。
 - **接口细节**：`GET /feed?cursor=&size=` 需要登录；size 默认 20、最大 50；列表项为 `{id, title, summary, coverUrl, publishedAt, author, counts}`，与文章列表项相比不含分类和状态。
 - **事件**：`ArticlePublishedEvent`、`ArticleDeletedEvent` 在 article 的 `api/event`，`FollowDeletedEvent` 在 social 的 `api/event`，都只带两个 ID。发布只在草稿转为已发布时发出；删除草稿也会发出 `article.deleted`。
 - **大 V 识别**：`BigAuthors` 在 ZSet `feed:followers` 里存作者 ID → 粉丝数，关注、取关后按 follow 表重新统计，读 Feed 时一条 `ZRANGEBYSCORE` 取出全部大 V，不必逐个读取关注的几百个作者的粉丝数。存粉丝数而不是大 V 名单，阈值不同的实例可以共用。
-- **启动重建**：`FeedLoader` 在启动时调用 `FeedFanoutService.rebuildIfAbsent`：`feed:outbox:ready` 不存在时经 `ArticleApi.listPublishedStates` 按文章 ID 正序遍历已发布文章，pipeline 写入各作者的发件箱；`feed:followers:ready` 不存在时按关注表分批统计粉丝数。两者都在全部导入完成后才写标记，中途失败下次启动重来。造数直接写库、不经事件，派生的发件箱和粉丝数都由这条路径生成。
+- **启动重建**：`FeedStore` 实现 `SmartInitializingSingleton`，启动时：`feed:outbox:ready` 不存在时经 `ArticleApi.listPublishedStates` 按文章 ID 正序遍历已发布文章，pipeline 写入各作者的发件箱；`feed:followers:ready` 不存在时按关注表分批统计粉丝数。两者都在全部导入完成后才写标记，中途失败下次启动重来。造数直接写库、不经事件，派生的发件箱和粉丝数都由这条路径生成。
 - **Redis 细节**：
   - 只在收件箱存在时写入的脚本（推送、关注时并入）不会造出没有 TTL 的收件箱；并入用 `ZADD`，保留原有 TTL。
   - 重建把普通作者的发件箱逐个并入、每并入一个就裁剪一次，最后设 TTL；发件箱都为空时收件箱仍不存在，下次读取再重建。
@@ -45,4 +45,6 @@ Status: closed
 - **读取**：两路合并后多取一条判断是否还有下一页，`nextCursor` 取过滤前这一页的最后一个 ID，所以过滤不影响翻页。
 - **推送与重建不会漏文章**：推送先写发件箱、再逐个判断收件箱是否存在；重建是一个原子脚本。重建在写发件箱之前执行时，收件箱已存在、推送会写入；在之后执行时，重建本身就带上了这篇文章。
 - **已知缺陷**：发布与删除在两个队列里消费，删除先被处理时，已删的文章会被写回发件箱、占一个名额，直到被更新的文章挤出；读取时会被过滤掉。作者跨过大 V 阈值前后的文章可能既不在收件箱、也不被拉取（决策票 07 接受不迁移）。
-- **测试**：`FeedApiTest` 覆盖关注、取关、草稿与删除过滤和多页翻阅；Feed 最终一致，翻页断言用 `eventually`。`FeedPushPullApiTest` 继承它，把大 V 阈值降为 2，另外覆盖大 V 与普通作者混排、收件箱过期后重建（删掉收件箱 key 模拟过期）、关注后能看到对方的历史文章、发件箱与粉丝数丢失后重建。
+- **测试**：
+  - `FeedApiTest` 经 HTTP 覆盖关注、取关、草稿与删除过滤、多页翻阅、首次读取后发布的文章经推送出现、关注后能看到对方的历史文章；Feed 最终一致，翻页断言用 `eventually`。
+  - `FeedStoreTest` 另建 `FeedStore`，用随机 key 前缀、大 V 阈值 2，关注关系与文章经桩提供。覆盖大 V 发文不遍历粉丝、读取时拉取，没有收件箱的读者首次读取时重建，关注并入、取关移除、删文移出发件箱，启动重建发件箱与粉丝数（第一次中途失败、第二次补全），score 相同的 ID 翻页不重不漏。

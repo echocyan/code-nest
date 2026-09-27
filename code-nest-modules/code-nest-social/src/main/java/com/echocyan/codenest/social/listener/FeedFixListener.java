@@ -4,7 +4,7 @@ import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
 import com.echocyan.codenest.framework.mq.EventQueues;
 import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 import com.echocyan.codenest.social.api.event.FollowDeletedEvent;
-import com.echocyan.codenest.social.service.FeedFanoutService;
+import com.echocyan.codenest.social.service.FeedStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.rabbit.annotation.RabbitHandler;
@@ -22,7 +22,7 @@ public class FeedFixListener {
 
     static final String QUEUE = "social.feed-fix";
 
-    private final FeedFanoutService feedFanoutService;
+    private final FeedStore feedStore;
 
     @Bean
     static Declarables feedFixQueue() {
@@ -31,16 +31,16 @@ public class FeedFixListener {
 
     @RabbitHandler
     public void onFollow(FollowCreatedEvent event) {
-        feedFanoutService.mergeOnFollow(event.followerId(), event.authorId());
+        feedStore.follow(event.followerId(), event.authorId());
     }
 
     @RabbitHandler
     public void onUnfollow(FollowDeletedEvent event) {
-        feedFanoutService.removeOnUnfollow(event.followerId(), event.authorId());
+        feedStore.unfollow(event.followerId(), event.authorId());
     }
 
     @RabbitHandler
     public void onArticleDeleted(ArticleDeletedEvent event) {
-        feedFanoutService.removeArticle(event.articleId(), event.authorId());
+        feedStore.removeArticle(event.articleId(), event.authorId());
     }
 }

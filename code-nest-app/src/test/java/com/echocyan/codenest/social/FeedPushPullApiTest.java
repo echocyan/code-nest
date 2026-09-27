@@ -114,8 +114,8 @@ class FeedPushPullApiTest extends FeedApiTest {
         eventually(() -> assertThat(readAllPages(reader, 20)).containsExactly(bigArticle, normalArticle));
 
         // 模拟 Redis 数据丢失再重启：丢了粉丝数就认不出大 V，也就不会去拉他的发件箱。
-        // 重建按全部关注关系统计，只做幂等的 ZADD，不影响其他测试的数据
-        redis.delete("feed:followers");
+        // 完成标记是全局的，删除后按全部关注关系统计重建；重建只做幂等的 ZADD，不影响其他测试的数据
+        redis.delete(List.of("feed:followers:ready", "feed:followers"));
         feedFanoutService.rebuildIfAbsent();
 
         assertThat(readAllPages(reader, 20)).containsExactly(bigArticle, normalArticle);

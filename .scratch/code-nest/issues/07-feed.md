@@ -23,7 +23,7 @@ Blocked by: 03
    - 不需要另外维护活跃用户名单。
 3. **大 V 阈值**：
    - 配置项 `feed.big-author-threshold`，默认 5000。
-   - 粉丝数存在 ZSet `feed:followers`（member 是作者 ID，score 是粉丝数），由 social 在关注、取关后按 `follow` 表重新统计写入，启动时 key 不存在就按全部关注关系重建。存粉丝数而不是大 V 名单，与阈值无关。读 Feed 时一条 `ZRANGEBYSCORE` 取出全部大 V，不必逐个读取关注的几百个作者的计数。
+   - 粉丝数存在 ZSet `feed:followers`（member 是作者 ID，score 是粉丝数），由 social 在关注、取关后按 `follow` 表重新统计写入，启动时如果重建完成标记 `feed:followers:ready` 不存在，就按全部关注关系重建，完成后写入标记。存粉丝数而不是大 V 名单，与阈值无关。读 Feed 时一条 `ZRANGEBYSCORE` 取出全部大 V，不必逐个读取关注的几百个作者的计数。
    - 并发修正同一作者时可能写入先统计出的旧值，只在粉丝数恰好跨过阈值时影响判定，到这个作者下次被关注或取关时纠正。
    - 作者跨过阈值时不迁移历史数据，之后按新身份处理。同一篇文章可能既在收件箱里又被拉取到，读 Feed 时按 articleId 去重。
 4. **结构**：

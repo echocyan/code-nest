@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
  * 读 Feed 时按文章 ID 去重。
  *
  * <p>粉丝数存在 ZSet {@code feed:followers}（member 是作者 ID，score 是粉丝数，没有粉丝的作者不在其中），
- * 关注、取关后由修正消费者按关注表重新统计写入，启动时 key 不存在就按全部关注关系重建。
+ * 关注、取关后由修正消费者按关注表重新统计写入。另有 String {@code feed:followers:ready}：全部重建完成的标记，
+ * 启动时不存在就按全部关注关系重建；重建中途失败时标记不会写入，下次启动重来。
  * 读 Feed 时一条 {@code ZRANGEBYSCORE} 取出全部大 V，不必逐个查读者关注的几百个作者的粉丝数。
  * 存的是粉丝数而不是大 V 名单，与阈值无关，阈值不同的实例可以共用。
  *
@@ -30,6 +31,8 @@ import java.util.stream.Collectors;
 class BigAuthors {
 
     private static final String KEY = "feed:followers";
+
+    private static final String READY = "feed:followers:ready";
 
     /**
      * 重建时每批统计的作者数。
@@ -75,11 +78,11 @@ class BigAuthors {
     }
 
     /**
-     * key 不存在时（首次部署、Redis 数据丢失，或造数绕过关注事件直接写库），按作者 ID 分批统计全部关注关系重建；
-     * 多个实例同时启动时各自重建一遍。
+     * 重建完成标记不存在时（首次部署、Redis 数据丢失，或造数绕过关注事件直接写库），按作者 ID 分批统计全部关注关系
+     * 重建，完成后写入标记；多个实例同时启动时各自重建一遍。
      */
     void rebuildIfAbsent() {
-        if (Boolean.TRUE.equals(redis.hasKey(KEY))) {
+        if (Boolean.TRUE.equals(redis.hasKey(READY))) {
             return;
         }
         long imported = 0;
@@ -92,6 +95,7 @@ class BigAuthors {
             imported += counts.size();
             counts = followService.countFollowersAfter(counts.getLast().id(), REBUILD_BATCH);
         }
+        redis.opsForValue().set(READY, "1");
         log.info("Rebuilt follower counts of {} authors for the feed", imported);
     }
 }

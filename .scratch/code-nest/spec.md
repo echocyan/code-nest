@@ -359,7 +359,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 ### Feed 推拉结合（主打亮点 B，见[Feed 推拉结合](issues/07-feed.md)）
 
 - **大 V 判定**：粉丝数 ≥ `feed.big-author-threshold`（默认 5000）。作者跨过阈值时不迁移历史数据。
-    - 粉丝数存在 ZSet `feed:followers`（member 是作者 ID，score 是粉丝数），关注、取关后按 `follow` 表重新统计写入，启动时 key 不存在就重建；与阈值无关。
+    - 粉丝数存在 ZSet `feed:followers`（member 是作者 ID，score 是粉丝数），关注、取关后按 `follow` 表重新统计写入，启动时如果重建完成标记 `feed:followers:ready` 不存在就重建；与阈值无关。
 - **Redis 结构**：
     - 每个作者一个发件箱 ZSet（最近 100 篇），启动时如果重建完成标记 `feed:outbox:ready` 不存在，就经 `ArticleApi` 按全部已发布文章重建；每个读者一个收件箱 ZSet（上限 500 条，TTL 7 天，读取时续期）。
     - member 和 score 都用雪花 articleId，articleId 同时是分页游标。score 是 double，大 ID 会舍入；按游标读取时，与游标 score 相同的一组按 ID 精确比较。

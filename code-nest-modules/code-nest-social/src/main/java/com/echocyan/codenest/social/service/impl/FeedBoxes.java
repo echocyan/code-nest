@@ -28,7 +28,8 @@ import java.util.stream.Stream;
  *     <li>{@code feed:inbox:{userId}}：读者的收件箱，推送来的普通作者的文章，至多 {@value #INBOX_CAP} 条，
  *     TTL 7 天、读取时续期。key 不存在说明读者 7 天没来过：推送时跳过，读取时从发件箱重建。</li>
  * </ul>
- * 另有 String {@code feed:outbox:ready}：发件箱全部重建完成的标记，见 {@link FeedFanoutServiceImpl#rebuildOutboxesIfAbsent}。
+ * 另有 String {@code feed:outbox:ready}：发件箱全部重建完成的标记，见 {@link FeedFanoutServiceImpl#rebuildIfAbsent}。
+ * 识别大 V 用的粉丝数 {@code feed:followers} 见 {@link BigAuthors}。
  * score 是 double，大于 2^53 的雪花 ID 转换时会舍入，相邻的 ID 可能得到相同的 score。score 相同的 member 按字典序排列，
  * 位数相同的 ID 字典序就是数值序，所以 ZSet 内的顺序仍与 ID 一致；按游标读取时，与游标 score 相同的那一组单独取出，
  * 在 Java 里按 ID 精确比较。

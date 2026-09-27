@@ -18,6 +18,17 @@ case $scenario in
     *) echo "未知场景：$scenario" >&2; exit 1 ;;
 esac
 
+# 其余开关取当前环境变量，未设置的是 compose 里的默认档；不是默认档的值追加到结果文件名，不覆盖默认环境下的结果
+fixed='{}'
+suffix=
+for other in COUNTER_MODE:sync-db FEED_MODE:pull SEARCH_MODE:mysql-like CACHE_MODE:none; do
+    key=${other%%:*} default=${other#*:}
+    [ "$key" = "$switch" ] && continue
+    value=${!key:-$default}
+    fixed=$(jq --arg key "$key" --arg value "$value" '. + {($key): $value}' <<<"$fixed")
+    [ "$value" = "$default" ] || suffix+="-$value"
+done
+
 # 中间文件：宿主机路径与 k6 容器内的路径
 work=code-nest-loadtest/target/k6
 k6_work=/loadtest/target/k6
@@ -58,6 +69,19 @@ redis_calls() {
             | add // {}'
 }
 
+# 场景 B：两个实例的 Timer feed.read 与 feed.read.follow-list 的累计次数与耗时（毫秒）之和，输出 JSON 对象
+feed_timers() {
+    local port metric
+    for port in 8081 8082; do
+        for metric in feed.read feed.read.follow-list; do
+            curl -fs "http://localhost:$port/actuator/metrics/$metric" \
+                | jq --arg metric "$metric" '.measurements | map({key: .statistic, value}) | from_entries
+                    | {($metric): {count: .COUNT, ms: (.TOTAL_TIME * 1000)}}'
+        done
+    done | jq -s 'reduce (.[] | to_entries[]) as $e ({}; .[$e.key].count += $e.value.count | .[$e.key].ms += $e.value.ms)
+        | {readCount: .["feed.read"].count, readMs: .["feed.read"].ms, followListMs: .["feed.read.follow-list"].ms}'
+}
+
 # 两次快照的差值，只保留有变化的项
 delta() {
     jq -n --argjson before "$1" --argjson after "$2" \
@@ -73,6 +97,22 @@ switch_mode() {
     compose restart nginx
     curl -fs --retry 30 --retry-all-errors --retry-delay 1 -o /dev/null "http://localhost:8080/api/v1/articles?size=1" \
         || { echo "Nginx 未就绪" >&2; exit 1; }
+}
+
+# 等有消费者的 MQ 队列清空：上一档、上一轮积压的消息（如点赞产生的通知）会在压测期间抢占 MySQL 与应用 CPU。
+# 没有消费者的队列（死信队列、当前档不消费的计数队列）不等；30 分钟内清不空就退出
+wait_queues() {
+    local backlog
+    for _ in $(seq 360); do
+        backlog=$(compose exec -T rabbitmq rabbitmqctl list_queues -q name messages consumers \
+            | awk 'NR > 1 && $3 > 0 {sum += $2} END {print sum + 0}')
+        if [ "$backlog" = 0 ]; then
+            return
+        fi
+        sleep 5
+    done
+    echo "MQ 队列 30 分钟内未清空，还剩 $backlog 条" >&2
+    exit 1
 }
 
 # 场景 A：等待落库完成并断言计数表里的点赞数等于点赞行数。计数经 Outbox、MQ 进入 Redis，redis-async 每 5 秒
@@ -119,10 +159,15 @@ for mode in "${modes[@]}"; do
     runs_file="$work/$name.$mode.runs.jsonl"
     : >"$runs_file"
     for run in $(seq "$runs"); do
+        step "$switch=$mode 第 $run/$runs 轮：等待 MQ 队列清空"
+        wait_queues
         step "$switch=$mode 第 $run/$runs 轮：预热 $WARMUP"
         run_k6 "$name" warmup
         mysql_before=$(mysql_status)
         redis_before=$(redis_calls)
+        if [ "$scenario" = b ]; then
+            feed_before=$(feed_timers)
+        fi
         step "$switch=$mode 第 $run/$runs 轮：稳态压测 $DURATION"
         run_k6 "$name" steady
         if [ "$scenario" = a ]; then
@@ -139,22 +184,31 @@ for mode in "${modes[@]}"; do
         if [ "$scenario" = a ]; then
             result=$(jq --argjson counter "$counter" '. + {counter: $counter}' <<<"$result")
         fi
+        if [ "$scenario" = b ]; then
+            # 服务端读一页 Feed 的平均耗时，以及其中查询关注列表所占的比例
+            feed_after=$(feed_timers)
+            feed=$(jq -n --argjson before "$feed_before" --argjson after "$feed_after" \
+                '$after | with_entries(.value -= $before[.key])
+                    | {readCount, readAvgMs: (.readMs / .readCount), followListAvgMs: (.followListMs / .readCount),
+                       followListShare: (.followListMs / .readMs)}')
+            result=$(jq --argjson feed "$feed" '. + {feed: $feed}' <<<"$result")
+        fi
         if [ "$mode" = push-pull ]; then
             step "测量推送耗时"
             run_k6 b-feed-push measure
             result=$(jq --slurpfile push "$work/b-feed-push.summary.json" '. + $push[0]' <<<"$result")
         fi
         jq -c . <<<"$result" >>"$runs_file"
-        jq '{k6, innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0), comSelect: (.mysql.Com_select // 0),
-            redisCalls: ([.redis[]] | add // 0)}' <<<"$result"
+        jq '{k6} + (if .feed then {feed} else {} end) + {innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0),
+            comSelect: (.mysql.Com_select // 0), redisCalls: ([.redis[]] | add // 0)}' <<<"$result"
     done
     mode_json=$(jq -s "$medians {median: medians, runs: .}" "$runs_file")
     modes_json=$(jq --arg mode "$mode" --argjson result "$mode_json" '. + {($mode): $result}' <<<"$modes_json")
 done
 
-output="code-nest-loadtest/results/$(date +%F)-$name.json"
-jq -n --arg scenario "$name" --arg switch "$switch" --arg startedAt "$started_at" --arg warmup "$WARMUP" \
-    --arg duration "$DURATION" --argjson runs "$runs" --argjson modes "$modes_json" \
-    '{scenario: $scenario, switch: $switch, startedAt: $startedAt, warmup: $warmup, duration: $duration, runs: $runs,
-      modes: $modes}' >"$output"
+output="code-nest-loadtest/results/$(date +%F)-$name$suffix.json"
+jq -n --arg scenario "$name" --arg switch "$switch" --argjson fixed "$fixed" --arg startedAt "$started_at" \
+    --arg warmup "$WARMUP" --arg duration "$DURATION" --argjson runs "$runs" --argjson modes "$modes_json" \
+    '{scenario: $scenario, switch: $switch, fixed: $fixed, startedAt: $startedAt, warmup: $warmup, duration: $duration,
+      runs: $runs, modes: $modes}' >"$output"
 step "完成，结果写入 $output"

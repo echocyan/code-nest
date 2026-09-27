@@ -20,7 +20,7 @@ Status: closed
 
 ## Comments
 
-- **发件箱重建**：Feed 发件箱原本只在消费 `article.published` 时写入，造数直接写库后全是空的。新增启动重建：`feed:outbox:ready` 不存在时，`FeedFanoutService.rebuildOutboxesIfAbsent` 经 `ArticleApi.listPublishedStates` 按文章 ID 正序遍历已发布文章，pipeline 写入各作者的发件箱。由 `FeedOutboxLoader` 在启动时调用，HTTP 测试见 `FeedPushPullApiTest.lostOutboxesAreRebuiltOnRestart`。
+- **发件箱重建**：Feed 发件箱原本只在消费 `article.published` 时写入，造数直接写库后全是空的。新增启动重建：`feed:outbox:ready` 不存在时，`FeedFanoutService.rebuildIfAbsent` 经 `ArticleApi.listPublishedStates` 按文章 ID 正序遍历已发布文章，pipeline 写入各作者的发件箱。由 `FeedLoader` 在启动时调用，HTTP 测试见 `FeedPushPullApiTest.lostOutboxesAreRebuiltOnRestart`。
 - **镜像**：根目录 `Dockerfile`，构建阶段 `eclipse-temurin:21-jdk`（用户已同意）加 BuildKit 缓存挂载，`jarmode=tools` 分层解开；打出的 jar 不含 docker-compose 与 devtools。
 - **compose**：`compose.loadtest.yaml` 把项目名设为 `code-nest-loadtest`，数据卷与本地开发环境分开。中间件加了健康检查，app-2 等 app-1 健康后才启动，避免两个实例同时跑 Flyway、同时建 ES 索引。MySQL 另设 `innodb_buffer_pool_size=1G`。应用容器设 `TZ=Asia/Shanghai`，定时对账的 cron 才按北京时间。Nginx 固定 IP 172.30.0.10，作为 `rate-limit.trusted-proxies`。
 - **造数**：`code-nest-loadtest` 的 `Seeder`，`rewriteBatchedStatements=true` 让驱动把每批 1000 行改写成多行 insert。ID 用雪花格式（创建时间 + 行序号）；关注表超过 2^22 行，按行序号单调分配时间保证唯一。词库放在 `vocabulary.txt`，搜索压测可以复用。

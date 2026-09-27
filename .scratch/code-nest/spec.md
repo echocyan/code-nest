@@ -518,7 +518,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **主要入口：HTTP 接口**。
     - 在 `code-nest-app` 里用 Testcontainers 启动 MySQL、Redis、RabbitMQ 和带 IK 的 ES，通过 `@ServiceConnection`
       注入连接信息，所有测试类共享同一组容器（singleton）。
-    - 测试基类提供 `register(username)`、`login(username)`（都调用真实接口并返回 token）和 `withToken(token)`（之后的请求自动带上 Bearer 头）。
+    - 测试基类提供 `register(username)`、`login(username)`（都调用真实接口并返回 token）和 `withToken(token)`（之后的请求自动带上 Bearer 头），以及多个模块的测试共用的 `idOf(client)`、`follow(follower, userId)`。
       不封装成一步到位的 `loginAs`，是因为多端登录等测试需要直接拿到 token。
     - 41 个接口都走真实 HTTP 测试，覆盖正常路径、权限（401/403/404）、参数校验、幂等（重复 PUT/DELETE）、限流（429 和
       `Retry-After`）。

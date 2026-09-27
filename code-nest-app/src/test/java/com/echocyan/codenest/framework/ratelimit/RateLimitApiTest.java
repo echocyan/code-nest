@@ -36,10 +36,6 @@ class RateLimitApiTest extends ArticleTestSupport {
                 .exchange();
     }
 
-    private static RestTestClient.ResponseSpec follow(RestTestClient user, String userId) {
-        return user.put().uri(API + "/users/{id}/follow", userId).exchange();
-    }
-
     private static RestTestClient.ResponseSpec comment(RestTestClient user, String articleId) {
         return user.post().uri(API + "/articles/{id}/comments", articleId)
                 .contentType(MediaType.APPLICATION_JSON)

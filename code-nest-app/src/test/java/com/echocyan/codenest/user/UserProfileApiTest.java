@@ -8,7 +8,6 @@ import org.springframework.test.web.servlet.client.RestTestClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -102,13 +101,5 @@ class UserProfileApiTest extends IntegrationTest {
                 .exchange()
                 .expectStatus().isNotFound()
                 .expectBody().jsonPath("$.code").isEqualTo(10003);
-    }
-
-    private String idOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

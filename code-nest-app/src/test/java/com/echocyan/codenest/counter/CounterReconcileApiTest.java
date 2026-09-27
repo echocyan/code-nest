@@ -121,13 +121,4 @@ class CounterReconcileApiTest extends ArticleTestSupport {
                 .jsonPath("$.data.counts.articleCount").isEqualTo(articles)
                 .jsonPath("$.data.counts.likeReceivedCount").isEqualTo(likesReceived);
     }
-
-    private String idOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
-    }
 }

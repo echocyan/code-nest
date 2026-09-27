@@ -98,7 +98,7 @@ class FeedApiTest extends ArticleTestSupport {
     }
 
     private void follow(RestTestClient follower, RestTestClient author) {
-        follower.put().uri(API + "/users/{id}/follow", idOf(author)).exchange().expectStatus().isOk();
+        follow(follower, idOf(author)).expectStatus().isOk();
     }
 
     /**
@@ -130,14 +130,5 @@ class FeedApiTest extends ArticleTestSupport {
                 .expectBody()
                 .jsonPath("$.data.list[*].id").isEqualTo(articleIds)
                 .jsonPath("$.data.hasMore").isEqualTo(false);
-    }
-
-    private String idOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

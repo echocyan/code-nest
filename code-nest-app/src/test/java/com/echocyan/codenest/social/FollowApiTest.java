@@ -139,10 +139,6 @@ class FollowApiTest extends IntegrationTest {
                 .expectBody().jsonPath("$.code").isEqualTo(90400);
     }
 
-    private RestTestClient.ResponseSpec follow(RestTestClient follower, String userId) {
-        return follower.put().uri(API + "/users/{id}/follow", userId).exchange();
-    }
-
     private RestTestClient.ResponseSpec unfollow(RestTestClient follower, String userId) {
         return follower.delete().uri(API + "/users/{id}/follow", userId).exchange();
     }
@@ -154,14 +150,5 @@ class FollowApiTest extends IntegrationTest {
                 .expectBody()
                 .jsonPath("$.data.counts.followerCount").isEqualTo(followers)
                 .jsonPath("$.data.counts.followingCount").isEqualTo(followings));
-    }
-
-    private String idOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
-        return id.get();
     }
 }

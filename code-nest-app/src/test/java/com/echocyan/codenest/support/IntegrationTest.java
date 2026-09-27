@@ -21,7 +21,7 @@ import static org.awaitility.Awaitility.await;
 
 /**
  * HTTP 集成测试基类：真实端口 + 真实中间件容器。子类通过 {@link #client} 匿名调用接口，
- * 通过 {@link #withToken} 以登录用户身份调用。
+ * 通过 {@link #withToken} 以登录用户身份调用；多个模块的测试都要用的造数步骤（查自己的 ID、关注）也放在这里。
  * <p>
  * 所有测试都从本机发请求，默认关闭限流，避免互相占用额度；限流测试在子类上重新开启。
  */
@@ -78,6 +78,25 @@ public abstract class IntegrationTest {
      */
     protected RestTestClient withToken(String token) {
         return client.mutate().defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + token).build();
+    }
+
+    /**
+     * 查询该客户端所登录用户的 ID。
+     */
+    protected String idOf(RestTestClient user) {
+        AtomicReference<String> id = new AtomicReference<>();
+        user.get().uri(API + "/users/me")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
+        return id.get();
+    }
+
+    /**
+     * 关注某个用户，由调用方断言结果。
+     */
+    protected RestTestClient.ResponseSpec follow(RestTestClient follower, String userId) {
+        return follower.put().uri(API + "/users/{id}/follow", userId).exchange();
     }
 
     private String authenticate(String path, String username) {

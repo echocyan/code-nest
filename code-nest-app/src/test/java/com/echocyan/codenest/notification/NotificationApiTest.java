@@ -106,11 +106,11 @@ class NotificationApiTest extends IntegrationTest {
         RestTestClient author = withToken(register(uniqueUsername()));
         String authorId = idOf(author);
         RestTestClient fan = withToken(register(uniqueUsername()));
-        follow(fan, authorId);
+        follow(fan, authorId).expectStatus().isOk();
         fan.delete().uri(API + "/users/{id}/follow", authorId).exchange().expectStatus().isOk();
-        follow(fan, authorId);
+        follow(fan, authorId).expectStatus().isOk();
         RestTestClient last = withToken(register(uniqueUsername()));
-        follow(last, authorId);
+        follow(last, authorId).expectStatus().isOk();
 
         awaitNotifications(author, 2);
         author.get().uri(API + "/notifications")
@@ -228,10 +228,6 @@ class NotificationApiTest extends IntegrationTest {
         return id.get();
     }
 
-    private void follow(RestTestClient follower, String userId) {
-        follower.put().uri(API + "/users/{id}/follow", userId).exchange().expectStatus().isOk();
-    }
-
     private void like(RestTestClient reader, String articleId) {
         reader.put().uri(API + "/articles/{id}/like", articleId).exchange().expectStatus().isOk();
     }
@@ -245,15 +241,6 @@ class NotificationApiTest extends IntegrationTest {
                 .expectStatus().isOk()
                 .expectBody().jsonPath("$.data.id").value(String.class, id::set);
         author.post().uri(API + "/articles/{id}/publish", id.get()).exchange().expectStatus().isOk();
-        return id.get();
-    }
-
-    private String idOf(RestTestClient user) {
-        AtomicReference<String> id = new AtomicReference<>();
-        user.get().uri(API + "/users/me")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody().jsonPath("$.data.id").value(String.class, id::set);
         return id.get();
     }
 }

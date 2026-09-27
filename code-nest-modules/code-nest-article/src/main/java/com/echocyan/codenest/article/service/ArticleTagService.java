@@ -13,11 +13,6 @@ import java.util.Map;
 public interface ArticleTagService extends IService<ArticleTag> {
 
     /**
-     * 文章打的全部标签 ID。
-     */
-    List<Long> listTagIds(long articleId);
-
-    /**
      * 一批文章各自打的标签 ID，按标签 ID 正序。
      *
      * @return 以文章 ID 为 key；没有标签的文章不出现在结果中

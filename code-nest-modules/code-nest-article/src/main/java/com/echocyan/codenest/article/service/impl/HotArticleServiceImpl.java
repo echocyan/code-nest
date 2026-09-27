@@ -1,7 +1,7 @@
 package com.echocyan.codenest.article.service.impl;
 
-import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleItem;
+import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.service.ArticleService;
 import com.echocyan.codenest.article.service.HotArticleService;
 import com.echocyan.codenest.common.result.PageResult;
@@ -51,21 +51,19 @@ class HotArticleServiceImpl implements HotArticleService {
      */
     private static final int BATCH = 500;
 
-    private final ArticleApi articleApi;
     private final ArticleService articleService;
     private final CounterApi counterApi;
     private final StringRedisTemplate redis;
     private final RedisLock redisLock;
     private final HotFormula formula;
 
-    HotArticleServiceImpl(ArticleApi articleApi, ArticleService articleService, CounterApi counterApi,
-                          StringRedisTemplate redis, RedisLock redisLock,
+    HotArticleServiceImpl(ArticleService articleService, CounterApi counterApi, StringRedisTemplate redis,
+                          RedisLock redisLock,
                           @Value("${hot.weight.like}") double likeWeight,
                           @Value("${hot.weight.favorite}") double favoriteWeight,
                           @Value("${hot.weight.comment}") double commentWeight,
                           @Value("${hot.weight.view}") double viewWeight,
                           @Value("${hot.gravity}") double gravity) {
-        this.articleApi = articleApi;
         this.articleService = articleService;
         this.counterApi = counterApi;
         this.redis = redis;
@@ -115,15 +113,16 @@ class HotArticleServiceImpl implements HotArticleService {
      * 按热度取候选集的前 {@value #CAPACITY} 名。
      */
     private Set<TypedTuple<String>> top(LocalDateTime now) {
-        Map<Long, LocalDateTime> candidates = articleApi.getPublishedSince(now.minus(CANDIDATE_WINDOW));
-        List<Long> ids = List.copyOf(candidates.keySet());
-        List<TypedTuple<String>> scored = new ArrayList<>(ids.size());
-        for (int from = 0; from < ids.size(); from += BATCH) {
-            List<Long> batch = ids.subList(from, Math.min(from + BATCH, ids.size()));
-            Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE, batch);
-            for (Long id : batch) {
-                double hours = Math.max(0, Duration.between(candidates.get(id), now).toMillis() / 3_600_000.0);
-                scored.add(TypedTuple.of(String.valueOf(id), formula.score(counts.get(id), hours)));
+        List<Article> candidates = articleService.listPublishedSince(now.minus(CANDIDATE_WINDOW));
+        List<TypedTuple<String>> scored = new ArrayList<>(candidates.size());
+        for (int from = 0; from < candidates.size(); from += BATCH) {
+            List<Article> batch = candidates.subList(from, Math.min(from + BATCH, candidates.size()));
+            Map<Long, Counts> counts = counterApi.get(CounterTarget.ARTICLE,
+                    batch.stream().map(Article::getId).toList());
+            for (Article article : batch) {
+                double hours = Math.max(0, Duration.between(article.getPublishedAt(), now).toMillis() / 3_600_000.0);
+                scored.add(TypedTuple.of(String.valueOf(article.getId()),
+                        formula.score(counts.get(article.getId()), hours)));
             }
         }
         return scored.stream()

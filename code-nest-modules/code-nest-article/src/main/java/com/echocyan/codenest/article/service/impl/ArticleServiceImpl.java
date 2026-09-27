@@ -7,6 +7,7 @@ import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleCounts;
 import com.echocyan.codenest.article.api.ArticleItem;
+import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.article.api.CategoryBrief;
 import com.echocyan.codenest.article.api.event.ArticleDeletedEvent;
@@ -14,7 +15,6 @@ import com.echocyan.codenest.article.api.event.ArticlePublishedEvent;
 import com.echocyan.codenest.article.api.event.ArticleUpdatedEvent;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CategoryConverter;
-import com.echocyan.codenest.article.convert.TagConverter;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.entity.ArticleContent;
@@ -23,6 +23,7 @@ import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.mapper.ArticleMapper;
 import com.echocyan.codenest.article.service.*;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
+import com.echocyan.codenest.article.vo.TagVO;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.exception.CommonErrorCode;
 import com.echocyan.codenest.common.result.CursorResult;
@@ -60,7 +61,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final TagService tagService;
     private final ArticleConverter articleConverter;
     private final CategoryConverter categoryConverter;
-    private final TagConverter tagConverter;
     private final UserApi userApi;
     private final CounterApi counterApi;
     private final DomainEventPublisher eventPublisher;
@@ -275,6 +275,27 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
+    public List<ArticleSnapshot> toSnapshots(List<Article> articles) {
+        if (articles.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = articles.stream().map(Article::getId).toList();
+        Map<Long, String> contents = articleContentService.listByIds(ids).stream()
+                .collect(Collectors.toMap(ArticleContent::getArticleId, ArticleContent::getContent));
+        Map<Long, List<Long>> tagIds = articleTagService.listTagIds(ids);
+        Map<Long, String> tagNames = tagService.listInOrder(
+                        tagIds.values().stream().flatMap(List::stream).distinct().toList()).stream()
+                .collect(Collectors.toMap(Tag::getId, Tag::getName));
+        return articles.stream()
+                .map(article -> {
+                    List<Long> ownTagIds = tagIds.getOrDefault(article.getId(), List.of());
+                    return articleConverter.toSnapshot(article, contents.get(article.getId()), ownTagIds,
+                            ownTagIds.stream().map(tagNames::get).toList());
+                })
+                .toList();
+    }
+
+    @Override
     public CursorResult<ArticleItem> listPublishedByAuthor(long authorId, Long cursor, int size) {
         return toCursorResult(lambdaQuery()
                 .eq(Article::getAuthorId, authorId)
@@ -368,12 +389,16 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (article == null) {
             return null;
         }
-        List<Tag> tags = tagService.listInOrder(articleTagService.listTagIds(id));
+        ArticleSnapshot snapshot = toSnapshots(List.of(article)).getFirst();
+        List<TagVO> tags = new ArrayList<>(snapshot.tagIds().size());
+        for (int i = 0; i < snapshot.tagIds().size(); i++) {
+            tags.add(new TagVO(snapshot.tagIds().get(i), snapshot.tagNames().get(i)));
+        }
         return new CachedArticleDetail(
                 article,
-                articleContentService.getById(id).getContent(),
+                snapshot.content(),
                 categoryConverter.toBrief(categoryService.getById(article.getCategoryId())),
-                tagConverter.toVOs(tags));
+                tags);
     }
 
     /**

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.spring.service.IService;
 import com.echocyan.codenest.article.ArticleErrorCode;
 import com.echocyan.codenest.article.api.ArticleBrief;
 import com.echocyan.codenest.article.api.ArticleItem;
+import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
 import com.echocyan.codenest.article.vo.ArticleDetailVO;
@@ -111,6 +112,11 @@ public interface ArticleService extends IService<Article> {
      * @return 以文章 ID 为 key；已删除和不存在的文章不出现在结果中
      */
     Map<Long, ArticleBrief> getBriefs(Collection<Long> ids);
+
+    /**
+     * 批量补全正文与标签，组装成快照，保持传入顺序；已删除的文章也可以传入。
+     */
+    List<ArticleSnapshot> toSnapshots(List<Article> articles);
 
     /**
      * 按传入顺序组装已发布文章的列表项，草稿、已删除和不存在的文章被滤掉。摘要与作者经缓存读取。

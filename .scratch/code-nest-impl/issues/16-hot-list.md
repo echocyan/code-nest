@@ -8,7 +8,7 @@ Status: closed
 
 - [x] **热度公式**：`(3·like + 5·fav + 4·comment + 0.1·view) / (hours + 2)^1.5`，各项权重和重力系数都可配置。为公式写纯单元测试。
 - [x] **定时重算**：每 5 分钟执行一次，用 `SET hot:lock NX EX 240` 保证同一时刻只有一个实例在算。
-  - 候选集是最近 7 天发布的文章，通过 `ArticleApi` 新增的能力取得。
+  - 候选集是最近 7 天发布的文章。
   - 每批 500 个调用 `CounterApi` 取计数。
   - 取前 100 名写入 `hot:articles:tmp`，再用 `RENAME` 替换 `hot:articles`。
 - [x] **`GET /hot-articles?page=`**：匿名可访问，每页 20 条，最多 5 页，超出返回 400。列表项与文章列表项相同；已删除的文章在读取时过滤。
@@ -17,7 +17,7 @@ Status: closed
 ## Comments
 
 - **公式**：`HotFormula`（`article/service/impl`）是纯函数，入参为 `Counts` 与发布至今的小时数（带小数）；权重与重力系数取自 `hot.weight.{like,favorite,comment,view}`、`hot.gravity`。
-- **候选集**：`ArticleApi.getPublishedSince(since)` 返回文章 ID 到发布时间，只查 id、published_at 两列，走 `idx_status_published`。
+- **候选集**：热榜在 article 模块内，直接经 `ArticleService.listPublishedSince(since)` 取得，只查 id、published_at 两列，走 `idx_status_published`。
 - **重算**（`HotArticleServiceImpl.refresh`）：
   - 定时任务用 cron `0 */5 * * * *`，各实例在同一时刻触发，抢到 `hot:lock`（NX EX 240，值为随机 token）的实例计算，其余跳过。算完即按 token 释放锁，EX 240 只用于实例崩溃时兜底；因此错开几秒触发的实例可能再算一次，结果相同，无害。
   - 候选集全部打分后排序取前 100（含热度为 0 的文章），先删除残留的 `hot:articles:tmp` 再写入，最后 `RENAME` 为 `hot:articles`；候选集为空时直接删除 `hot:articles`。

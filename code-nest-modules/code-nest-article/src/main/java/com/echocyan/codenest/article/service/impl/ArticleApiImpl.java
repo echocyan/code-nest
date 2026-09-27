@@ -3,9 +3,6 @@ package com.echocyan.codenest.article.service.impl;
 import com.echocyan.codenest.article.api.*;
 import com.echocyan.codenest.article.convert.ArticleConverter;
 import com.echocyan.codenest.article.convert.CommentConverter;
-import com.echocyan.codenest.article.entity.Article;
-import com.echocyan.codenest.article.entity.ArticleContent;
-import com.echocyan.codenest.article.entity.Tag;
 import com.echocyan.codenest.article.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,9 +20,6 @@ import java.util.stream.Collectors;
 class ArticleApiImpl implements ArticleApi {
 
     private final ArticleService articleService;
-    private final ArticleContentService articleContentService;
-    private final ArticleTagService articleTagService;
-    private final TagService tagService;
     private final ArticleConverter articleConverter;
     private final CommentService commentService;
     private final CommentConverter commentConverter;
@@ -48,12 +42,12 @@ class ArticleApiImpl implements ArticleApi {
     @Override
     public Optional<ArticleSnapshot> findSnapshot(long articleId) {
         return Optional.ofNullable(articleService.getIncludingDeleted(articleId))
-                .map(article -> toSnapshots(List.of(article)).getFirst());
+                .map(article -> articleService.toSnapshots(List.of(article)).getFirst());
     }
 
     @Override
     public List<ArticleSnapshot> listPublishedSnapshots(Long afterId, int limit) {
-        return toSnapshots(articleService.listPublishedAfter(afterId, limit));
+        return articleService.toSnapshots(articleService.listPublishedAfter(afterId, limit));
     }
 
     @Override
@@ -63,36 +57,7 @@ class ArticleApiImpl implements ArticleApi {
 
     @Override
     public List<ArticleSnapshot> listSnapshotsUpdatedSince(LocalDateTime since, Long afterId, int limit) {
-        return toSnapshots(articleService.listUpdatedSinceIncludingDeleted(since, afterId, limit));
-    }
-
-    @Override
-    public Map<Long, LocalDateTime> getPublishedSince(LocalDateTime since) {
-        return articleService.listPublishedSince(since).stream()
-                .collect(Collectors.toMap(Article::getId, Article::getPublishedAt));
-    }
-
-    /**
-     * 批量补全正文与标签，保持传入顺序。
-     */
-    private List<ArticleSnapshot> toSnapshots(List<Article> articles) {
-        if (articles.isEmpty()) {
-            return List.of();
-        }
-        List<Long> ids = articles.stream().map(Article::getId).toList();
-        Map<Long, String> contents = articleContentService.listByIds(ids).stream()
-                .collect(Collectors.toMap(ArticleContent::getArticleId, ArticleContent::getContent));
-        Map<Long, List<Long>> tagIds = articleTagService.listTagIds(ids);
-        Map<Long, String> tagNames = tagService.listInOrder(
-                        tagIds.values().stream().flatMap(List::stream).distinct().toList()).stream()
-                .collect(Collectors.toMap(Tag::getId, Tag::getName));
-        return articles.stream()
-                .map(article -> {
-                    List<Long> ownTagIds = tagIds.getOrDefault(article.getId(), List.of());
-                    return articleConverter.toSnapshot(article, contents.get(article.getId()), ownTagIds,
-                            ownTagIds.stream().map(tagNames::get).toList());
-                })
-                .toList();
+        return articleService.toSnapshots(articleService.listUpdatedSinceIncludingDeleted(since, afterId, limit));
     }
 
     @Override

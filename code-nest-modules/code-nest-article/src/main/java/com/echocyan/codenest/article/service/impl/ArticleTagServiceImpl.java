@@ -16,13 +16,6 @@ import java.util.stream.Collectors;
 public class ArticleTagServiceImpl extends ServiceImpl<ArticleTagMapper, ArticleTag> implements ArticleTagService {
 
     @Override
-    public List<Long> listTagIds(long articleId) {
-        return lambdaQuery().eq(ArticleTag::getArticleId, articleId).list().stream()
-                .map(ArticleTag::getTagId)
-                .toList();
-    }
-
-    @Override
     public Map<Long, List<Long>> listTagIds(Collection<Long> articleIds) {
         if (articleIds.isEmpty()) {
             return Map.of();

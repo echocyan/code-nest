@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * 推拉结合的 Feed 存储，全部在 Redis 里：每个作者一个发件箱，每个读者一个收件箱。普通作者发文时推送到粉丝的收件箱；
@@ -121,9 +122,7 @@ public class FeedStore implements SmartInitializingSingleton {
                 .sorted(Comparator.reverseOrder())
                 .limit(size + 1)
                 .toList();
-        boolean hasMore = ids.size() > size;
-        List<Long> page = hasMore ? ids.subList(0, size) : ids;
-        return new CursorResult<>(page, hasMore ? page.getLast() : null, hasMore);
+        return CursorResult.ofOverfetched(ids, size, Function.identity());
     }
 
     /**

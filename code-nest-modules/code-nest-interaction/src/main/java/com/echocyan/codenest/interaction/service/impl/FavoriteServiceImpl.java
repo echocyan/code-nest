@@ -64,26 +64,23 @@ public class FavoriteServiceImpl extends ServiceImpl<FavoriteMapper, Favorite> i
 
     @Override
     public CursorResult<FavoriteVO> listMine(long userId, Long cursor, int size) {
-        // 多取一条判断是否还有下一页
-        List<Favorite> favorites = lambdaQuery()
+        CursorResult<Favorite> page = CursorResult.ofOverfetched(lambdaQuery()
                 .eq(Favorite::getUserId, userId)
                 .lt(cursor != null, Favorite::getId, cursor)
                 .orderByDesc(Favorite::getId)
                 .last("LIMIT " + (size + 1))
-                .list();
-        boolean hasMore = favorites.size() > size;
-        List<Favorite> page = hasMore ? favorites.subList(0, size) : favorites;
-        if (page.isEmpty()) {
+                .list(), size, Favorite::getId);
+        if (page.list().isEmpty()) {
             return CursorResult.empty();
         }
         Map<Long, ArticleItem> items = articleApi.listPublishedItems(
-                        page.stream().map(Favorite::getArticleId).toList()).stream()
+                        page.list().stream().map(Favorite::getArticleId).toList()).stream()
                 .collect(Collectors.toMap(ArticleItem::id, Function.identity()));
-        List<FavoriteVO> list = page.stream()
+        List<FavoriteVO> list = page.list().stream()
                 .filter(favorite -> items.containsKey(favorite.getArticleId()))
                 .map(favorite -> new FavoriteVO(items.get(favorite.getArticleId()), favorite.getCreatedAt()))
                 .toList();
-        return new CursorResult<>(list, hasMore ? page.getLast().getId() : null, hasMore);
+        return new CursorResult<>(list, page.nextCursor(), page.hasMore());
     }
 
     @Override

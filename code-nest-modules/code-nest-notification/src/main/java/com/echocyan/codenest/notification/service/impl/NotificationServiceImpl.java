@@ -126,25 +126,19 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     @Override
     public CursorResult<NotificationVO> listMine(long recipientId, Long cursor, int size) {
-        // 多取一条判断是否还有下一页
-        List<Notification> fetched = lambdaQuery()
+        CursorResult<Notification> page = CursorResult.ofOverfetched(lambdaQuery()
                 .eq(Notification::getRecipientId, recipientId)
                 .lt(cursor != null, Notification::getId, cursor)
                 .orderByDesc(Notification::getId)
                 .last("LIMIT " + (size + 1))
-                .list();
-        boolean hasMore = fetched.size() > size;
-        List<Notification> page = hasMore ? fetched.subList(0, size) : fetched;
-        if (page.isEmpty()) {
+                .list(), size, Notification::getId);
+        if (page.list().isEmpty()) {
             return CursorResult.empty();
         }
-        Map<Long, UserBrief> actors = userApi.getBriefs(ids(page, Notification::getActorId));
-        Map<Long, ArticleBrief> articles = articleApi.getBriefs(ids(page, Notification::getArticleId));
-        Map<Long, CommentBrief> comments = articleApi.getCommentBriefs(ids(page, Notification::getCommentId));
-        List<NotificationVO> list = page.stream()
-                .map(notification -> toVO(notification, actors, articles, comments))
-                .toList();
-        return new CursorResult<>(list, hasMore ? page.getLast().getId() : null, hasMore);
+        Map<Long, UserBrief> actors = userApi.getBriefs(ids(page.list(), Notification::getActorId));
+        Map<Long, ArticleBrief> articles = articleApi.getBriefs(ids(page.list(), Notification::getArticleId));
+        Map<Long, CommentBrief> comments = articleApi.getCommentBriefs(ids(page.list(), Notification::getCommentId));
+        return page.map(notification -> toVO(notification, actors, articles, comments));
     }
 
     @Override

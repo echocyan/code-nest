@@ -228,13 +228,9 @@ public class ArticleReader implements ArticleApi, SmartInitializingSingleton {
                 .last("LIMIT " + limit);
     }
 
-    /**
-     * 多查了一条的结果转为游标分页：多出的那条只用来判断是否还有下一页。
-     */
     private CursorResult<ArticleItem> toCursorResult(List<Article> fetched, int size) {
-        boolean hasMore = fetched.size() > size;
-        List<Article> page = hasMore ? fetched.subList(0, size) : fetched;
-        return new CursorResult<>(toItems(toBriefs(page)), hasMore ? page.getLast().getId() : null, hasMore);
+        CursorResult<Article> page = CursorResult.ofOverfetched(fetched, size, Article::getId);
+        return new CursorResult<>(toItems(toBriefs(page.list())), page.nextCursor(), page.hasMore());
     }
 
     private List<ArticleBrief> toBriefs(List<Article> articles) {

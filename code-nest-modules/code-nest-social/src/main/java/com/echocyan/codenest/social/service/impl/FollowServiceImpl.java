@@ -151,22 +151,18 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     }
 
     /**
-     * 多查了一条的结果转为游标分页：多出的那条只用来判断是否还有下一页。
+     * 多查了一条的结果转为游标分页，并补全用户信息。
      *
      * @param listedUserId 从关注记录中取出要列出的那一方的用户 ID
      */
     private CursorResult<FollowUserVO> toCursorResult(List<Follow> fetched, int size,
                                                       Function<Follow, Long> listedUserId) {
-        boolean hasMore = fetched.size() > size;
-        List<Follow> page = hasMore ? fetched.subList(0, size) : fetched;
-        if (page.isEmpty()) {
+        CursorResult<Follow> page = CursorResult.ofOverfetched(fetched, size, Follow::getId);
+        if (page.list().isEmpty()) {
             return CursorResult.empty();
         }
-        Map<Long, UserBrief> users = userApi.getBriefs(page.stream().map(listedUserId).toList());
-        List<FollowUserVO> list = page.stream()
-                .map(follow -> new FollowUserVO(users.get(listedUserId.apply(follow)), follow.getCreatedAt()))
-                .toList();
-        return new CursorResult<>(list, hasMore ? page.getLast().getId() : null, hasMore);
+        Map<Long, UserBrief> users = userApi.getBriefs(page.list().stream().map(listedUserId).toList());
+        return page.map(follow -> new FollowUserVO(users.get(listedUserId.apply(follow)), follow.getCreatedAt()));
     }
 
     private void requireOtherUser(long followerId, long authorId) {

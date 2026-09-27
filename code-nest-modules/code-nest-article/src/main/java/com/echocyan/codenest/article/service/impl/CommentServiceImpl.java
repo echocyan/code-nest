@@ -43,19 +43,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     private final CounterApi counterApi;
     private final DomainEventPublisher eventPublisher;
 
-    /**
-     * 按多查的一条判断是否还有下一页，并以本页最后一条的 ID 作为下一页的游标。
-     *
-     * @param rows 按游标方向排好序、最多 size + 1 条
-     */
-    private static CursorResult<Comment> pageOf(List<Comment> rows, int size) {
-        if (rows.size() <= size) {
-            return new CursorResult<>(rows, null, false);
-        }
-        List<Comment> page = rows.subList(0, size);
-        return new CursorResult<>(page, page.getLast().getId(), true);
-    }
-
     @Override
     @Transactional
     public Comment comment(long articleId, long userId, String content) {
@@ -75,8 +62,8 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     public CursorResult<CommentVO> listComments(long articleId, Long cursor, int size) {
         requirePublished(articleId);
-        CursorResult<Comment> page = pageOf(baseMapper.selectVisibleComments(
-                articleId, cursor == null ? Long.MAX_VALUE : cursor, size + 1), size);
+        CursorResult<Comment> page = CursorResult.ofOverfetched(baseMapper.selectVisibleComments(
+                articleId, cursor == null ? Long.MAX_VALUE : cursor, size + 1), size, Comment::getId);
         return page.map(commentVOMapper(page.list()));
     }
 
@@ -116,13 +103,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
             throw new BizException(ArticleErrorCode.COMMENT_NOT_FOUND);
         }
         requirePublished(root.getArticleId());
-        CursorResult<Comment> page = pageOf(lambdaQuery()
+        CursorResult<Comment> page = CursorResult.ofOverfetched(lambdaQuery()
                 .eq(Comment::getArticleId, root.getArticleId())
                 .eq(Comment::getRootId, commentId)
                 .gt(cursor != null, Comment::getId, cursor)
                 .orderByAsc(Comment::getId)
                 .last("LIMIT " + (size + 1))
-                .list(), size);
+                .list(), size, Comment::getId);
         Map<Long, UserBrief> users = userApi.getBriefs(page.list().stream()
                 .flatMap(reply -> Stream.of(reply.getUserId(), reply.getReplyToUserId()))
                 .filter(Objects::nonNull)

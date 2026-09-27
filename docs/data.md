@@ -108,7 +108,7 @@ erDiagram
 | `social.feed-push` | `article.published` | social：写发件箱，推送到粉丝收件箱 | ZSet 写入本身幂等 |
 | `social.feed-fix` | `follow.created`、`follow.deleted`、`article.deleted` | social：关注并入、取关移除、删文移出发件箱，更新粉丝数 | 集合操作本身幂等，粉丝数按关注表重新统计 |
 | `search.article-sync` | `article.published`、`article.updated`、`article.deleted` | search：回查最新状态写入或删除 ES | ES 外部版本号 |
-| `article.cache-evict` | `article.updated`、`article.deleted` | article：第二次删除文章缓存 | 删除本身幂等 |
+| `article.cache-evict` | `article.published`、`article.updated`、`article.deleted` | article：第二次删除文章缓存 | 删除本身幂等 |
 | `notification.create` | `like.created`、`comment.created`、`follow.created` | notification：生成通知 | `@IdempotentConsumer`，另有 `dedup_key` |
 
 每个队列都有对应的死信队列 `<队列名>.dlq`，经死信交换机 `codenest.dlx` 路由。消费失败先在本地重试 3 次（间隔 1、2、4 秒），仍失败就转入死信队列，不自动重放。

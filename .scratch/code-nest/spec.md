@@ -407,7 +407,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
   抖动、失效广播都封装在组件内部。不用 `@Cacheable`。
 - **一致性（Cache-Aside）**：
     - 先更新数据库，事务提交后删除 Redis 中的 key，并通过 Pub/Sub 频道 `cache:invalidate` 广播本地缓存失效。
-    - `article.cache-evict` 消费更新和删除事件，做第二次删除。
+    - `article.cache-evict` 消费发布、更新和删除事件，做第二次删除。
     - 残留的竞态窗口写进文档。
 - **过期与容量**：
     - Caffeine：最多 10000 条，写入 60 秒后过期。

@@ -18,7 +18,7 @@ Blocked by: 03
 2. **组件**：framework 模块提供 `TwoLevelCache`，只有三个方法：`get(key, loader)`、`getAll(keys, batchLoader)`、`evict(key)`。两级读取顺序、空值缓存、布隆过滤器、TTL 抖动、本地缓存失效广播都封装在组件内部。不用 Spring Cache `@Cacheable`，因为它很难表达批量查询和穿透防护。
 3. **一致性**：采用 Cache-Aside。
    - **第一次删除**：先更新数据库，事务提交后（afterCommit）删除 Redis 中的 key，并广播本地缓存失效。
-   - **第二次删除**：article 模块新增消费者 `article.cache-evict`，订阅 `article.updated` 和 `article.deleted` 后再删一次。这两个事件通过 Outbox 发出并带重试，第二次删除一定会执行；MQ 的投递延迟天然起到了"延迟双删"中延迟的作用。
+   - **第二次删除**：article 模块新增消费者 `article.cache-evict`，订阅 `article.published`、`article.updated` 和 `article.deleted` 后再删一次。这三个事件通过 Outbox 发出并带重试，第二次删除一定会执行；MQ 的投递延迟天然起到了"延迟双删"中延迟的作用。
    - **本地缓存失效**：通过 Redis Pub/Sub 频道 `cache:invalidate` 广播要失效的 key，各实例收到后清除本地缓存。Pub/Sub 不保证送达，漏收的实例依靠本地 TTL（60 秒）兜底。
    - **遗留问题**："读请求未命中后去数据库读到旧值，写请求删除缓存后，读请求才把旧值回填"这一竞态依然存在，不过窗口极小，最坏情况也只持续到 TTL 过期。这一点需要在文档里说明。
 4. **过期与容量**：

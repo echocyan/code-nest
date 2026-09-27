@@ -15,14 +15,14 @@ import java.lang.annotation.*;
 @TestPropertySource(properties = {
         "rate-limit.enabled=true",
         "rate-limit.trusted-proxies=127.0.0.1",
-        "rate-limit.limits.register-per-hour=3",
-        "rate-limit.limits.login-per-minute=3",
-        "rate-limit.limits.search-per-minute=2",
-        "rate-limit.limits.publish-per-hour=1",
-        "rate-limit.limits.like-favorite-per-minute=2",
-        "rate-limit.limits.follow-per-minute=2",
-        "rate-limit.limits.comment-per-minute=5",
-        "rate-limit.limits.comment-per-day=3",
+        "rate-limit.rules.register-per-hour.limit=3",
+        "rate-limit.rules.login-per-minute.limit=3",
+        "rate-limit.rules.search-per-minute.limit=2",
+        "rate-limit.rules.publish-per-hour.limit=1",
+        "rate-limit.rules.like-favorite-per-minute.limit=2",
+        "rate-limit.rules.follow-per-minute.limit=2",
+        "rate-limit.rules.comment-per-minute.limit=5",
+        "rate-limit.rules.comment-per-day.limit=3",
 })
 public @interface RateLimitEnabled {
 }

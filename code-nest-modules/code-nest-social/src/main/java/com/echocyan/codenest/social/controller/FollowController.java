@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 @Tag(name = "关注")
 @RestController
 @RequestMapping("/users")
@@ -36,8 +34,7 @@ public class FollowController {
     private final FollowService followService;
 
     @Operation(summary = "关注", description = "已关注时不产生变化")
-    @RateLimit(key = "follow-per-minute", limit = "${rate-limit.limits.follow-per-minute}", window = "1m",
-            dimension = USER)
+    @RateLimit("follow-per-minute")
     @PutMapping("/{id}/follow")
     public Result<Void> follow(@PathVariable long id) {
         followService.follow(AuthContext.currentUserId(), id);
@@ -45,8 +42,7 @@ public class FollowController {
     }
 
     @Operation(summary = "取关", description = "没关注过时不产生变化")
-    @RateLimit(key = "follow-per-minute", limit = "${rate-limit.limits.follow-per-minute}", window = "1m",
-            dimension = USER)
+    @RateLimit("follow-per-minute")
     @DeleteMapping("/{id}/follow")
     public Result<Void> unfollow(@PathVariable long id) {
         followService.unfollow(AuthContext.currentUserId(), id);

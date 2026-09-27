@@ -20,8 +20,6 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 @Tag(name = "文章")
 @RestController
 @RequestMapping("/articles")
@@ -60,8 +58,7 @@ public class ArticleController {
     }
 
     @Operation(summary = "发布", description = "已发布的文章重复发布不产生变化")
-    @RateLimit(key = "publish-per-hour", limit = "${rate-limit.limits.publish-per-hour}", window = "1h",
-            dimension = USER)
+    @RateLimit("publish-per-hour")
     @PostMapping("/{id}/publish")
     public Result<ArticleVersionVO> publish(@PathVariable long id) {
         return Result.ok(versionOf(articleService.publish(id, AuthContext.currentUserId())));

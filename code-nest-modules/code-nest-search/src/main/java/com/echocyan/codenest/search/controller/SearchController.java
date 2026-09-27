@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
-
 @Tag(name = "搜索")
 @RestController
 @RequiredArgsConstructor
@@ -28,8 +26,7 @@ public class SearchController {
 
     @SaIgnore
     @Operation(summary = "搜索文章", description = "只搜已发布文章；可按分类、标签筛选；page × size 超过 1000（即 from + size > 1000）时返回 400")
-    @RateLimit(key = "search-per-minute", limit = "${rate-limit.limits.search-per-minute}", window = "1m",
-            dimension = IP)
+    @RateLimit("search-per-minute")
     @GetMapping("/search/articles")
     public Result<PageResult<SearchArticleVO>> search(
             @RequestParam @NotBlank String q,

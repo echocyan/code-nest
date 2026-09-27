@@ -5,8 +5,8 @@ import java.lang.annotation.*;
 /**
  * 对 Controller 方法按滑动窗口限流，超限时返回 429 和 {@code Retry-After}。
  * <p>
+ * 规则（限额、窗口、维度）在配置 {@code rate-limit.rules.<规则名>} 下，注解只写规则名；不同方法写同一个规则名时共用额度。
  * 可以重复标注，同时限制短期和长期频率；一次请求要所有额度都有余量才放行，被拒绝的请求不占用任何额度。
- * 不同方法标注相同的 {@link #key} 和维度时共用额度。
  */
 @Documented
 @Target(ElementType.METHOD)
@@ -15,21 +15,9 @@ import java.lang.annotation.*;
 public @interface RateLimit {
 
     /**
-     * 额度名，同一个方法上的各条额度不能重名。
+     * 规则名，必须在 {@code rate-limit.rules} 下配置。
      */
-    String key();
-
-    /**
-     * 窗口内最多允许的请求数，支持 {@code ${...}} 占位符。
-     */
-    String limit();
-
-    /**
-     * 窗口长度，如 {@code 1m}、{@code 1h}、{@code 1d}，支持 {@code ${...}} 占位符。
-     */
-    String window();
-
-    Dimension dimension();
+    String value();
 
     /**
      * 按谁计数。

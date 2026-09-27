@@ -1,8 +1,8 @@
 package com.echocyan.codenest.framework.ratelimit;
 
-import org.springframework.boot.convert.DurationStyle;
+import cn.dev33.satoken.annotation.SaIgnore;
+import com.echocyan.codenest.framework.ratelimit.RateLimitProperties.RuleProperties;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.core.env.PropertyResolver;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -12,41 +12,47 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 各接口方法上解析好占位符的 {@link RateLimit}。
+ * 各接口方法上 {@link RateLimit} 引用的规则，取自配置。
  * <p>
- * 构造时校验：不同方法标注的同一个额度名必须是同一条规则（limit、window、dimension 都相同），否则共用的额度会按
- * 先到请求的规则计数；不一致时抛出异常，阻止启动。
+ * 构造时校验，不满足就抛出异常、阻止启动：引用的规则名必须已配置且限额、窗口、维度齐全；按用户计数的规则不能用在
+ * 标了 {@link SaIgnore} 的匿名接口上，否则请求会因为取不到当前用户而返回 401。
  */
 final class RateLimitRules {
 
     private final Map<Method, List<Rule>> rules = new HashMap<>();
 
     /**
-     * @throws IllegalStateException 同一个额度名在不同方法上的规则不一致，消息里列出额度名与冲突的两个方法
+     * @param configured 规则名到规则，即 {@code rate-limit.rules}
+     * @throws IllegalStateException 规则名未配置或配置不全、匿名接口按用户限流，消息里列出规则名与方法
      */
-    RateLimitRules(Collection<Method> methods, PropertyResolver resolver) {
-        // 额度名 → 最先见到它的方法与规则，用来比对之后的声明
-        Map<String, Map.Entry<Method, Rule>> byKey = new HashMap<>();
+    RateLimitRules(Collection<Method> methods, Map<String, RuleProperties> configured) {
         for (Method method : methods) {
             List<Rule> methodRules = AnnotatedElementUtils.findMergedRepeatableAnnotations(method, RateLimit.class)
                     .stream()
-                    .map(rateLimit -> new Rule(rateLimit.key(),
-                            Integer.parseInt(resolver.resolveRequiredPlaceholders(rateLimit.limit())),
-                            DurationStyle.detectAndParse(resolver.resolveRequiredPlaceholders(rateLimit.window())),
-                            rateLimit.dimension()))
+                    .map(rateLimit -> ruleOf(rateLimit.value(), configured.get(rateLimit.value()), method))
                     .toList();
-            for (Rule rule : methodRules) {
-                Map.Entry<Method, Rule> first = byKey.putIfAbsent(rule.key(), Map.entry(method, rule));
-                if (first != null && !first.getValue().equals(rule)) {
-                    throw new IllegalStateException("Rate limit key '%s' is declared differently: %s on %s, %s on %s"
-                            .formatted(rule.key(), first.getValue(), first.getKey().toGenericString(), rule,
-                                    method.toGenericString()));
-                }
-            }
             if (!methodRules.isEmpty()) {
                 rules.put(method, methodRules);
             }
         }
+    }
+
+    private static Rule ruleOf(String key, RuleProperties properties, Method method) {
+        if (properties == null || properties.limit() == null || properties.window() == null
+                || properties.dimension() == null) {
+            throw new IllegalStateException("Rate limit rule '%s' used on %s is not fully configured under rate-limit.rules"
+                    .formatted(key, method.toGenericString()));
+        }
+        if (properties.dimension() == RateLimit.Dimension.USER && isAnonymous(method)) {
+            throw new IllegalStateException("Rate limit rule '%s' counts per user but %s allows anonymous access"
+                    .formatted(key, method.toGenericString()));
+        }
+        return new Rule(key, properties.limit(), properties.window(), properties.dimension());
+    }
+
+    private static boolean isAnonymous(Method method) {
+        return AnnotatedElementUtils.hasAnnotation(method, SaIgnore.class)
+                || AnnotatedElementUtils.hasAnnotation(method.getDeclaringClass(), SaIgnore.class);
     }
 
     /**

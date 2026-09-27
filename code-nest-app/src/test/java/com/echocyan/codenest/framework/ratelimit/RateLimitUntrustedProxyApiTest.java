@@ -10,7 +10,7 @@ import org.springframework.test.web.servlet.client.RestTestClient;
  */
 @TestPropertySource(properties = {
         "rate-limit.enabled=true",
-        "rate-limit.limits.search-per-minute=3",
+        "rate-limit.rules.search-per-minute.limit=3",
 })
 class RateLimitUntrustedProxyApiTest extends IntegrationTest {
 

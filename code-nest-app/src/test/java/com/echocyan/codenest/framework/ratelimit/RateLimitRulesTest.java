@@ -1,65 +1,68 @@
 package com.echocyan.codenest.framework.ratelimit;
 
+import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension;
+import com.echocyan.codenest.framework.ratelimit.RateLimitProperties.RuleProperties;
 import com.echocyan.codenest.framework.ratelimit.RateLimitRules.Rule;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 限流规则的解析与一致性校验：不同接口标注的同一个额度名必须是同一条规则，否则共用的额度会按不同的规则计数。
+ * 限流规则的解析与启动校验：接口上只写规则名，规则本身在配置里只有一份；规则名未配置、匿名接口按用户限流都阻止启动。
  */
 class RateLimitRulesTest {
 
-    private final MockEnvironment environment = new MockEnvironment().withProperty("limits.comment", "5");
+    private static final Map<String, RuleProperties> CONFIGURED = Map.of(
+            "comment-per-minute", new RuleProperties(5, Duration.ofMinutes(1), Dimension.USER),
+            "comment-per-day", new RuleProperties(100, Duration.ofDays(1), Dimension.USER),
+            "search-per-minute", new RuleProperties(60, Duration.ofMinutes(1), Dimension.IP));
 
-    private static Method method(String name) {
-        return Stream.of(Endpoints.class.getDeclaredMethods())
+    private static Method method(Class<?> type, String name) {
+        return Stream.of(type.getDeclaredMethods())
                 .filter(method -> method.getName().equals(name))
                 .findFirst()
                 .orElseThrow();
     }
 
-    private RateLimitRules rulesOf(String... methodNames) {
-        return new RateLimitRules(Stream.of(methodNames).map(RateLimitRulesTest::method).toList(), environment);
+    private static RateLimitRules rulesOf(Class<?> type, String... methodNames) {
+        return new RateLimitRules(Stream.of(methodNames).map(name -> method(type, name)).toList(), CONFIGURED);
     }
 
     @Test
-    void placeholdersAreResolvedAndSharedKeysMayRepeat() {
-        RateLimitRules rules = rulesOf("comment", "reply", "unlimited");
+    void endpointsSharingARuleNameShareTheConfiguredRule() {
+        RateLimitRules rules = rulesOf(Endpoints.class, "comment", "reply", "search", "unlimited");
 
-        Rule comment = new Rule("comment-per-minute", 5, Duration.ofMinutes(1), Dimension.USER);
-        assertThat(rules.of(method("comment"))).containsExactly(comment,
+        Rule perMinute = new Rule("comment-per-minute", 5, Duration.ofMinutes(1), Dimension.USER);
+        assertThat(rules.of(method(Endpoints.class, "comment"))).containsExactly(perMinute,
                 new Rule("comment-per-day", 100, Duration.ofDays(1), Dimension.USER));
-        assertThat(rules.of(method("reply"))).containsExactly(comment);
-        assertThat(rules.of(method("unlimited"))).isEmpty();
+        assertThat(rules.of(method(Endpoints.class, "reply"))).containsExactly(perMinute);
+        assertThat(rules.of(method(Endpoints.class, "search")))
+                .containsExactly(new Rule("search-per-minute", 60, Duration.ofMinutes(1), Dimension.IP));
+        assertThat(rules.of(method(Endpoints.class, "unlimited"))).isEmpty();
     }
 
     @Test
-    void sameKeyWithDifferentLimitIsRejected() {
-        assertThatThrownBy(() -> rulesOf("comment", "replyWithOwnLimit"))
+    void unconfiguredRuleNameIsRejected() {
+        assertThatThrownBy(() -> rulesOf(Endpoints.class, "unconfigured"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("follow-per-minute")
+                .hasMessageContaining("unconfigured");
+    }
+
+    @Test
+    void perUserRuleOnAnonymousEndpointIsRejected() {
+        assertThatThrownBy(() -> rulesOf(Endpoints.class, "anonymousComment"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("comment-per-minute")
-                .hasMessageContaining("comment")
-                .hasMessageContaining("replyWithOwnLimit");
-    }
-
-    @Test
-    void sameKeyWithDifferentWindowIsRejected() {
-        assertThatThrownBy(() -> rulesOf("comment", "replyWithOwnWindow"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("comment-per-minute");
-    }
-
-    @Test
-    void sameKeyWithDifferentDimensionIsRejected() {
-        assertThatThrownBy(() -> rulesOf("comment", "replyByIp"))
+                .hasMessageContaining("anonymousComment");
+        assertThatThrownBy(() -> rulesOf(AnonymousEndpoints.class, "comment"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("comment-per-minute");
     }
@@ -67,28 +70,39 @@ class RateLimitRulesTest {
     @SuppressWarnings("unused")
     private static class Endpoints {
 
-        @RateLimit(key = "comment-per-minute", limit = "${limits.comment}", window = "1m", dimension = Dimension.USER)
-        @RateLimit(key = "comment-per-day", limit = "100", window = "1d", dimension = Dimension.USER)
+        @RateLimit("comment-per-minute")
+        @RateLimit("comment-per-day")
         void comment() {
         }
 
-        @RateLimit(key = "comment-per-minute", limit = "5", window = "60s", dimension = Dimension.USER)
+        @RateLimit("comment-per-minute")
         void reply() {
         }
 
-        @RateLimit(key = "comment-per-minute", limit = "6", window = "1m", dimension = Dimension.USER)
-        void replyWithOwnLimit() {
+        @SaIgnore
+        @RateLimit("search-per-minute")
+        void search() {
         }
 
-        @RateLimit(key = "comment-per-minute", limit = "5", window = "1h", dimension = Dimension.USER)
-        void replyWithOwnWindow() {
+        @RateLimit("follow-per-minute")
+        void unconfigured() {
         }
 
-        @RateLimit(key = "comment-per-minute", limit = "5", window = "1m", dimension = Dimension.IP)
-        void replyByIp() {
+        @SaIgnore
+        @RateLimit("comment-per-minute")
+        void anonymousComment() {
         }
 
         void unlimited() {
+        }
+    }
+
+    @SaIgnore
+    @SuppressWarnings("unused")
+    private static class AnonymousEndpoints {
+
+        @RateLimit("comment-per-minute")
+        void comment() {
         }
     }
 }

@@ -6,7 +6,6 @@ import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
@@ -34,13 +33,12 @@ public class RateLimitConfig implements WebMvcConfigurer {
     private static final int ORDER = 1;
 
     private final SlidingWindowRateLimiter limiter;
-    private final Environment environment;
     private final RateLimitProperties properties;
     private final ListableBeanFactory beanFactory;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        RateLimitRules rules = new RateLimitRules(controllerMethods(), environment);
+        RateLimitRules rules = new RateLimitRules(controllerMethods(), properties.rules());
         registry.addInterceptor(new RateLimitInterceptor(limiter, rules, properties))
                 .addPathPatterns(WebMvcConfig.API_PREFIX + "/**")
                 .order(ORDER);

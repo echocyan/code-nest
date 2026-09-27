@@ -18,7 +18,7 @@ Blocked by:
 2. **限流维度**：
    - 需要登录的接口按用户 ID 限流。
    - 匿名接口（注册、登录、搜索）按 IP 限流。IP 默认取 `remoteAddr`；只有当请求来自配置中的可信代理（如压测时的 Nginx）时，才读取 `X-Forwarded-For`。
-3. **注解**：`@RateLimit(key, limit, window, dimension)`。
+3. **注解**：`@RateLimit("<规则名>")`，规则的 limit、window、dimension 写在配置 `rate-limit.rules.<规则名>` 下。
    - 注解可以重复标注，从而同时限制短期和长期频率，例如"每分钟 10 次"加"每天 200 次"。
    - 由一个 `HandlerInterceptor` 处理，注册在 `SaInterceptor` 之后，这样登录校验完成后才开始限流，也就能拿到用户 ID。
    - 不用 AOP 实现。

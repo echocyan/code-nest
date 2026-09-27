@@ -18,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.IP;
-
 @Tag(name = "认证")
 @RestController
 @RequestMapping("/auth")
@@ -34,8 +32,7 @@ public class AuthController {
 
     @SaIgnore
     @Operation(summary = "注册", description = "注册成功后自动登录")
-    @RateLimit(key = "register-per-hour", limit = "${rate-limit.limits.register-per-hour}", window = "1h",
-            dimension = IP)
+    @RateLimit("register-per-hour")
     @PostMapping("/register")
     public Result<LoginVO> register(@Valid @RequestBody RegisterRequest request) {
         return Result.ok(loginAs(userService.register(request.username(), request.password())));
@@ -43,7 +40,7 @@ public class AuthController {
 
     @SaIgnore
     @Operation(summary = "登录", description = "之后的请求以 Authorization: Bearer <token> 携带凭证")
-    @RateLimit(key = "login-per-minute", limit = "${rate-limit.limits.login-per-minute}", window = "1m", dimension = IP)
+    @RateLimit("login-per-minute")
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
         return Result.ok(loginAs(userService.authenticate(request.username(), request.password())));

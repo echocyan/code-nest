@@ -13,8 +13,6 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import static com.echocyan.codenest.framework.ratelimit.RateLimit.Dimension.USER;
-
 @Tag(name = "收藏")
 @RestController
 @RequiredArgsConstructor
@@ -23,8 +21,7 @@ public class FavoriteController {
     private final FavoriteService favoriteService;
 
     @Operation(summary = "收藏", description = "已收藏过时不产生变化；只能收藏已发布的文章")
-    @RateLimit(key = "like-favorite-per-minute", limit = "${rate-limit.limits.like-favorite-per-minute}", window = "1m",
-            dimension = USER)
+    @RateLimit("like-favorite-per-minute")
     @PutMapping("/articles/{id}/favorite")
     public Result<Void> favorite(@PathVariable long id) {
         favoriteService.favorite(AuthContext.currentUserId(), id);
@@ -32,8 +29,7 @@ public class FavoriteController {
     }
 
     @Operation(summary = "取消收藏", description = "没收藏过时不产生变化")
-    @RateLimit(key = "like-favorite-per-minute", limit = "${rate-limit.limits.like-favorite-per-minute}", window = "1m",
-            dimension = USER)
+    @RateLimit("like-favorite-per-minute")
     @DeleteMapping("/articles/{id}/favorite")
     public Result<Void> unfavorite(@PathVariable long id) {
         favoriteService.unfavorite(AuthContext.currentUserId(), id);

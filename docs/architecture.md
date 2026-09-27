@@ -95,7 +95,7 @@ sequenceDiagram
 ```
 
 - 发送失败或没有收到 confirm 的记录保持 PENDING，由补发任务每 5 秒用 `SELECT … FOR UPDATE SKIP LOCKED` 扫描，按指数退避（10 秒起，最长 30 分钟）重发，累计失败 10 次标记为 FAILED 并打告警日志。多个实例不会重复处理同一行。
-- 没有活跃事务时，事件直接发送，靠 confirm 加重试保证送达。
+- `publish` 必须在业务事务里调用，没有活跃事务时直接抛出异常。可靠投递依赖的 RabbitMQ 配置缺任一项时应用启动失败。
 - 投递是"至少一次"，消费者自己保证幂等：会写 MySQL 的消费者标 `@IdempotentConsumer`，在业务事务里插入 `mq_consume_record` 唯一键；计数消费者在 Redis 的 Lua 脚本里按 messageId 去重；本身幂等的消费者（按外部版本号写 ES、增删 Redis 集合成员、删缓存）不加。
 - 重试耗尽的消息留在死信队列，打告警日志，不自动重放。
 

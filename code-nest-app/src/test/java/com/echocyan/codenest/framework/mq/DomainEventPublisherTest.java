@@ -5,7 +5,6 @@ import com.echocyan.codenest.support.SharedContainers;
 import com.echocyan.codenest.support.probe.MqProbe;
 import com.echocyan.codenest.support.probe.MqProbe.ProbeEvent;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,22 +29,11 @@ class DomainEventPublisherTest extends IntegrationTest {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
+    @Autowired
+    private EventSender sender;
+
     private static String nonce() {
         return UUID.randomUUID().toString();
-    }
-
-    @Test
-    void publishesWithoutTransactionImmediately() {
-        String nonce = nonce();
-
-        publisher.publish(new ProbeEvent(nonce));
-
-        Message message = receive(nonce, Duration.ofSeconds(5));
-        assertThat(message).isNotNull();
-        assertThat(message.getMessageProperties().getMessageId()).isNotBlank();
-        assertThat(message.getMessageProperties().getType()).isEqualTo(ProbeEvent.class.getName());
-        assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("probe.happened");
-        assertThat(new String(message.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"nonce\":\"" + nonce + "\"}");
     }
 
     @Test
@@ -56,7 +45,21 @@ class DomainEventPublisherTest extends IntegrationTest {
             assertThat(receive(nonce, Duration.ofSeconds(1))).isNull();
         });
 
-        assertThat(receive(nonce, Duration.ofSeconds(5))).isNotNull();
+        Message message = receive(nonce, Duration.ofSeconds(5));
+        assertThat(message).isNotNull();
+        assertThat(message.getMessageProperties().getMessageId()).isNotBlank();
+        assertThat(message.getMessageProperties().getType()).isEqualTo(ProbeEvent.class.getName());
+        assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("probe.happened");
+        assertThat(new String(message.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"nonce\":\"" + nonce + "\"}");
+    }
+
+    @Test
+    void rejectsPublishingOutsideATransaction() {
+        String nonce = nonce();
+
+        assertThatThrownBy(() -> publisher.publish(new ProbeEvent(nonce))).isInstanceOf(IllegalStateException.class);
+
+        assertThat(receive(nonce, Duration.ofSeconds(1))).isNull();
     }
 
     @Test
@@ -68,7 +71,7 @@ class DomainEventPublisherTest extends IntegrationTest {
             publisher.publish(new ProbeEvent(rolledBack));
             throw new IllegalStateException("rollback");
         })).isInstanceOf(IllegalStateException.class);
-        publisher.publish(new ProbeEvent(marker));
+        transactionTemplate.executeWithoutResult(status -> publisher.publish(new ProbeEvent(marker)));
 
         // 按到达顺序拉取：先于 marker 到达的消息里不应有被回滚的事件
         assertThat(receive(marker, Duration.ofSeconds(5), rolledBack)).isNotNull();
@@ -94,10 +97,15 @@ class DomainEventPublisherTest extends IntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * 没有队列绑定的消息被退回，按发送失败处理，留给补发任务，最终标记为失败并告警。
+     */
     @Test
-    void failsWhenNoQueueIsBoundToRoutingKey() {
-        assertThatThrownBy(() -> publisher.publish(new Unbound(nonce())))
-                .isInstanceOf(AmqpException.class);
+    void unroutableEventIsNotConfirmed() throws Exception {
+        String payload = "{\"nonce\":\"" + nonce() + "\"}";
+
+        assertThat(sender.send(nonce(), "probe.unbound", Unbound.class.getName(), payload).get(5, TimeUnit.SECONDS))
+                .isFalse();
     }
 
     private Message receive(String nonce, Duration timeout) {

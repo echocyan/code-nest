@@ -20,8 +20,7 @@ Blocked by: 03
    - 投递语义为"至少一次"，重复消息交给消费端幂等处理。
    - `mq_outbox` 属于基础设施表，归 framework 模块。字段：`id`（雪花 ID，兼作 messageId）、`routing_key`、`event_type`、`payload`（JSON）、`status`（PENDING/SENT/FAILED）、`retry_count`、`next_retry_at`、`created_at`、`updated_at`。
 3. **发送接口**：只有一个方法 `DomainEventPublisher.publish(event)`。
-   - 当前有活跃事务时写入 Outbox，事务提交后发送；没有事务时直接发送，并用 confirm 加重试保证送达。
-   - 这是隐式行为：必须在 Javadoc 里写明，并用测试覆盖两条路径。
+   - 必须在写库的事务里调用：写入 Outbox，事务提交后发送；没有活跃事务时直接抛出异常。
    - 事件类用 `@DomainEvent("<module>.<event>")` 声明路由键。
 4. **消费端幂等**：
    - 会写 MySQL 的消费者，在 `@RabbitListener` 方法上加 `@IdempotentConsumer`。

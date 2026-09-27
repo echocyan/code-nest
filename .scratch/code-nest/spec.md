@@ -293,9 +293,9 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 
 - **使用范围**：模块之间的异步副作用一律走 RabbitMQ；Spring `ApplicationEvent` 只在模块内部使用。
 - **生产端接口**：只有一个方法 `DomainEventPublisher.publish(event)`。
-    - 当前有活跃事务时：写入 `mq_outbox`，在 afterCommit 中发送，收到 publisher confirm 后标记为 SENT。
-    - 没有事务时：直接发送，靠 confirm 加重试保证送达。
-    - 这是隐式行为，要在 Javadoc 里写明。
+    - 必须在写库的同一个事务里调用：写入 `mq_outbox`，在 afterCommit 中发送，收到 publisher confirm 后标记为 SENT。
+    - 没有活跃事务时直接抛出异常，忘了加 `@Transactional` 的调用在测试里就会暴露。
+    - 可靠投递依赖的 RabbitMQ 配置（correlated confirm、publisher-returns 加 mandatory、监听器本地重试）缺任一项时启动失败。
     - 事件类用 `@DomainEvent("<module>.<event>")` 声明路由键。
 - **补发**：定时任务用 `SELECT … FOR UPDATE SKIP LOCKED` 扫描到期的 PENDING 记录，按指数退避补发。
     - 累计失败 10 次标记为 FAILED 并告警。
@@ -529,7 +529,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 各模块的 `XxxApi` 不单独测试。
 - **只有以下几类行为在各自的公开接口上单独测**，因为从 HTTP 层看不到：
     1. **`DomainEventPublisher` 与 `@IdempotentConsumer`**：
-        - 有事务和无事务两条发送路径。
+        - 事务提交后才发送，事务外调用被拒绝。
         - 事务回滚后不发消息。
         - Broker 不可用期间写入的消息，恢复后由补发任务送达。
         - 同一 messageId 只处理一次。

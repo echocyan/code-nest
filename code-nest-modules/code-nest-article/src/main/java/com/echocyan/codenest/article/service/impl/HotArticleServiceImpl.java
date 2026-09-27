@@ -1,7 +1,9 @@
 package com.echocyan.codenest.article.service.impl;
 
 import com.echocyan.codenest.article.api.ArticleItem;
+import com.echocyan.codenest.article.api.ArticleStatus;
 import com.echocyan.codenest.article.entity.Article;
+import com.echocyan.codenest.article.service.ArticleReader;
 import com.echocyan.codenest.article.service.ArticleService;
 import com.echocyan.codenest.article.service.HotArticleService;
 import com.echocyan.codenest.common.result.PageResult;
@@ -52,19 +54,21 @@ class HotArticleServiceImpl implements HotArticleService {
     private static final int BATCH = 500;
 
     private final ArticleService articleService;
+    private final ArticleReader articleReader;
     private final CounterApi counterApi;
     private final StringRedisTemplate redis;
     private final RedisLock redisLock;
     private final HotFormula formula;
 
-    HotArticleServiceImpl(ArticleService articleService, CounterApi counterApi, StringRedisTemplate redis,
-                          RedisLock redisLock,
+    HotArticleServiceImpl(ArticleService articleService, ArticleReader articleReader, CounterApi counterApi,
+                          StringRedisTemplate redis, RedisLock redisLock,
                           @Value("${hot.weight.like}") double likeWeight,
                           @Value("${hot.weight.favorite}") double favoriteWeight,
                           @Value("${hot.weight.comment}") double commentWeight,
                           @Value("${hot.weight.view}") double viewWeight,
                           @Value("${hot.gravity}") double gravity) {
         this.articleService = articleService;
+        this.articleReader = articleReader;
         this.counterApi = counterApi;
         this.redis = redis;
         this.redisLock = redisLock;
@@ -92,7 +96,7 @@ class HotArticleServiceImpl implements HotArticleService {
         Set<String> members = redis.opsForZSet().reverseRange(KEY, start, start + PAGE_SIZE - 1);
         Long total = redis.opsForZSet().zCard(KEY);
         List<Long> ids = members == null ? List.of() : members.stream().map(Long::valueOf).toList();
-        return new PageResult<>(articleService.listPublishedItems(ids), total == null ? 0 : total, page, PAGE_SIZE);
+        return new PageResult<>(articleReader.listPublishedItems(ids), total == null ? 0 : total, page, PAGE_SIZE);
     }
 
     /**
@@ -113,7 +117,12 @@ class HotArticleServiceImpl implements HotArticleService {
      * 按热度取候选集的前 {@value #CAPACITY} 名。
      */
     private Set<TypedTuple<String>> top(LocalDateTime now) {
-        List<Article> candidates = articleService.listPublishedSince(now.minus(CANDIDATE_WINDOW));
+        // 只取算分需要的 ID 与发布时间
+        List<Article> candidates = articleService.lambdaQuery()
+                .select(Article::getId, Article::getPublishedAt)
+                .eq(Article::getStatus, ArticleStatus.PUBLISHED)
+                .ge(Article::getPublishedAt, now.minus(CANDIDATE_WINDOW))
+                .list();
         List<TypedTuple<String>> scored = new ArrayList<>(candidates.size());
         for (int from = 0; from < candidates.size(); from += BATCH) {
             List<Article> batch = candidates.subList(from, Math.min(from + BATCH, candidates.size()));

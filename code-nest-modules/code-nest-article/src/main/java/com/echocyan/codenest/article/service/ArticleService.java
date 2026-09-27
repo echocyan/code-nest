@@ -1,24 +1,15 @@
 package com.echocyan.codenest.article.service;
 
 import com.baomidou.mybatisplus.spring.service.IService;
-import com.echocyan.codenest.article.ArticleErrorCode;
-import com.echocyan.codenest.article.api.ArticleBrief;
-import com.echocyan.codenest.article.api.ArticleItem;
-import com.echocyan.codenest.article.api.ArticleSnapshot;
 import com.echocyan.codenest.article.dto.ArticleRequest;
 import com.echocyan.codenest.article.entity.Article;
-import com.echocyan.codenest.article.vo.ArticleDetailVO;
 import com.echocyan.codenest.common.exception.BizException;
-import com.echocyan.codenest.common.result.CursorResult;
-import com.echocyan.codenest.common.result.PageResult;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 /**
- * 文章的写作、发布、删除与详情。
+ * 文章的写作、发布与删除。读取见 {@link ArticleReader}。
  */
 public interface ArticleService extends IService<Article> {
 
@@ -52,23 +43,6 @@ public interface ArticleService extends IService<Article> {
     void delete(long id, long userId);
 
     /**
-     * 文章详情。草稿只有作者本人能看到，对其他人表现为不存在；已发布的文章每次查看浏览量 +1。
-     * 元数据、正文、分类与标签经缓存读取，作者信息与计数每次另行组装。
-     *
-     * @param viewerId 当前访客，匿名时为 null
-     * @throws BizException {@link ArticleErrorCode#ARTICLE_NOT_FOUND}
-     */
-    ArticleDetailVO getDetail(long id, Long viewerId);
-
-    /**
-     * 最新发布的文章，按发布时间倒序，页码分页。
-     *
-     * @param categoryId 为 null 时不按分类筛选
-     * @param tagId      为 null 时不按标签筛选
-     */
-    PageResult<ArticleItem> pageLatest(Long categoryId, Long tagId, long page, long size);
-
-    /**
      * 按 ID 查询，已删除的文章也返回。
      *
      * @return 文章从未存在时为 null
@@ -76,55 +50,9 @@ public interface ArticleService extends IService<Article> {
     Article getIncludingDeleted(long id);
 
     /**
-     * 一批已发布的文章，按文章 ID 正序。
-     *
-     * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
-     */
-    List<Article> listPublishedAfter(Long afterId, int limit);
-
-    /**
-     * 一批未删除文章（含草稿）的 ID，按 ID 正序。
-     *
-     * @param afterId 只返回大于它的 ID；为 null 时从头开始
-     */
-    List<Long> listIdsAfter(Long afterId, int limit);
-
-    /**
      * 一批 {@code updated_at} 不早于 since 的文章，草稿和已删除的文章也返回，按文章 ID 正序。
      *
      * @param afterId 只返回 ID 大于它的文章；为 null 时从头开始
      */
     List<Article> listUpdatedSinceIncludingDeleted(LocalDateTime since, Long afterId, int limit);
-
-    /**
-     * 发布时间不早于 since 的已发布文章，只含 ID 与发布时间。
-     */
-    List<Article> listPublishedSince(LocalDateTime since);
-
-    /**
-     * 批量查询文章摘要，草稿也会返回。经缓存读取，文章编辑、发布、删除后失效。
-     *
-     * @return 以文章 ID 为 key；已删除和不存在的文章不出现在结果中
-     */
-    Map<Long, ArticleBrief> getBriefs(Collection<Long> ids);
-
-    /**
-     * 批量补全正文与标签，组装成快照，保持传入顺序；已删除的文章也可以传入。
-     */
-    List<ArticleSnapshot> toSnapshots(List<Article> articles);
-
-    /**
-     * 按传入顺序组装已发布文章的列表项，草稿、已删除和不存在的文章被滤掉。摘要与作者经缓存读取。
-     */
-    List<ArticleItem> listPublishedItems(List<Long> ids);
-
-    /**
-     * 某位作者已发布的文章，按文章 ID 倒序，游标分页。
-     */
-    CursorResult<ArticleItem> listPublishedByAuthor(long authorId, Long cursor, int size);
-
-    /**
-     * 作者自己的草稿，按文章 ID 倒序，游标分页。
-     */
-    CursorResult<ArticleItem> listDrafts(long authorId, Long cursor, int size);
 }

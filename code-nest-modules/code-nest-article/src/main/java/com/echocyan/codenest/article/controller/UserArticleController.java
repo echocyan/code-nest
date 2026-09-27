@@ -2,7 +2,7 @@ package com.echocyan.codenest.article.controller;
 
 import cn.dev33.satoken.annotation.SaIgnore;
 import com.echocyan.codenest.article.api.ArticleItem;
-import com.echocyan.codenest.article.service.ArticleService;
+import com.echocyan.codenest.article.service.ArticleReader;
 import com.echocyan.codenest.common.result.CursorResult;
 import com.echocyan.codenest.common.result.Result;
 import com.echocyan.codenest.framework.auth.AuthContext;
@@ -22,14 +22,14 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserArticleController {
 
-    private final ArticleService articleService;
+    private final ArticleReader articleReader;
 
     @Operation(summary = "我的草稿", description = "按文章 ID 倒序；cursor 为上一页返回的 nextCursor")
     @GetMapping("/me/drafts")
     public Result<CursorResult<ArticleItem>> myDrafts(
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return Result.ok(articleService.listDrafts(AuthContext.currentUserId(), cursor, size));
+        return Result.ok(articleReader.listDrafts(AuthContext.currentUserId(), cursor, size));
     }
 
     @SaIgnore
@@ -39,6 +39,6 @@ public class UserArticleController {
             @PathVariable long id,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return Result.ok(articleService.listPublishedByAuthor(id, cursor, size));
+        return Result.ok(articleReader.listPublishedByAuthor(id, cursor, size));
     }
 }

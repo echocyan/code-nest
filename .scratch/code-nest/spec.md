@@ -201,7 +201,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **Service 写法**（MyBatis-Plus 惯例）：
     - 每个实体一个 Service：`service/XxxService` 是继承 `IService<Xxx>` 的接口，`service/impl/XxxServiceImpl` 继承 `ServiceImpl<XxxMapper, Xxx>` 并实现它。
     - 3.5.17 中这两个类型在 `com.baomidou.mybatisplus.spring.service` 包下。
-    - 模块门面的实现（如 `UserApiImpl`）也放在 `service/impl/`。
+    - 模块门面的实现（如 `UserApiImpl`）也放在 `service/impl/`。article 例外：门面由 `service/ArticleReader` 直接实现，它同时负责模块内的全部文章读取（可见性规则、投影组装、缓存加载），`ArticleService` 只管写作、发布与删除。
     - 条件查询和更新一律用链式 Lambda 构造器（`lambdaQuery()…list()/one()/count()/exists()`、`lambdaUpdate()…update()/remove()`），不用 `Wrappers` 构造条件后再传给 Mapper。
     - 一个 Service 需要读写别的实体时，调用该实体的 Service，不直接注入对方的 Mapper。
 - **依赖选型**：

@@ -7,8 +7,6 @@ import com.echocyan.codenest.article.vo.TagVO;
 import com.echocyan.codenest.framework.cache.BloomFilter;
 import com.echocyan.codenest.framework.cache.TwoLevelCache;
 import com.echocyan.codenest.framework.cache.TwoLevelCaches;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -18,33 +16,21 @@ import java.util.function.Function;
 
 /**
  * 文章的缓存：详情是两级缓存，用布隆过滤器 {@code bf:article} 拦截不存在的文章 ID；摘要只用 Redis。
+ * 读取与加载由 {@link ArticleReader} 负责。
  * <p>
  * 文章创建后调用 {@link #added}，编辑、发布、删除后调用 {@link #evict}，写方不需要知道有几份缓存。
- * 启动时（所有单例创建完后）如果布隆过滤器不存在（首次部署或 Redis 数据丢失），按全部未删除文章（含草稿）的 ID 重建，
- * 见 {@link BloomFilter}。
  */
 @Component
-public class ArticleCache implements SmartInitializingSingleton {
-
-    /**
-     * 重建布隆过滤器时每批读取的文章 ID 数。
-     */
-    private static final int REBUILD_BATCH = 1000;
+public class ArticleCache {
 
     private final BloomFilter bloomFilter;
     private final TwoLevelCache<Detail> details;
     private final TwoLevelCache<ArticleBrief> briefs;
 
-    /**
-     * {@link ArticleService} 依赖本类，重建时才取，避免构造循环。
-     */
-    private final ObjectProvider<ArticleService> articleService;
-
-    ArticleCache(TwoLevelCaches caches, ObjectProvider<ArticleService> articleService) {
+    ArticleCache(TwoLevelCaches caches) {
         this.bloomFilter = caches.bloomFilter("article");
         this.details = caches.createTwoLevel("article:detail", Detail.class, bloomFilter);
         this.briefs = caches.create("article:brief", ArticleBrief.class);
-        this.articleService = articleService;
     }
 
     /**
@@ -83,9 +69,13 @@ public class ArticleCache implements SmartInitializingSingleton {
         briefs.evict(id);
     }
 
-    @Override
-    public void afterSingletonsInstantiated() {
-        bloomFilter.rebuildIfAbsent(afterId -> articleService.getObject().listIdsAfter(afterId, REBUILD_BATCH));
+    /**
+     * 布隆过滤器不存在（首次部署或 Redis 数据丢失）时按全部未删除文章（含草稿）的 ID 重建，见 {@link BloomFilter}。
+     *
+     * @param idsAfter 返回大于给定 ID 的下一批 ID，按 ID 升序；参数为 null 时从头开始，返回空列表表示结束
+     */
+    public void rebuildBloomFilterIfAbsent(Function<Long, List<Long>> idsAfter) {
+        bloomFilter.rebuildIfAbsent(idsAfter);
     }
 
     /**

@@ -17,18 +17,23 @@ public interface FeedFanoutService {
     void removeArticle(long articleId, long authorId);
 
     /**
-     * 关注普通作者时，把他的发件箱并入读者已存在的收件箱。大 V 的文章在读取时拉取，不需要并入。
+     * 更新作者的粉丝数（用于识别大 V）；关注的是普通作者时，把他的发件箱并入读者已存在的收件箱。
+     * 大 V 的文章在读取时拉取，不需要并入。
      */
     void mergeOnFollow(long followerId, long authorId);
 
     /**
-     * 按作者的发件箱，从读者的收件箱中移除他的文章。
+     * 更新作者的粉丝数（用于识别大 V），并按作者的发件箱，从读者的收件箱中移除他的文章。
      */
     void removeOnUnfollow(long followerId, long authorId);
 
     /**
-     * 发件箱的重建完成标记不存在时（首次部署、Redis 数据丢失，或造数绕过发文事件直接写库），按全部已发布文章重建
-     * 各作者的发件箱，完成后写入标记；标记存在时什么也不做。收件箱不用重建，读取时会从发件箱懒重建。
+     * Redis 里的 Feed 数据丢失时（首次部署、Redis 数据丢失，或造数绕过事件直接写库）重建，完好时什么也不做：
+     * <ul>
+     *     <li>发件箱的重建完成标记不存在时，按全部已发布文章重建各作者的发件箱，完成后写入标记；</li>
+     *     <li>识别大 V 用的粉丝数不存在时，按全部关注关系重建。</li>
+     * </ul>
+     * 收件箱不用重建，读取时会从发件箱懒重建。
      */
-    void rebuildOutboxesIfAbsent();
+    void rebuildIfAbsent();
 }

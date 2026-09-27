@@ -9,9 +9,9 @@ Status: closed
 - [x] **生产端事件**：article 在发布或删除时发出 `article.published` 和 `article.deleted`（如果后续票已经加过，就直接复用）；social 发出 `follow.created` 和 `follow.deleted`。
 - [x] **Redis 结构**：每个作者一个发件箱（上限 100 条）、每个读者一个收件箱（上限 500 条，TTL 7 天）。member 和 score 都是 articleId。
 - [x] **推送**：消费者 `social.feed-push` 先写作者的发件箱。作者不是大 V 时，按每页 1000 个粉丝，给收件箱仍存在的粉丝执行 pipeline `ZADD` 并裁剪到上限。
-- [x] **大 V 阈值**：配置项 `feed.big-author-threshold`，默认 5000，粉丝数从 `CounterApi` 读取。
+- [x] **大 V 阈值**：配置项 `feed.big-author-threshold`，默认 5000，粉丝数读自 social 维护的 ZSet `feed:followers`（关注、取关后按 `follow` 表重新统计，启动时缺失就重建）。
 - [x] **读取**：
-  1. 用 `CounterApi` 识别出关注列表中的大 V。
+  1. 用一条 `ZRANGEBYSCORE feed:followers` 识别出关注列表中的大 V。
   2. 读取收件箱；不存在就用普通作者的发件箱重建，然后续期。
   3. 拉取各大 V 的发件箱。
   4. 合并、去重、按游标截取。
@@ -24,7 +24,7 @@ Status: closed
 - **事件**：`ArticlePublishedEvent`、`ArticleDeletedEvent` 在 article 的 `api/event`，`FollowDeletedEvent` 在 social 的 `api/event`，都只带两个 ID。发布只在草稿转为已发布时发出；删除草稿也会发出 `article.deleted`。
 - **代码位置**：都在 social 模块。
   - `listener/FeedPushListener`（`social.feed-push`，订阅 `article.published`）、`listener/FeedFixListener`（`social.feed-fix`，订阅 `follow.created`、`follow.deleted`、`article.deleted`），都调用 `FeedFanoutService`。
-  - `service/impl/FeedBoxes`：发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本；`BigAuthors`：按 `CounterApi` 的粉丝数识别大 V；`PushPullFeedReader`：`feed.mode=push-pull` 的 `FeedReader`。
+  - `service/impl/FeedBoxes`：发件箱、收件箱的 Redis 读写，写操作都是 Lua 脚本；`BigAuthors`：维护 `feed:followers` 并据此识别大 V；`PushPullFeedReader`：`feed.mode=push-pull` 的 `FeedReader`。
   - 推送按粉丝 ID 升序翻页（`FollowService.listFollowerIds`，走 (author_id, follower_id) 索引）。
 - **不按档装配**：两个消费者与 `feed.mode` 无关，两档都维护发件箱和收件箱。pull 档不读收件箱，也就不会创建收件箱，推送时只是跳过所有粉丝。队列不能按档声明：发送开启了 mandatory，路由键没有队列绑定时消息会被退回。
 - **Redis 细节**：

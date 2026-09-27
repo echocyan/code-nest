@@ -3,6 +3,7 @@ package com.echocyan.codenest.social.service;
 import com.baomidou.mybatisplus.spring.service.IService;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
+import com.echocyan.codenest.counter.api.IdCount;
 import com.echocyan.codenest.social.SocialErrorCode;
 import com.echocyan.codenest.social.entity.Follow;
 import com.echocyan.codenest.social.vo.FollowUserVO;
@@ -59,4 +60,14 @@ public interface FollowService extends IService<Follow> {
      * 给定用户中 followerId 关注了的那些，走 (follower_id, author_id) 唯一索引。
      */
     Set<Long> listFollowedAuthorIds(long followerId, Collection<Long> authorIds);
+
+    /**
+     * 作者当前的粉丝数，直接统计关注表，走 (author_id, follower_id) 索引。
+     */
+    long countFollowers(long authorId);
+
+    /**
+     * 用户 ID 大于 afterAuthorId、至少有一个粉丝的各用户的粉丝数，按用户 ID 升序。
+     */
+    List<IdCount> countFollowersAfter(long afterAuthorId, int limit);
 }

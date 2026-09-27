@@ -57,6 +57,7 @@ class FeedFanoutServiceImpl implements FeedFanoutService {
 
     @Override
     public void mergeOnFollow(long followerId, long authorId) {
+        bigAuthors.refresh(authorId);
         if (!bigAuthors.isBig(authorId)) {
             feedBoxes.mergeOutboxIntoInbox(followerId, authorId);
         }
@@ -64,15 +65,21 @@ class FeedFanoutServiceImpl implements FeedFanoutService {
 
     @Override
     public void removeOnUnfollow(long followerId, long authorId) {
+        bigAuthors.refresh(authorId);
         feedBoxes.removeOutboxFromInbox(followerId, authorId);
+    }
+
+    @Override
+    public void rebuildIfAbsent() {
+        rebuildOutboxesIfAbsent();
+        bigAuthors.rebuildIfAbsent();
     }
 
     /**
      * 按文章 ID 正序导入，发件箱写入时裁剪，最后留下的就是每个作者最新的文章。导入期间发布的文章照常写入，
      * 重复写入无害；导入期间删除的文章可能被写回，由读 Feed 时过滤。多个实例同时启动时各自导入一遍。
      */
-    @Override
-    public void rebuildOutboxesIfAbsent() {
+    private void rebuildOutboxesIfAbsent() {
         if (feedBoxes.outboxesReady()) {
             return;
         }

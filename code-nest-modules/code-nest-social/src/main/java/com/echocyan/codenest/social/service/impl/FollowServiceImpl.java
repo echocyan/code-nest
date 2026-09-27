@@ -127,6 +127,16 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     }
 
     @Override
+    public long countFollowers(long authorId) {
+        return lambdaQuery().eq(Follow::getAuthorId, authorId).count();
+    }
+
+    @Override
+    public List<IdCount> countFollowersAfter(long afterAuthorId, int limit) {
+        return baseMapper.countByAuthor(afterAuthorId, limit);
+    }
+
+    @Override
     public Set<CounterMetric> metrics() {
         return Set.of(CounterMetric.USER_FOLLOWER, CounterMetric.USER_FOLLOWING);
     }
@@ -134,7 +144,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
     @Override
     public List<IdCount> countAfter(CounterMetric metric, long afterId, int limit) {
         return switch (metric) {
-            case USER_FOLLOWER -> baseMapper.countByAuthor(afterId, limit);
+            case USER_FOLLOWER -> countFollowersAfter(afterId, limit);
             case USER_FOLLOWING -> baseMapper.countByFollower(afterId, limit);
             default -> throw new IllegalArgumentException("不负责的计数指标: " + metric);
         };

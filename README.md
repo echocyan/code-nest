@@ -1,25 +1,108 @@
 # 码巢 code-nest
 
-开发者技术社区后端。技术栈：Java 21、Spring Boot 4、MySQL、MyBatis-Plus、Redis、Sa-Token、RabbitMQ、Elasticsearch。
+一个面向开发者的技术社区后端。
 
-## 模块
+## 功能
 
-| 模块 | 职责 |
-|---|---|
-| `code-nest-common` | 纯 Java：统一返回体、错误码、分页结构 |
-| `code-nest-framework` | 基础设施：Web 约定、MyBatis-Plus、Redis、MQ、ES 客户端 |
-| `code-nest-modules/*` | 业务模块；跨模块只能调用对方的 `api` 包（ADR-0001，ArchUnit 强制） |
-| `code-nest-app` | 启动类、配置、端到端集成测试 |
-| `code-nest-loadtest` | 造数与压测（不打进应用 jar） |
+- **用户**：注册、登录、个人资料与用户主页
+- **文章**：草稿与发布、分类与标签、两级评论
+- **互动**：点赞、收藏
+- **关注**：关注作者，阅读关注 Feed
+- **通知**：被点赞、评论、回复、关注时收到通知
+- **搜索**：按关键词搜索文章，支持分类、标签筛选
+- **热榜**：按互动数据和发布时间定期计算
+
+## 技术栈
+
+| 类别       | 技术                            |
+|------------|---------------------------------|
+| 框架       | Java 21、Spring Boot 4.1        |
+| 数据库     | MySQL 8.4、MyBatis-Plus、Flyway |
+| 缓存       | Redis 8.6、Caffeine             |
+| 消息队列   | RabbitMQ 4.3                    |
+| 搜索       | Elasticsearch 9.4（IK 分词）    |
+| 认证       | Sa-Token                        |
+| 测试与压测 | JUnit 5、Testcontainers、k6     |
+
+## 主要设计
+
+- **计数**：点赞等计数经 Outbox 投递到 MQ，在 Redis 中用 Lua 原子去重和累加，定时批量写回 MySQL，并定期对账修正。
+- **Feed**：普通作者发文推送到粉丝的收件箱，大 V 的文章在读取时从发件箱拉取，两者合并后按文章 ID 分页。
+- **搜索**：文章变更经 Outbox 和 MQ 同步到 ES，用版本号防止旧数据覆盖新数据；索引通过别名访问，重建时不影响搜索。
+- **缓存**：Caffeine 与 Redis 两级缓存，写后删除缓存并通过 Pub/Sub 通知各实例清理本地缓存；用布隆过滤器、空值缓存和随机 TTL 应对穿透和雪崩。
+- **消息可靠性**：事务内写 Outbox、提交后发送，失败由定时任务补发；消费端按消息 ID 幂等，多次重试失败后进入死信队列。
+- **其他**：基于 Redis 的滑动窗口限流、定时计算的热榜、异步生成的通知。
+
+## 项目结构
+
+项目是一个 Maven 多模块的模块化单体，业务模块之间只能通过对方的 `api` 包交互。
+
+```text
+code-nest
+├── code-nest-common                 # 公共定义：统一返回体、错误码、分页结构
+├── code-nest-framework              # 基础设施
+│   ├── auth                         #   Sa-Token 认证
+│   ├── cache                        #   两级缓存、布隆过滤器
+│   ├── jackson                      #   JSON 序列化（Long 转字符串等）
+│   ├── lock                         #   Redis 分布式锁
+│   ├── mq                           #   事件发布、Outbox 补发、消费幂等
+│   ├── mybatis                      #   MyBatis-Plus 配置
+│   ├── openapi                      #   接口文档
+│   ├── ratelimit                    #   滑动窗口限流
+│   └── web                          #   全局异常处理、接口前缀
+├── code-nest-modules                # 业务模块
+│   ├── code-nest-user               #   用户与认证
+│   ├── code-nest-article            #   文章、分类与标签、评论、热榜
+│   ├── code-nest-interaction        #   点赞与收藏
+│   ├── code-nest-social             #   关注与 Feed
+│   ├── code-nest-notification       #   通知
+│   ├── code-nest-search             #   搜索与 ES 同步
+│   └── code-nest-counter            #   计数
+├── code-nest-app                    # 启动类、配置与集成测试
+├── code-nest-loadtest               # 造数程序、k6 脚本与压测结果
+├── docker/elasticsearch             # 带 IK 分词插件的 ES 镜像
+├── docs                             # 文档：压测报告、架构决策记录等
+├── compose.yaml                     # 本地开发用的中间件
+├── compose.loadtest.yaml            # 压测环境：2 个应用实例、Nginx 与 k6
+└── Dockerfile                       # 应用镜像
+```
+
+业务模块内部大致按以下方式分包（以 article 为例）：
+
+```text
+com.echocyan.codenest.article
+├── api            # 对其他模块开放的接口、DTO 与领域事件
+├── controller     # HTTP 接口
+├── service        # 业务逻辑，实现类在 impl 下
+├── mapper         # MyBatis-Plus Mapper
+├── entity         # 数据库实体
+├── dto / vo       # 请求与响应对象
+├── convert        # MapStruct 对象转换
+└── listener       # MQ 消费者
+```
+
+模块之间的依赖是单向的，例如 article 依赖 user 和 counter，notification 依赖 article、interaction 和 social；counter 不依赖任何业务模块。这些约束由 ArchUnit 测试检查。
 
 ## 本地运行
 
-需要 Docker。在 IDEA 中运行 `code-nest-app` 的 `CodeNestApplication` 即可：`spring-boot-docker-compose` 会按根目录 `compose.yaml` 拉起 MySQL、Redis、RabbitMQ 与带 IK 分词的 ES，并自动注入连接信息。
+需要 JDK 21 和 Docker。
 
-- 工作目录需为 `code-nest-app`（IDEA 与 `spring-boot:run` 的默认值），compose 文件以 `../compose.yaml` 引用。
-- 也可以运行测试源码里的 `TestCodeNestApplication`，改用 Testcontainers 拉起中间件。
+在 IDEA 中运行 `code-nest-app` 模块的 `CodeNestApplication`，Spring Boot 会按根目录的 `compose.yaml` 自动拉起 MySQL、Redis、RabbitMQ 和 Elasticsearch，并注入连接配置。首次启动需要构建带 IK 分词插件的 ES 镜像，会稍慢一些。
 
-接口文档：<http://localhost:8080/swagger-ui.html>
+启动后访问 <http://localhost:8080/swagger-ui.html> 查看接口文档。业务接口的前缀是 `/api/v1`，登录后在请求头中携带 `Authorization: Bearer <token>`。
+
+## 配置
+
+主要的四个开关分别对应四个优化场景，默认都是基线实现，可以在 `application.yaml` 中修改，也可以用同名环境变量覆盖（如 `COUNTER_MODE=redis-async`）：
+
+| 配置项         | 说明                                         | 可选值                               |
+|----------------|----------------------------------------------|--------------------------------------|
+| `counter.mode` | 点赞、收藏、浏览等计数的更新方式             | `sync-db`（默认）、`redis-async`     |
+| `feed.mode`    | 关注 Feed 的读取方式                         | `pull`（默认）、`push-pull`          |
+| `search.mode`  | 文章搜索的实现                               | `mysql-like`（默认）、`es`           |
+| `cache.mode`   | 文章详情、用户与文章摘要的缓存方式           | `none`（默认）、`redis`、`two-level` |
+
+其余配置（限流额度、热榜权重等）见 [application.yaml](code-nest-app/src/main/resources/application.yaml)。
 
 ## 测试
 
@@ -27,8 +110,24 @@
 ./mvnw test
 ```
 
-集成测试通过 Testcontainers 启动全部中间件，首次运行会构建带 IK 插件的 ES 镜像。
+测试以 HTTP 接口级别的集成测试为主，通过 Testcontainers 启动全部中间件。
 
 ## 压测
 
-`./code-nest-loadtest/seed.sh` 一条命令拉起资源受限的压测环境（2 个应用实例加 Nginx），并造出 10 万级数据；`./code-nest-loadtest/bench.sh <a|b|c|d>` 用 k6 跑一组场景，逐档对比模式开关。详见 [code-nest-loadtest/README.md](code-nest-loadtest/README.md)。压测结果与各亮点的 STAR 分析见 [docs/benchmark.md](docs/benchmark.md)。
+```bash
+./code-nest-loadtest/seed.sh       # 启动压测环境并生成数据
+./code-nest-loadtest/bench.sh a    # 运行场景 a；可选 a/b/c/d
+```
+
+详细说明见 [code-nest-loadtest/README.md](code-nest-loadtest/README.md)。
+
+## 压测结果
+
+| 场景 | 基线 → 优化                       | 结果                                  |
+|------|-----------------------------------|---------------------------------------|
+| 计数 | 事务内更新计数表 → Redis 异步计数 | QPS 256 → 553，行锁等待减少 96%       |
+| Feed | 拉模式 → 推拉结合                 | QPS 605 → 791，P99 1670ms → 1173ms    |
+| 搜索 | `LIKE` 模糊匹配 → Elasticsearch   | QPS 1.7 → 136，P99 52s → 0.7s         |
+| 缓存 | 无缓存 → Redis 缓存               | QPS 1328 → 3882，MySQL 查询减少 99.5% |
+
+测试环境为单机，2 个应用实例加 Nginx，各容器限制了 CPU 和内存，数据量为 10 万用户、10 万篇文章、500 万条关注关系。数据只用于同一环境下的前后对比。完整的方案说明、瓶颈分析和已知问题见 [压测报告](docs/benchmark.md)。

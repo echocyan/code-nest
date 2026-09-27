@@ -23,5 +23,5 @@ Status: closed
 - **镜像**：根目录 `Dockerfile`，构建阶段 `eclipse-temurin:21-jdk`（用户已同意）加 BuildKit 缓存挂载，`jarmode=tools` 分层解开；打出的 jar 不含 docker-compose 与 devtools。
 - **compose**：`compose.loadtest.yaml` 把项目名设为 `code-nest-loadtest`，数据卷与本地开发环境分开。中间件加了健康检查，app-2 等 app-1 健康后才启动，启动时 Flyway 迁移和 ES 索引都已就绪。MySQL 另设 `innodb_buffer_pool_size=1G`。应用容器设 `TZ=Asia/Shanghai`，定时对账的 cron 才按北京时间。Nginx 固定 IP 172.30.0.10，作为 `rate-limit.trusted-proxies`。
 - **造数**：`code-nest-loadtest` 的 `Seeder`，`rewriteBatchedStatements=true` 让驱动把每批 1000 行改写成多行 insert。ID 用雪花格式（创建时间 + 行序号）；关注表超过 2^22 行，按行序号单调分配时间保证唯一。词库放在 `vocabulary.txt`，搜索压测可以复用。
-- **派生数据**：`seed.sh` 启动环境、造数、`FLUSHALL` 后重启两个实例、对账、search-rebuild。对账逐个对象提交，默认要 1 小时以上，超过对账锁 1 小时的有效期；脚本在造数与对账期间设置 `innodb_flush_log_at_trx_commit=2`、`sync_binlog=0`，对账降到约 4 分钟，结束后用 `trap` 恢复。
-- **耗时与行数**：见 `code-nest-loadtest/README.md`，整套流程约 11 分钟。
+- **派生数据**：`seed.sh` 启动环境、造数、`FLUSHALL` 后重启两个实例、对账、search-rebuild。对账逐个对象提交，默认要 1 小时以上，超过对账锁 1 小时的有效期；脚本在造数与对账期间设置 `innodb_flush_log_at_trx_commit=2`、`sync_binlog=0`，对账降到约 8 分钟，结束后用 `trap` 恢复。
+- **耗时与行数**：见 `code-nest-loadtest/README.md`，整套流程约 15 分钟。

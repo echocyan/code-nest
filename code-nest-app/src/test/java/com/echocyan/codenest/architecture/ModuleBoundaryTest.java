@@ -42,7 +42,7 @@ class ModuleBoundaryTest {
             "interaction", Set.of("article", "counter"),
             "social", Set.of("user", "article", "counter"),
             "notification", Set.of("user", "article", "interaction", "social"),
-            "search", Set.of("article", "user"));
+            "search", Set.of("article"));
 
     /**
      * 检查业务模块之间的每一条依赖，不满足 allowed 的记为违规。

@@ -109,7 +109,7 @@ services:
         condition: service_healthy
 
   nginx:
-    image: nginx
+    image: nginx:1.31.6
     ports:
       - "8080:80"
     volumes:

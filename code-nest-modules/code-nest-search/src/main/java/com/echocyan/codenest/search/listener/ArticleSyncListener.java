@@ -27,7 +27,7 @@ public class ArticleSyncListener {
 
     @Bean
     static Declarables articleSyncQueue() {
-        return EventQueues.declare(QUEUE, "article.published", "article.updated", "article.deleted");
+        return EventQueues.declare(QUEUE, ArticleSyncListener.class);
     }
 
     @RabbitHandler

@@ -85,7 +85,7 @@ erDiagram
 
 ## RabbitMQ
 
-只有一个 topic 交换机 `codenest.events`，路由键格式是 `<生产模块>.<事件>`。消息的 `message_id` 属性是 messageId（即 Outbox 记录的 ID），`type` 属性是事件类型，body 是事件的 JSON。交换机与队列都持久化，队列是 classic 类型。
+只有一个 topic 交换机 `codenest.events`，路由键格式是 `<生产模块>.<事件>`。消息的 `message_id` 属性是 messageId（即 Outbox 记录的 ID），`type` 属性是事件类的全限定名，body 是事件的 JSON。交换机与队列都持久化，队列是 classic 类型。
 
 ### 事件
 

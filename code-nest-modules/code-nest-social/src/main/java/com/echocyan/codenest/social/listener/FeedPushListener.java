@@ -22,7 +22,7 @@ public class FeedPushListener {
 
     @Bean
     static Declarables feedPushQueue() {
-        return EventQueues.declare(QUEUE, "article.published");
+        return EventQueues.declare(QUEUE, FeedPushListener.class);
     }
 
     @RabbitListener(queues = QUEUE)

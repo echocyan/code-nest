@@ -28,7 +28,7 @@ public class ArticleCacheEvictListener {
 
     @Bean
     static Declarables articleCacheEvictQueue() {
-        return EventQueues.declare(QUEUE, "article.published", "article.updated", "article.deleted");
+        return EventQueues.declare(QUEUE, ArticleCacheEvictListener.class);
     }
 
     @RabbitHandler

@@ -29,8 +29,8 @@ Status: closed
 ## Comments
 
 - **代码位置**：全部在 `code-nest-framework` 的 `framework.mq` 包；迁移为 `V0_001__create_mq_tables.sql`。
-- **声明消费队列**：在消费模块里注册 `@Bean Declarables xxxQueue() { return EventQueues.declare("<queue>", "<routingKey>", ...); }`，一并声明 `<queue>.dlq` 及其在 `codenest.dlx`（direct 交换机）上的绑定。
-- **消息格式**：`type` 属性是事件类的全限定名。消费端的 MessageConverter 按它反序列化，只接受标注了 `@DomainEvent` 的类，所以一个队列可以用多个 `@RabbitHandler` 按事件类型分派。
+- **声明消费队列**：在消费模块里注册 `@Bean static Declarables xxxQueue() { return EventQueues.declare(QUEUE, XxxListener.class); }`，一并声明 `<queue>.dlq` 及其在 `codenest.dlx`（direct 交换机）上的绑定。订阅哪些路由键由监听器里消费该队列的方法决定（类上 `@RabbitListener` 时看 `@RabbitHandler` 方法，否则看 `queues` 含该队列的 `@RabbitListener` 方法）：每个方法取标注了 `@DomainEvent` 的参数类型的路由键；没有这样的方法或参数时启动失败。没有应用内消费者的队列（测试用的探针）用 `EventQueues.declareEvents(queue, 事件类...)`。
+- **消息格式**：`type` 属性是事件类的全限定名，所以移动或改名 `api/event/` 下的事件类同样是修改模块接口：Outbox 里待补发的记录和死信队列里的消息都按旧名反序列化。消费端的 MessageConverter 按它反序列化，只接受标注了 `@DomainEvent` 的类，所以一个队列可以用多个 `@RabbitHandler` 按事件类型分派。
 - **发送细节**：
   - 有事务时，Outbox 记录的首次补发时间是写入后 10 秒，给 afterCommit 发送留出时间；confirm 回调切到应用线程池再标记 SENT。
   - 补发每 5 秒扫一次，每批 100 条；退避从 10 秒开始翻倍，上限 30 分钟。

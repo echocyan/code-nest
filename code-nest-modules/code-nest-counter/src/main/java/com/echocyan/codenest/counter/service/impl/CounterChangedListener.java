@@ -24,7 +24,7 @@ class CounterChangedListener {
 
     @Bean
     static Declarables counterUpdateQueue() {
-        return EventQueues.declare(QUEUE, CounterChangedEvent.ROUTING_KEY);
+        return EventQueues.declare(QUEUE, CounterChangedListener.class);
     }
 
     @RabbitListener(queues = QUEUE)

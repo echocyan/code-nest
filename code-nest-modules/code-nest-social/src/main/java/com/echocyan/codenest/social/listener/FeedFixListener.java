@@ -26,7 +26,7 @@ public class FeedFixListener {
 
     @Bean
     static Declarables feedFixQueue() {
-        return EventQueues.declare(QUEUE, "follow.created", "follow.deleted", "article.deleted");
+        return EventQueues.declare(QUEUE, FeedFixListener.class);
     }
 
     @RabbitHandler

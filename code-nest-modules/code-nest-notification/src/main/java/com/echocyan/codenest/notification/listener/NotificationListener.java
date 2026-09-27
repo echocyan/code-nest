@@ -27,7 +27,7 @@ public class NotificationListener {
 
     @Bean
     static Declarables notificationQueue() {
-        return EventQueues.declare(QUEUE, "like.created", "comment.created", "follow.created");
+        return EventQueues.declare(QUEUE, NotificationListener.class);
     }
 
     @RabbitHandler

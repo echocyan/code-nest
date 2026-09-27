@@ -37,7 +37,7 @@ public class MqProbe {
 
     @Bean
     static Declarables probeInboxQueue() {
-        return EventQueues.declare(INBOX, "probe.happened");
+        return EventQueues.declareEvents(INBOX, ProbeEvent.class);
     }
 
     /**
@@ -45,7 +45,7 @@ public class MqProbe {
      */
     @Bean
     static Declarables probeConsumerQueue() {
-        return EventQueues.declare(CONSUMER);
+        return EventQueues.declareEvents(CONSUMER);
     }
 
     private static AtomicInteger counter(Map<String, AtomicInteger> counters, String nonce) {

@@ -13,7 +13,7 @@ Blocked by: 03
 1. **缓存范围**：
    - **文章详情**（元数据 + 正文）：Caffeine + Redis 两级缓存，归 article 模块。缓存里不放计数，计数通过 `CounterApi` 另行组装，所以点赞不会让文章缓存失效。
    - **用户简要信息**（`UserApi` 的批量查询）和**文章摘要**（`ArticleApi` 的批量查询）：只用 Redis 一级缓存，批量查询走 `MGET`。
-   - **关注列表**：暂不缓存，因为走的是覆盖索引。
+   - **关注列表**：不缓存，走的是覆盖索引；按[压测方案](12-load-test.md)的 30% 规则实测也不需要。
    - **"是否点赞/收藏"**：不缓存，直接查唯一索引。
 2. **组件**：framework 模块提供 `TwoLevelCache`，只有三个方法：`get(key, loader)`、`getAll(keys, batchLoader)`、`evict(key)`。两级读取顺序、空值缓存、布隆过滤器、TTL 抖动、本地缓存失效广播都封装在组件内部。不用 Spring Cache `@Cacheable`，因为它很难表达批量查询和穿透防护。
 3. **一致性**：采用 Cache-Aside。

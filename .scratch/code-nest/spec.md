@@ -382,7 +382,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
     - 删文：从作者的发件箱中移除该文章。
     - 其余情况都靠读取时过滤兜底。
 - **`feed.mode` 开关**：`pull`（基线，调用 `ArticleApi.listByAuthors`，执行 `IN` 查询）/ `push-pull`（优化）。
-- **关注列表缓存**：先不做。压测后如果关注列表查询占 Feed 读取耗时的 30% 以上，再加 Redis Set 缓存。
+- **关注列表缓存**：不做。按 30% 规则，push-pull 下关注列表查询占 Feed 读取耗时不到 30%，数据见 `docs/benchmark.md`。
 
 ### 搜索与同步（主打亮点 C，见[搜索与数据同步](issues/08-search-sync.md)）
 

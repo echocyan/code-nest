@@ -34,7 +34,7 @@ Blocked by:
      - `follow.created`：followerId、authorId
 2. **不聚合，但去重防刷屏**：
    - `dedup_key` 字段可为空，建唯一索引：点赞写 `L:{actorId}:{articleId}`，关注写 `F:{actorId}:{authorId}`，评论和回复留 NULL。
-   - 写入用 `INSERT IGNORE`。同一个人反复点赞、取消，或反复关注、取关，都只会产生一条通知。
+   - 写入时 dedup_key 唯一键冲突就跳过，其他错误照常抛出。同一个人反复点赞、取消，或反复关注、取关，都只会产生一条通知。
 3. **撤回与已删除内容**：
    - 取消点赞、取关不撤回通知。
    - 表里只存 ID，展示信息在读取时组装：`UserApi` 提供触发者的昵称和头像，`ArticleApi` 提供文章标题和评论摘要。

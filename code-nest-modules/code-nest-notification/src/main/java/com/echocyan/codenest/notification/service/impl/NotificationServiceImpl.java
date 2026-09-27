@@ -1,6 +1,5 @@
 package com.echocyan.codenest.notification.service.impl;
 
-import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleBrief;
@@ -8,7 +7,6 @@ import com.echocyan.codenest.article.api.CommentBrief;
 import com.echocyan.codenest.article.api.event.CommentCreatedEvent;
 import com.echocyan.codenest.common.exception.BizException;
 import com.echocyan.codenest.common.result.CursorResult;
-import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.interaction.api.event.LikeCreatedEvent;
 import com.echocyan.codenest.notification.NotificationErrorCode;
 import com.echocyan.codenest.notification.entity.Notification;
@@ -20,9 +18,9 @@ import com.echocyan.codenest.social.api.event.FollowCreatedEvent;
 import com.echocyan.codenest.user.api.UserApi;
 import com.echocyan.codenest.user.api.UserBrief;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -116,12 +114,12 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         if (notification.getActorId().equals(notification.getRecipientId())) {
             return;
         }
-        LocalDateTime now = DateTimes.now();
-        notification.setId(IdWorker.getId());
         notification.setIsRead(false);
-        notification.setCreatedAt(now);
-        notification.setUpdatedAt(now);
-        baseMapper.insertIgnore(notification);
+        try {
+            save(notification);
+        } catch (DuplicateKeyException e) {
+            // 同一 dedupKey 已经通知过；MySQL 只回滚这一条语句，事务可以继续
+        }
     }
 
     @Override

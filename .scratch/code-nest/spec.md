@@ -444,7 +444,7 @@ CRUD，面试官一问"遇到了什么难点、怎么证明你的方案有效"�
 - **来源**：`notification.create` 订阅 like.created、comment.created、follow.created，加 `@IdempotentConsumer`。
     - 接收者：点赞通知文章作者；评论通知文章作者；回复通知被回复的人；关注通知被关注者。
     - 触发者和接收者是同一人时不通知。
-- **去重**：点赞用 `L:{actor}:{article}`、关注用 `F:{actor}:{author}` 作为 dedup_key，配合 `INSERT IGNORE`；评论和回复的
+- **去重**：点赞用 `L:{actor}:{article}`、关注用 `F:{actor}:{author}` 作为 dedup_key，唯一键冲突时跳过；评论和回复的
   dedup_key 为 NULL。
     - 取消操作不撤回通知。
 - **展示**：表里只存 ID，读取时组装：`UserApi` 提供触发者信息，`ArticleApi` 提供文章标题和批量评论摘要（本票新增的接口要求）。

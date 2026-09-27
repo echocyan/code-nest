@@ -12,7 +12,7 @@ Status: closed
   - social 发出 `follow.created`，带 followerId、authorId。
   - 三者都在业务事务内通过 `publish` 发出。
 - [x] **notification 模块**：新增模块，建 notification 表（`V5_`），索引按规格建立；定义 5xxxx 错误码。
-- [x] **消费者 `notification.create`**：加 `@IdempotentConsumer`，按事件类型确定接收者；触发者与接收者是同一人时跳过。点赞和关注带 dedup_key，写入用 `INSERT IGNORE`。
+- [x] **消费者 `notification.create`**：加 `@IdempotentConsumer`，按事件类型确定接收者；触发者与接收者是同一人时跳过。点赞和关注带 dedup_key，唯一键冲突时跳过。
 - [x] **`GET /notifications?cursor=`**：游标分页。
   - 读取时组装触发者信息、文章标题、评论摘要。
   - 内容已被删除时显示"该内容已删除"。
@@ -28,7 +28,7 @@ Status: closed
   - `comment.created` 的 replyToUserId 是被回复的人：回复时 @ 了谁就是谁，没有 @ 时是被回复评论的作者；评论为 null。消费者按 rootId 是否为 0 区分评论和回复。
 - **消费者**：`listener/NotificationListener`，一个 `notification.create` 队列，用三个 `@RabbitHandler` 按事件类型分派，每个都加 `@IdempotentConsumer`，只把事件转给 `NotificationService`。
 - **规则**：`NotificationService` 按点赞、评论（含回复）、关注各有一个入口，由它决定接收者、类型、去重 key，以及触发者就是接收者时不通知。
-- **写入**：`INSERT IGNORE` 是 Mapper 上的自定义 SQL，不走自动填充，ID 和时间由 `NotificationServiceImpl` 私有的 `send` 设置。实体字段叫 `isRead`（`read` 是 MySQL 保留字）。
+- **写入**：`NotificationServiceImpl` 私有的 `send` 用 `save` 写入，捕获 `DuplicateKeyException` 跳过重复的 dedup_key；只忽略唯一键冲突，ID 和时间走自动填充。实体字段叫 `isRead`（`read` 是 MySQL 保留字）。
 - **接口细节**：
   - `GET /notifications?cursor=&size=`：size 默认 20、最大 50；列表项为 `{id, type, actor, articleId, articleTitle, commentId, commentSummary, read, createdAt}`，type 为 LIKE、COMMENT、REPLY、FOLLOW。
   - 文章已删除时 articleTitle 和 commentSummary 都显示"该内容已删除"；评论或回复已删除时 commentSummary 显示"该内容已删除"。

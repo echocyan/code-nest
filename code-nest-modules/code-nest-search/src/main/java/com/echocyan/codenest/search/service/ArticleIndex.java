@@ -8,8 +8,10 @@ import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import co.elastic.clients.elasticsearch.indices.IndexState;
 import com.echocyan.codenest.article.api.ArticleApi;
 import com.echocyan.codenest.article.api.ArticleSnapshot;
+import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.framework.lock.RedisLock;
+import com.echocyan.codenest.search.dto.SearchSort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +70,7 @@ public class ArticleIndex implements SmartInitializingSingleton {
     private final String alias;
     private final String indexPrefix;
     private final String rebuildLockKey;
+    private final ArticleSearcher searcher;
 
     @Autowired
     public ArticleIndex(ElasticsearchClient client, ArticleApi articleApi, RedisLock redisLock) {
@@ -84,6 +87,18 @@ public class ArticleIndex implements SmartInitializingSingleton {
         this.alias = alias;
         this.indexPrefix = alias + "_v";
         this.rebuildLockKey = "search:" + alias + ":rebuild:lock";
+        this.searcher = new ArticleSearcher(client, alias);
+    }
+
+    /**
+     * 在已发布文章中按关键词检索，按相关度或发布时间排序并高亮，见 {@link ArticleSearcher}。调用方已校验翻页深度。
+     *
+     * @param categoryId 为 null 时不按分类筛选
+     * @param tagId      为 null 时不按标签筛选
+     */
+    public PageResult<Match> search(String keyword, Long categoryId, Long tagId, SearchSort sort, long page,
+                                    long size) {
+        return searcher.search(keyword, categoryId, tagId, sort, page, size);
     }
 
     @Override
@@ -308,6 +323,15 @@ public class ArticleIndex implements SmartInitializingSingleton {
 
     private interface EsCall {
         void run() throws IOException;
+    }
+
+    /**
+     * 一条命中结果。
+     *
+     * @param titleHighlight   高亮后的标题，未命中时为 null
+     * @param contentHighlight 正文的高亮片段，未命中时为 null
+     */
+    public record Match(long articleId, String titleHighlight, String contentHighlight) {
     }
 
     /**

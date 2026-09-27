@@ -1,4 +1,4 @@
-package com.echocyan.codenest.search.service.impl;
+package com.echocyan.codenest.search.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.SortOptions;
@@ -12,10 +12,8 @@ import co.elastic.clients.elasticsearch.core.search.HighlighterType;
 import co.elastic.clients.util.NamedValue;
 import com.echocyan.codenest.common.result.PageResult;
 import com.echocyan.codenest.search.dto.SearchSort;
-import com.echocyan.codenest.search.service.ArticleIndex;
 import com.echocyan.codenest.search.service.ArticleIndex.Fields;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.echocyan.codenest.search.service.ArticleIndex.Match;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -24,15 +22,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 在已发布文章中按关键词检索：在 {@link ArticleIndex} 中用 IK 分词，按相关度排序并高亮。调用方已校验翻页深度。
+ * 在已发布文章中按关键词检索：经 {@link ArticleIndex} 的别名查询，用 IK 分词，按相关度排序并高亮。由 {@link ArticleIndex}
+ * 持有，读写因此总是经过同一个别名。调用方已校验翻页深度。
  *
  * <p>标题、摘要、正文的权重为 3、1.5、1，分词后的每个词都要出现在同一个字段里；关键词与文章的某个标签名完全一致
  * （不区分大小写）时额外加分。分类、标签只做筛选，不参与打分。高亮文本经 HTML 转义，命中词用 {@code <em>} 包裹，
  * 字段未命中时为 null。
  */
-@Service
-@RequiredArgsConstructor
-class EsArticleSearcher {
+class ArticleSearcher {
 
     /**
      * 标签名命中时的加权。
@@ -45,6 +42,12 @@ class EsArticleSearcher {
     private static final int CONTENT_FRAGMENT_SIZE = 100;
 
     private final ElasticsearchClient client;
+    private final String alias;
+
+    ArticleSearcher(ElasticsearchClient client, String alias) {
+        this.client = client;
+        this.alias = alias;
+    }
 
     private static BoolQuery.Builder matching(BoolQuery.Builder bool, String keyword) {
         return bool
@@ -92,7 +95,7 @@ class EsArticleSearcher {
         SearchResponse<Void> response;
         try {
             response = client.search(search -> search
-                    .index(ArticleIndex.ALIAS)
+                    .index(alias)
                     .from((int) ((page - 1) * size))
                     .size((int) size)
                     .source(source -> source.fetch(false))
@@ -117,14 +120,5 @@ class EsArticleSearcher {
                 .toList();
         long total = Objects.requireNonNull(response.hits().total()).value();
         return new PageResult<>(list, total, page, size);
-    }
-
-    /**
-     * 一条命中结果。
-     *
-     * @param titleHighlight   高亮后的标题，未命中时为 null
-     * @param contentHighlight 正文的高亮片段，未命中时为 null
-     */
-    record Match(long articleId, String titleHighlight, String contentHighlight) {
     }
 }

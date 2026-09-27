@@ -30,7 +30,8 @@ class ModuleBoundaryTest {
     @ArchTest
     static final ArchRule onlyDeclaredModuleDependencies = crossModuleDependencies(
             "only depend on business modules declared in the module dependency list",
-            (own, target, targetPackage) -> ALLOWED_DEPENDENCIES.get(own).contains(target));
+            // 限定名引用不受前向引用限制，格式化调整字段顺序后仍能编译
+            (own, target, targetPackage) -> ModuleBoundaryTest.ALLOWED_DEPENDENCIES.get(own).contains(target));
     /**
      * 规格中约定的模块依赖：key 可以依赖 value 中的模块。
      */

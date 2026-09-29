@@ -5,6 +5,12 @@ spring:
     compose:
       # 应用以仓库根目录为工作目录运行（IDEA 默认如此，spring-boot:run 在 pom 中指定），按默认规则找到根目录的 compose.yaml
       lifecycle-management: start-only
+  datasource:
+    hikari:
+      data-source-properties:
+        # 驱动在本地记录会话的 autocommit、只读状态，不再每个事务前后都查询或重复设置，
+        # 省掉 SELECT @@session.transaction_read_only 与多余的 SET autocommit 往返
+        useLocalSessionState: true
   testcontainers:
     beans:
       # 只影响测试与 TestCodeNestApplication：并行启动 Testcontainers 容器，总耗时取决于最慢的 ES

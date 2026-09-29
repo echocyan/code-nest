@@ -39,6 +39,9 @@ class RedisCounterStore {
      */
     static final int FLUSH_BATCH = 1000;
 
+    /**
+     * 必须长于 Outbox 补发的最长时限（12 小时），否则补发的重复消息会被再累加一次。
+     */
     private static final Duration DEDUP_TTL = Duration.ofDays(1);
 
     private static final Long MISS = -1L;

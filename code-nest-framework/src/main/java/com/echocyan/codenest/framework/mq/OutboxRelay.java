@@ -11,6 +11,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -19,6 +20,9 @@ import java.util.concurrent.*;
  * <p>
  * 补发用 {@code SELECT … FOR UPDATE SKIP LOCKED} 锁住到期的 PENDING 记录，多实例之间不会重复处理同一行。
  * 失败按指数退避重算下次补发时间，累计失败 {@link #MAX_RETRIES} 次标记为 FAILED 并打告警日志，之后由人工处理。
+ * <p>
+ * 创建超过 {@link #MAX_RELAY_AGE} 的记录不再补发，直接标记为 FAILED：消费端的去重标记有保留期，
+ * 更晚的重复投递可能被当作新消息再处理一次。这类记录只在应用长时间停机后出现，由对账等业务手段修正。
  */
 @Slf4j
 @Component
@@ -32,6 +36,12 @@ class OutboxRelay {
     private static final Duration MAX_RETRY_DELAY = Duration.ofMinutes(30);
 
     private static final Duration SENT_RETENTION = Duration.ofDays(7);
+
+    /**
+     * 补发的最长时限。消费端的去重保留期必须长于它，见 {@link IdempotentConsumer}。
+     * 正常的补发（{@link #MAX_RETRIES} 次退避）约 2 小时内结束。
+     */
+    static final Duration MAX_RELAY_AGE = Duration.ofHours(12);
 
     private static final int BATCH_SIZE = 100;
 
@@ -81,14 +91,26 @@ class OutboxRelay {
             if (due.isEmpty()) {
                 return;
             }
+            LocalDateTime expiredBefore = now.minus(MAX_RELAY_AGE);
+            List<MqOutbox> sendable = new ArrayList<>(due.size());
+            for (MqOutbox outbox : due) {
+                if (outbox.getCreatedAt().isBefore(expiredBefore)) {
+                    outbox.setStatus(OutboxStatus.FAILED);
+                    outboxMapper.updateById(outbox);
+                    log.error("Outbox event is older than {} and will not be relayed, needs manual handling: "
+                            + "id={}, routingKey={}", MAX_RELAY_AGE, outbox.getId(), outbox.getRoutingKey());
+                } else {
+                    sendable.add(outbox);
+                }
+            }
             // 先全部发出，再统一等待 confirm
-            List<CompletableFuture<Boolean>> confirms = due.stream()
+            List<CompletableFuture<Boolean>> confirms = sendable.stream()
                     .map(outbox -> sender.send(String.valueOf(outbox.getId()), outbox.getRoutingKey(),
                             outbox.getEventType(), outbox.getPayload()))
                     .toList();
             awaitAll(confirms);
-            for (int i = 0; i < due.size(); i++) {
-                MqOutbox outbox = due.get(i);
+            for (int i = 0; i < sendable.size(); i++) {
+                MqOutbox outbox = sendable.get(i);
                 if (isAcked(confirms.get(i))) {
                     outbox.setStatus(OutboxStatus.SENT);
                 } else {

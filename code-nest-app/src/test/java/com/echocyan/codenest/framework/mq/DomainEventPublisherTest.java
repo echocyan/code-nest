@@ -1,5 +1,6 @@
 package com.echocyan.codenest.framework.mq;
 
+import com.echocyan.codenest.common.util.DateTimes;
 import com.echocyan.codenest.support.IntegrationTest;
 import com.echocyan.codenest.support.SharedContainers;
 import com.echocyan.codenest.support.probe.MqProbe;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -17,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 class DomainEventPublisherTest extends IntegrationTest {
 
@@ -31,6 +34,12 @@ class DomainEventPublisherTest extends IntegrationTest {
 
     @Autowired
     private EventSender sender;
+
+    @Autowired
+    private MqOutboxMapper outboxMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private static String nonce() {
         return UUID.randomUUID().toString();
@@ -51,6 +60,36 @@ class DomainEventPublisherTest extends IntegrationTest {
         assertThat(message.getMessageProperties().getType()).isEqualTo(ProbeEvent.class.getName());
         assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("probe.happened");
         assertThat(new String(message.getBody(), StandardCharsets.UTF_8)).isEqualTo("{\"nonce\":\"" + nonce + "\"}");
+    }
+
+    @Test
+    void confirmedEventIsMarkedSent() {
+        String nonce = nonce();
+
+        transactionTemplate.executeWithoutResult(status -> publisher.publish(new ProbeEvent(nonce)));
+
+        assertThat(receive(nonce, Duration.ofSeconds(5))).isNotNull();
+        await().atMost(Duration.ofSeconds(5)).until(() -> statusOf(nonce) == OutboxStatus.SENT.ordinal());
+    }
+
+    /**
+     * 超过补发时限的记录不再投递：消费端的去重标记可能已经过期，重复投递会被当作新消息。
+     */
+    @Test
+    void expiredEventIsFailedInsteadOfRelayed() {
+        String nonce = nonce();
+        MqOutbox outbox = new MqOutbox();
+        outbox.setRoutingKey("probe.happened");
+        outbox.setEventType(ProbeEvent.class.getName());
+        outbox.setPayload("{\"nonce\":\"" + nonce + "\"}");
+        outbox.setStatus(OutboxStatus.PENDING);
+        outbox.setRetryCount(0);
+        outbox.setNextRetryAt(DateTimes.now().minusMinutes(1));
+        outbox.setCreatedAt(DateTimes.now().minus(OutboxRelay.MAX_RELAY_AGE).minusMinutes(1));
+        outboxMapper.insert(outbox);
+
+        await().atMost(Duration.ofSeconds(15)).until(() -> statusOf(nonce) == OutboxStatus.FAILED.ordinal());
+        assertThat(receive(nonce, Duration.ofSeconds(1))).isNull();
     }
 
     @Test
@@ -106,6 +145,11 @@ class DomainEventPublisherTest extends IntegrationTest {
 
         assertThat(sender.send(nonce(), "probe.unbound", Unbound.class.getName(), payload).get(5, TimeUnit.SECONDS))
                 .isFalse();
+    }
+
+    private int statusOf(String nonce) {
+        return jdbcTemplate.queryForObject("SELECT status FROM mq_outbox WHERE payload LIKE ?", Integer.class,
+                "%" + nonce + "%");
     }
 
     private Message receive(String nonce, Duration timeout) {

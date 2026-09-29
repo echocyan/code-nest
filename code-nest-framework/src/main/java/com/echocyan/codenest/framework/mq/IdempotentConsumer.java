@@ -8,6 +8,9 @@ import java.lang.annotation.*;
  * 在同一个本地事务里插入 {@code mq_consume_record(message_id, consumer)} 并执行方法体，consumer 取消费队列名；
  * 唯一键冲突说明已经处理过，直接跳过。方法体抛异常时整个事务回滚，消息按重试策略重新处理。
  * 本身幂等的消费者（按 ID 覆盖写 ES、Redis {@code ZADD} 等）不需要加。
+ * <p>
+ * 消费记录不清理。自行实现去重的消费者（如用 Redis 标记），去重保留期必须长于
+ * {@link OutboxRelay#MAX_RELAY_AGE}，否则补发的重复消息可能再被处理一次。
  */
 @Documented
 @Target(ElementType.METHOD)

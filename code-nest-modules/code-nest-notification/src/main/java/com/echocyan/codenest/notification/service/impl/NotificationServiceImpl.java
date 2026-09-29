@@ -109,9 +109,17 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     /**
      * 写入一条通知。触发者就是接收者时跳过；dedupKey 已存在时忽略。
+     * <p>
+     * 反复点赞、取消时，同一个 dedupKey 的通知绝大多数已经存在。先用不加锁的普通查询判断，
+     * 以免每次都插入失败：唯一键冲突时 InnoDB 会对已有记录加共享锁并持有到事务结束，并发时互相等待。
+     * 并发的首次写入仍由唯一键兜底。
      */
     private void send(Notification notification) {
         if (notification.getActorId().equals(notification.getRecipientId())) {
+            return;
+        }
+        if (notification.getDedupKey() != null
+                && lambdaQuery().eq(Notification::getDedupKey, notification.getDedupKey()).exists()) {
             return;
         }
         notification.setIsRead(false);

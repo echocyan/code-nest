@@ -58,6 +58,38 @@ redis_calls() {
             | add // {}'
 }
 
+# 压测期间每隔约 2 秒采样一次各容器的 CPU 占用（单位：核），直到文件 $1.stop 出现；在后台运行
+sample_cpu() {
+    local out=$1
+    : >"$out"
+    while [ ! -e "$out.stop" ]; do
+        docker stats --no-stream --format '{{.Name}}\t{{.CPUPerc}}' $(compose ps -q) >>"$out" 2>/dev/null || true
+    done
+}
+
+# 各容器 CPU 占用的平均值与峰值（单位：核），输出 JSON 对象
+cpu_summary() {
+    jq -Rn '[inputs | split("\t") | {name: .[0], cpu: (.[1] | rtrimstr("%") | tonumber / 100)}]
+        | group_by(.name) | map({(.[0].name): {avg: (map(.cpu) | add / length), max: (map(.cpu) | max)}}) | add // {}' "$1"
+}
+
+# 清空语句摘要统计，之后执行的语句重新累计
+reset_digests() {
+    compose exec -T mysql mysql -uroot -proot -N \
+        -e "TRUNCATE performance_schema.events_statements_summary_by_digest" 2>/dev/null
+}
+
+# 按总耗时取前 15 类语句：执行次数、总耗时与锁等待时长（毫秒），输出 JSON 数组
+top_digests() {
+    compose exec -T mysql mysql -uroot -proot -N -e "
+        SELECT LEFT(DIGEST_TEXT, 160), COUNT_STAR, ROUND(SUM_TIMER_WAIT / 1e9), ROUND(SUM_LOCK_TIME / 1e9)
+        FROM performance_schema.events_statements_summary_by_digest
+        WHERE SCHEMA_NAME = 'code_nest'
+        ORDER BY SUM_TIMER_WAIT DESC LIMIT 15" 2>/dev/null \
+        | jq -Rn '[inputs | split("\t") | {sql: .[0], count: (.[1] | tonumber), totalMs: (.[2] | tonumber),
+            lockMs: (.[3] | tonumber)}]'
+}
+
 # 场景 B：两个实例的 Timer feed.read 与 feed.read.follow-list 的累计次数与耗时（毫秒）之和，输出 JSON 对象
 feed_timers() {
     local port metric
@@ -88,19 +120,21 @@ restart_app() {
         || { echo "Nginx 未就绪" >&2; exit 1; }
 }
 
-# 等有消费者的 MQ 队列清空：上一轮积压的消息（如点赞产生的通知）会在压测期间抢占 MySQL 与应用 CPU。
+# 等有消费者的 MQ 队列清空、Outbox 里没有待发送的记录：上一轮积压的消息（如点赞产生的通知）与补发会在
+# 压测期间抢占 MySQL 与应用 CPU；未标记为已发送的记录在应用重启后会被重新投递。
 # 没有消费者的队列（死信队列）不等；30 分钟内清不空就退出
 wait_queues() {
-    local backlog
+    local backlog pending
     for _ in $(seq 360); do
         backlog=$(compose exec -T rabbitmq rabbitmqctl list_queues -q name messages consumers \
             | awk 'NR > 1 && $3 > 0 {sum += $2} END {print sum + 0}')
-        if [ "$backlog" = 0 ]; then
+        pending=$(sql "SELECT COUNT(*) FROM mq_outbox WHERE status = 0")
+        if [ "$backlog" = 0 ] && [ "$pending" = 0 ]; then
             return
         fi
         sleep 5
     done
-    echo "MQ 队列 30 分钟内未清空，还剩 $backlog 条" >&2
+    echo "30 分钟内未清空：MQ 队列还剩 $backlog 条，Outbox 还有 $pending 条待发送" >&2
     exit 1
 }
 
@@ -154,8 +188,16 @@ for run in $(seq "$runs"); do
     if [ "$scenario" = b ]; then
         feed_before=$(feed_timers)
     fi
+    reset_digests
+    cpu_file="$work/$name.cpu.tsv"
+    rm -f "$cpu_file.stop"
+    sample_cpu "$cpu_file" &
+    cpu_pid=$!
     step "第 $run/$runs 轮：稳态压测 $DURATION"
     run_k6 "$name" steady
+    touch "$cpu_file.stop"
+    wait "$cpu_pid"
+    cpu=$(cpu_summary "$cpu_file")
     if [ "$scenario" = a ]; then
         # 落库完成后再采集，异步落库的写入也计入差值
         counter=$(wait_counter)
@@ -165,8 +207,10 @@ for run in $(seq "$runs"); do
     redis_after=$(redis_calls)
     mysql_delta=$(delta "$mysql_before" "$mysql_after")
     redis_delta=$(delta "$redis_before" "$redis_after")
+    digests=$(top_digests)
     result=$(jq -n --slurpfile k6 "$work/$name.summary.json" --argjson mysql "$mysql_delta" \
-        --argjson redis "$redis_delta" '{k6: $k6[0], mysql: $mysql, redis: $redis}')
+        --argjson redis "$redis_delta" --argjson cpu "$cpu" --argjson digests "$digests" \
+        '{k6: $k6[0], mysql: $mysql, redis: $redis, cpu: $cpu, digests: $digests}')
     if [ "$scenario" = a ]; then
         result=$(jq --argjson counter "$counter" '. + {counter: $counter}' <<<"$result")
     fi
@@ -183,12 +227,15 @@ for run in $(seq "$runs"); do
         result=$(jq --slurpfile push "$work/b-feed-push.summary.json" '. + $push[0]' <<<"$result")
     fi
     jq -c . <<<"$result" >>"$runs_file"
-    jq '{k6} + (if .feed then {feed} else {} end) + {innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0),
+    jq '{k6, cpu} + (if .feed then {feed} else {} end) + {innodbRowLockWaits: (.mysql.Innodb_row_lock_waits // 0),
         comSelect: (.mysql.Com_select // 0), redisCalls: ([.redis[]] | add // 0)}' <<<"$result"
 done
+
+step "等待 MQ 队列清空"
+wait_queues
 
 output="code-nest-loadtest/results/$(date +%F)-$name.json"
 jq -s --arg scenario "$name" --arg startedAt "$started_at" --arg warmup "$WARMUP" --arg duration "$DURATION" \
     "$medians"' {scenario: $scenario, startedAt: $startedAt, warmup: $warmup, duration: $duration, runs: length,
-      median: medians, results: .}' "$runs_file" >"$output"
+      median: (map(del(.digests)) | medians), results: .}' "$runs_file" >"$output"
 step "完成，结果写入 $output"

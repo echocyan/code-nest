@@ -1,0 +1,842 @@
+{
+  "scenario": "a-counter",
+  "startedAt": "2026-09-29T15:29:06+08:00",
+  "warmup": "30s",
+  "duration": "2m",
+  "runs": 3,
+  "median": {
+    "counter": {
+      "likeCount": 15,
+      "likeRows": 15
+    },
+    "cpu": {
+      "code-nest-loadtest-app-1-1": {
+        "avg": 1.6454650000000002,
+        "max": 2.0793
+      },
+      "code-nest-loadtest-app-2-1": {
+        "avg": 1.6372299999999997,
+        "max": 2.0555000000000003
+      },
+      "code-nest-loadtest-elasticsearch-1": {
+        "avg": 0.02515333333333333,
+        "max": 0.1598
+      },
+      "code-nest-loadtest-mysql-1": {
+        "avg": 1.5717233333333334,
+        "max": 2.0935
+      },
+      "code-nest-loadtest-nginx-1": {
+        "avg": 0.10910999999999998,
+        "max": 0.1542
+      },
+      "code-nest-loadtest-rabbitmq-1": {
+        "avg": 0.9023400000000001,
+        "max": 1.0678
+      },
+      "code-nest-loadtest-redis-1": {
+        "avg": 0.23845,
+        "max": 0.3771
+      }
+    },
+    "k6": {
+      "avgMs": 371.3270262998266,
+      "errorRate": 0,
+      "p95Ms": 811.6899807499999,
+      "p99Ms": 1184.278900549999,
+      "qps": 536.9954982954621,
+      "requests": 64710
+    },
+    "mysql": {
+      "Binlog_cache_disk_use": 498,
+      "Binlog_cache_use": 68701,
+      "Bytes_received": 83019663,
+      "Bytes_sent": 75725720,
+      "Com_admin_commands": 108,
+      "Com_commit": 68131,
+      "Com_delete": 32355,
+      "Com_insert": 136251,
+      "Com_rollback": 0,
+      "Com_select": 233908,
+      "Com_set_option": 136262,
+      "Com_show_status": 1,
+      "Com_truncate": 1,
+      "Com_update": 679,
+      "Connections": 33,
+      "Created_tmp_files": 0,
+      "Created_tmp_tables": 1,
+      "Handler_commit": 532548,
+      "Handler_delete": 32355,
+      "Handler_external_lock": 467886,
+      "Handler_prepare": 467700,
+      "Handler_read_key": 194303,
+      "Handler_read_next": 30,
+      "Handler_read_rnd_next": 992,
+      "Handler_rollback": 6594,
+      "Handler_update": 97147,
+      "Handler_write": 136746,
+      "Innodb_buffer_pool_bytes_data": -49152,
+      "Innodb_buffer_pool_bytes_dirty": -10682368,
+      "Innodb_buffer_pool_pages_data": -3,
+      "Innodb_buffer_pool_pages_dirty": -652,
+      "Innodb_buffer_pool_pages_flushed": 21116,
+      "Innodb_buffer_pool_pages_free": 3,
+      "Innodb_buffer_pool_read_requests": 6976722,
+      "Innodb_buffer_pool_reads": 213,
+      "Innodb_buffer_pool_write_requests": 2594944,
+      "Innodb_data_fsyncs": 62241,
+      "Innodb_data_pending_fsyncs": -1,
+      "Innodb_data_read": 3489792,
+      "Innodb_data_reads": 213,
+      "Innodb_data_writes": 161030,
+      "Innodb_data_written": 578826752,
+      "Innodb_dblwr_pages_written": 21116,
+      "Innodb_dblwr_writes": 550,
+      "Innodb_log_write_requests": 1917585,
+      "Innodb_log_writes": 139984,
+      "Innodb_os_log_fsyncs": 60681,
+      "Innodb_os_log_pending_fsyncs": -1,
+      "Innodb_os_log_written": 158986240,
+      "Innodb_pages_created": 2357,
+      "Innodb_pages_read": 213,
+      "Innodb_pages_written": 21116,
+      "Innodb_redo_log_checkpoint_lsn": 134076536,
+      "Innodb_redo_log_current_lsn": 123094030,
+      "Innodb_redo_log_flushed_to_disk_lsn": 123094252,
+      "Innodb_redo_log_logical_size": -2276864,
+      "Innodb_redo_log_physical_size": 26214400,
+      "Innodb_row_lock_time": 7212,
+      "Innodb_row_lock_waits": 4207,
+      "Innodb_rows_deleted": 32355,
+      "Innodb_rows_inserted": 132794,
+      "Innodb_rows_read": 194245,
+      "Innodb_rows_updated": 97147,
+      "Ongoing_anonymous_transaction_count": 0,
+      "Open_files": 0,
+      "Open_table_definitions": -1,
+      "Open_tables": 2,
+      "Opened_files": 0,
+      "Opened_table_definitions": 1,
+      "Opened_tables": 4,
+      "Queries": 607592,
+      "Questions": 607483,
+      "Select_range": 47,
+      "Select_scan": 2,
+      "Ssl_accepts": 27,
+      "Ssl_finished_accepts": 27,
+      "Table_locks_immediate": 2,
+      "Table_open_cache_hits": 233939,
+      "Table_open_cache_misses": 4,
+      "Threads_running": 0,
+      "Uptime": 136,
+      "Uptime_since_flush_status": 136
+    },
+    "redis": {
+      "del": 0,
+      "evalsha": 129420,
+      "exists": 129420,
+      "get": 129420,
+      "hexists": 129420,
+      "hincrby": 129420,
+      "hmget": 83,
+      "info": 50,
+      "ping": 27,
+      "rename": 0,
+      "sadd": 129420,
+      "set": 129420,
+      "spop": 141,
+      "zadd": 0
+    }
+  },
+  "results": [
+    {
+      "k6": {
+        "requests": 59852,
+        "qps": 496.59944159522,
+        "avgMs": 401.5036514783093,
+        "p95Ms": 1209.1847427499986,
+        "p99Ms": 1720.7030124399953,
+        "errorRate": 0
+      },
+      "mysql": {
+        "Binlog_cache_disk_use": 408,
+        "Binlog_cache_use": 67207,
+        "Bytes_received": 79300236,
+        "Bytes_sent": 71146408,
+        "Com_admin_commands": 107,
+        "Com_commit": 66493,
+        "Com_delete": 29926,
+        "Com_insert": 132975,
+        "Com_rollback": 1,
+        "Com_select": 223489,
+        "Com_set_option": 132988,
+        "Com_show_status": 1,
+        "Com_truncate": 1,
+        "Com_update": 679,
+        "Connections": 33,
+        "Created_tmp_files": 7,
+        "Created_tmp_tables": 1,
+        "Handler_commit": 506852,
+        "Handler_delete": 29926,
+        "Handler_external_lock": 447048,
+        "Handler_prepare": 446862,
+        "Handler_read_key": 179728,
+        "Handler_read_next": 30,
+        "Handler_read_rnd_next": 992,
+        "Handler_rollback": 6594,
+        "Handler_update": 89859,
+        "Handler_write": 133470,
+        "Innodb_buffer_pool_pages_data": -3,
+        "Innodb_buffer_pool_bytes_data": -49152,
+        "Innodb_buffer_pool_pages_dirty": -711,
+        "Innodb_buffer_pool_bytes_dirty": -11649024,
+        "Innodb_buffer_pool_pages_flushed": 20284,
+        "Innodb_buffer_pool_pages_free": 3,
+        "Innodb_buffer_pool_read_requests": 6635302,
+        "Innodb_buffer_pool_reads": 213,
+        "Innodb_buffer_pool_write_requests": 2473185,
+        "Innodb_data_fsyncs": 62241,
+        "Innodb_data_pending_fsyncs": -1,
+        "Innodb_data_read": 3489792,
+        "Innodb_data_reads": 213,
+        "Innodb_data_writes": 161030,
+        "Innodb_data_written": 560901120,
+        "Innodb_dblwr_pages_written": 20284,
+        "Innodb_dblwr_writes": 561,
+        "Innodb_redo_log_checkpoint_lsn": 118539124,
+        "Innodb_redo_log_current_lsn": 116276745,
+        "Innodb_redo_log_flushed_to_disk_lsn": 116276756,
+        "Innodb_redo_log_logical_size": -2262528,
+        "Innodb_redo_log_physical_size": 26214400,
+        "Innodb_log_write_requests": 1809490,
+        "Innodb_log_writes": 139984,
+        "Innodb_os_log_fsyncs": 60681,
+        "Innodb_os_log_pending_fsyncs": -1,
+        "Innodb_os_log_written": 155990528,
+        "Innodb_pages_created": 2206,
+        "Innodb_pages_read": 213,
+        "Innodb_pages_written": 20284,
+        "Innodb_row_lock_time": 4648,
+        "Innodb_row_lock_waits": 4207,
+        "Innodb_rows_deleted": 29926,
+        "Innodb_rows_inserted": 126299,
+        "Innodb_rows_read": 179670,
+        "Innodb_rows_updated": 89859,
+        "Open_files": 7,
+        "Open_tables": 3,
+        "Opened_files": 7,
+        "Opened_table_definitions": 1,
+        "Opened_tables": 4,
+        "Queries": 586701,
+        "Questions": 586592,
+        "Select_range": 47,
+        "Select_scan": 2,
+        "Ssl_accepts": 27,
+        "Ssl_finished_accepts": 27,
+        "Table_locks_immediate": 2,
+        "Table_open_cache_hits": 223520,
+        "Table_open_cache_misses": 4,
+        "Threads_running": 1,
+        "Uptime": 137,
+        "Uptime_since_flush_status": 137
+      },
+      "redis": {
+        "set": 125713,
+        "spop": 138,
+        "exists": 125713,
+        "hincrby": 125713,
+        "get": 119704,
+        "sadd": 125713,
+        "evalsha": 125713,
+        "hexists": 125713,
+        "info": 50,
+        "hmget": 82,
+        "ping": 27
+      },
+      "cpu": {
+        "code-nest-loadtest-app-1-1": {
+          "avg": 1.8724549999999998,
+          "max": 2.0912
+        },
+        "code-nest-loadtest-app-2-1": {
+          "avg": 1.8660083333333335,
+          "max": 2.1235
+        },
+        "code-nest-loadtest-elasticsearch-1": {
+          "avg": 0.042838333333333325,
+          "max": 0.7338
+        },
+        "code-nest-loadtest-mysql-1": {
+          "avg": 1.5605300000000002,
+          "max": 2.09
+        },
+        "code-nest-loadtest-nginx-1": {
+          "avg": 0.10910999999999998,
+          "max": 0.1542
+        },
+        "code-nest-loadtest-rabbitmq-1": {
+          "avg": 0.9023400000000001,
+          "max": 1.0734000000000001
+        },
+        "code-nest-loadtest-redis-1": {
+          "avg": 0.23444499999999988,
+          "max": 0.3771
+        }
+      },
+      "digests": [
+        {
+          "sql": "COMMIT",
+          "count": 66386,
+          "totalMs": 710977,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `mq_outbox` ( `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 89739,
+          "totalMs": 34904,
+          "lockMs": 182
+        },
+        {
+          "sql": "SET `autocommit` = ?",
+          "count": 133029,
+          "totalMs": 27394,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT @@SESSION . `transaction_read_only`",
+          "count": 163582,
+          "totalMs": 26244,
+          "lockMs": 0
+        },
+        {
+          "sql": "DELETE FROM `article_like` WHERE `id` = ?",
+          "count": 29916,
+          "totalMs": 14408,
+          "lockMs": 62
+        },
+        {
+          "sql": "INSERT INTO `article_like` ( `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 29919,
+          "totalMs": 13711,
+          "lockMs": 200
+        },
+        {
+          "sql": "SELECT `id` , `author_id` , `category_id` , `title` , `summary` , `cover_url` , STATUS , `published_at` , `version` , `deleted` , `created_at` , `updated_at` FR",
+          "count": 29921,
+          "totalMs": 13264,
+          "lockMs": 130
+        },
+        {
+          "sql": "SELECT `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` FROM `article_like` WHERE ( `user_id` = ? AND `article_id` = ? )",
+          "count": 29916,
+          "totalMs": 12611,
+          "lockMs": 104
+        },
+        {
+          "sql": "UPDATE `mq_outbox` SET `updated_at` = ? , STATUS = ? WHERE ( `id` IN (...) AND STATUS = ? )",
+          "count": 679,
+          "totalMs": 11550,
+          "lockMs": 3
+        },
+        {
+          "sql": "INSERT INTO `notification` ( `id` , `recipient_id` , `actor_id` , TYPE , `article_id` , `dedup_key` , `is_read` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 6633,
+          "totalMs": 6891,
+          "lockMs": 4566
+        },
+        {
+          "sql": "INSERT INTO `mq_consume_record` ( `id` , `message_id` , `consumer` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 6634,
+          "totalMs": 2102,
+          "lockMs": 23
+        },
+        {
+          "sql": "INSERT INTO `user_stat` ( `user_id` , `follower_count` , `following_count` , `article_count` , `like_received_count` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 41,
+          "totalMs": 840,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `article_stat` ( `article_id` , `like_count` , `favorite_count` , `comment_count` , `view_count` , `created_at` , `updated_at` ) VALUES (...) AS NEW",
+          "count": 41,
+          "totalMs": 463,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` FROM `mq_outbox` WHERE ( STATUS ",
+          "count": 48,
+          "totalMs": 30,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT COUNT ( * ) FROM `article_like` WHERE `article_id` = ?",
+          "count": 2,
+          "totalMs": 1,
+          "lockMs": 0
+        }
+      ],
+      "counter": {
+        "articleId": "2104116109195183775",
+        "likeCount": 15,
+        "likeRows": 15
+      }
+    },
+    {
+      "k6": {
+        "requests": 72136,
+        "qps": 598.0557910707126,
+        "avgMs": 333.21194666804354,
+        "p95Ms": 811.6899807499999,
+        "p99Ms": 1184.278900549999,
+        "errorRate": 0
+      },
+      "mysql": {
+        "Binlog_cache_disk_use": 579,
+        "Binlog_cache_use": 81480,
+        "Bytes_received": 95935724,
+        "Bytes_sent": 85953921,
+        "Com_admin_commands": 108,
+        "Com_commit": 80660,
+        "Com_delete": 36068,
+        "Com_insert": 161311,
+        "Com_select": 270355,
+        "Com_set_option": 161320,
+        "Com_show_status": 1,
+        "Com_truncate": 1,
+        "Com_update": 780,
+        "Connections": 32,
+        "Created_tmp_tables": 1,
+        "Handler_commit": 612866,
+        "Handler_delete": 36068,
+        "Handler_external_lock": 540779,
+        "Handler_prepare": 540588,
+        "Handler_read_key": 216589,
+        "Handler_read_next": 1345,
+        "Handler_read_rnd_next": 992,
+        "Handler_rollback": 8475,
+        "Handler_update": 108292,
+        "Handler_write": 161806,
+        "Innodb_buffer_pool_pages_data": 4,
+        "Innodb_buffer_pool_bytes_data": 65536,
+        "Innodb_buffer_pool_pages_dirty": -592,
+        "Innodb_buffer_pool_bytes_dirty": -9699328,
+        "Innodb_buffer_pool_pages_flushed": 23684,
+        "Innodb_buffer_pool_pages_free": -4,
+        "Innodb_buffer_pool_read_requests": 8053338,
+        "Innodb_buffer_pool_reads": 222,
+        "Innodb_buffer_pool_write_requests": 2999100,
+        "Innodb_data_fsyncs": 69051,
+        "Innodb_data_pending_fsyncs": -1,
+        "Innodb_data_read": 3637248,
+        "Innodb_data_reads": 222,
+        "Innodb_data_writes": 174943,
+        "Innodb_data_written": 657476608,
+        "Innodb_dblwr_pages_written": 23684,
+        "Innodb_dblwr_writes": 550,
+        "Innodb_redo_log_checkpoint_lsn": 144024700,
+        "Innodb_redo_log_current_lsn": 141748010,
+        "Innodb_redo_log_flushed_to_disk_lsn": 141748216,
+        "Innodb_redo_log_logical_size": -2276864,
+        "Innodb_redo_log_physical_size": -29491200,
+        "Innodb_log_write_requests": 2186025,
+        "Innodb_log_writes": 150476,
+        "Innodb_os_log_fsyncs": 67384,
+        "Innodb_os_log_pending_fsyncs": -1,
+        "Innodb_os_log_written": 183856128,
+        "Innodb_pages_created": 2497,
+        "Innodb_pages_read": 222,
+        "Innodb_pages_written": 23684,
+        "Innodb_row_lock_time": 7212,
+        "Innodb_row_lock_waits": 5384,
+        "Innodb_rows_deleted": 36068,
+        "Innodb_rows_inserted": 152748,
+        "Innodb_rows_read": 217843,
+        "Innodb_rows_updated": 108292,
+        "Ongoing_anonymous_transaction_count": 1,
+        "Open_table_definitions": -1,
+        "Opened_table_definitions": 1,
+        "Opened_tables": 2,
+        "Queries": 710641,
+        "Questions": 710534,
+        "Select_range": 50,
+        "Select_scan": 2,
+        "Ssl_accepts": 26,
+        "Ssl_finished_accepts": 26,
+        "Table_locks_immediate": 2,
+        "Table_open_cache_hits": 270388,
+        "Table_open_cache_misses": 2,
+        "Uptime": 136,
+        "Uptime_since_flush_status": 136
+      },
+      "redis": {
+        "rename": 1,
+        "set": 144274,
+        "spop": 144,
+        "exists": 144272,
+        "hincrby": 144272,
+        "get": 144273,
+        "sadd": 144272,
+        "zadd": 1,
+        "evalsha": 144273,
+        "del": 2,
+        "hexists": 144272,
+        "info": 51,
+        "hmget": 1400,
+        "ping": 27
+      },
+      "cpu": {
+        "code-nest-loadtest-app-1-1": {
+          "avg": 1.6454650000000002,
+          "max": 2.074
+        },
+        "code-nest-loadtest-app-2-1": {
+          "avg": 1.6372299999999997,
+          "max": 2.0276
+        },
+        "code-nest-loadtest-elasticsearch-1": {
+          "avg": 0.023128333333333338,
+          "max": 0.0712
+        },
+        "code-nest-loadtest-mysql-1": {
+          "avg": 1.704918333333333,
+          "max": 2.1235
+        },
+        "code-nest-loadtest-nginx-1": {
+          "avg": 0.11864999999999996,
+          "max": 0.15869999999999998
+        },
+        "code-nest-loadtest-rabbitmq-1": {
+          "avg": 0.8779500000000003,
+          "max": 1.0517
+        },
+        "code-nest-loadtest-redis-1": {
+          "avg": 0.23845,
+          "max": 0.3592
+        }
+      },
+      "digests": [
+        {
+          "sql": "COMMIT",
+          "count": 80543,
+          "totalMs": 846303,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `mq_outbox` ( `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 108176,
+          "totalMs": 47022,
+          "lockMs": 208
+        },
+        {
+          "sql": "SET `autocommit` = ?",
+          "count": 161284,
+          "totalMs": 32643,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT @@SESSION . `transaction_read_only`",
+          "count": 198090,
+          "totalMs": 32453,
+          "lockMs": 0
+        },
+        {
+          "sql": "DELETE FROM `article_like` WHERE `id` = ?",
+          "count": 36062,
+          "totalMs": 24669,
+          "lockMs": 143
+        },
+        {
+          "sql": "INSERT INTO `article_like` ( `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 36062,
+          "totalMs": 24253,
+          "lockMs": 192
+        },
+        {
+          "sql": "SELECT `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` FROM `article_like` WHERE ( `user_id` = ? AND `article_id` = ? )",
+          "count": 36056,
+          "totalMs": 16882,
+          "lockMs": 161
+        },
+        {
+          "sql": "SELECT `id` , `author_id` , `category_id` , `title` , `summary` , `cover_url` , STATUS , `published_at` , `version` , `deleted` , `created_at` , `updated_at` FR",
+          "count": 36065,
+          "totalMs": 16811,
+          "lockMs": 175
+        },
+        {
+          "sql": "UPDATE `mq_outbox` SET `updated_at` = ? , STATUS = ? WHERE ( `id` IN (...) AND STATUS = ? )",
+          "count": 780,
+          "totalMs": 13694,
+          "lockMs": 10
+        },
+        {
+          "sql": "INSERT INTO `notification` ( `id` , `recipient_id` , `actor_id` , TYPE , `article_id` , `dedup_key` , `is_read` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 8478,
+          "totalMs": 9810,
+          "lockMs": 7138
+        },
+        {
+          "sql": "INSERT INTO `mq_consume_record` ( `id` , `message_id` , `consumer` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 8477,
+          "totalMs": 2420,
+          "lockMs": 26
+        },
+        {
+          "sql": "INSERT INTO `user_stat` ( `user_id` , `follower_count` , `following_count` , `article_count` , `like_received_count` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 44,
+          "totalMs": 531,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `article_stat` ( `article_id` , `like_count` , `favorite_count` , `comment_count` , `view_count` , `created_at` , `updated_at` ) VALUES (...) AS NEW",
+          "count": 44,
+          "totalMs": 524,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` FROM `mq_outbox` WHERE ( STATUS ",
+          "count": 49,
+          "totalMs": 29,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT `id` , `published_at` FROM `article` WHERE `deleted` = ? AND ( STATUS = ? AND `published_at` >= ? )",
+          "count": 1,
+          "totalMs": 5,
+          "lockMs": 0
+        }
+      ],
+      "counter": {
+        "articleId": "2104116109195183775",
+        "likeCount": 15,
+        "likeRows": 15
+      }
+    },
+    {
+      "k6": {
+        "requests": 64710,
+        "qps": 536.9954982954621,
+        "avgMs": 371.3270262998266,
+        "p95Ms": 772.0104223,
+        "p99Ms": 1028.0869055399996,
+        "errorRate": 0
+      },
+      "mysql": {
+        "Binlog_cache_disk_use": 498,
+        "Binlog_cache_use": 68701,
+        "Bytes_received": 83019663,
+        "Bytes_sent": 75725720,
+        "Com_admin_commands": 109,
+        "Com_commit": 68131,
+        "Com_delete": 32355,
+        "Com_insert": 136251,
+        "Com_select": 233908,
+        "Com_set_option": 136262,
+        "Com_show_status": 1,
+        "Com_truncate": 1,
+        "Com_update": 535,
+        "Connections": 33,
+        "Created_tmp_tables": 1,
+        "Handler_commit": 532548,
+        "Handler_delete": 32355,
+        "Handler_external_lock": 467886,
+        "Handler_prepare": 467700,
+        "Handler_read_key": 194303,
+        "Handler_read_next": 30,
+        "Handler_read_rnd_next": 992,
+        "Handler_rollback": 3374,
+        "Handler_update": 97147,
+        "Handler_write": 136746,
+        "Innodb_buffer_pool_pages_data": -14,
+        "Innodb_buffer_pool_bytes_data": -229376,
+        "Innodb_buffer_pool_pages_dirty": -652,
+        "Innodb_buffer_pool_bytes_dirty": -10682368,
+        "Innodb_buffer_pool_pages_flushed": 21116,
+        "Innodb_buffer_pool_pages_free": 14,
+        "Innodb_buffer_pool_read_requests": 6976722,
+        "Innodb_buffer_pool_reads": 77,
+        "Innodb_buffer_pool_write_requests": 2594944,
+        "Innodb_data_fsyncs": 40078,
+        "Innodb_data_read": 1261568,
+        "Innodb_data_reads": 77,
+        "Innodb_data_writes": 152280,
+        "Innodb_data_written": 578826752,
+        "Innodb_dblwr_pages_written": 21116,
+        "Innodb_dblwr_writes": 550,
+        "Innodb_redo_log_checkpoint_lsn": 134076536,
+        "Innodb_redo_log_current_lsn": 123094030,
+        "Innodb_redo_log_flushed_to_disk_lsn": 123094252,
+        "Innodb_redo_log_logical_size": -10982400,
+        "Innodb_redo_log_physical_size": 36044800,
+        "Innodb_log_write_requests": 1917585,
+        "Innodb_log_writes": 130409,
+        "Innodb_os_log_fsyncs": 38503,
+        "Innodb_os_log_written": 158986240,
+        "Innodb_pages_created": 2357,
+        "Innodb_pages_read": 77,
+        "Innodb_pages_written": 21116,
+        "Innodb_row_lock_time": 11990,
+        "Innodb_row_lock_waits": 2314,
+        "Innodb_rows_deleted": 32355,
+        "Innodb_rows_inserted": 132794,
+        "Innodb_rows_read": 194245,
+        "Innodb_rows_updated": 97147,
+        "Open_table_definitions": -1,
+        "Open_tables": 2,
+        "Opened_table_definitions": 1,
+        "Opened_tables": 4,
+        "Queries": 607592,
+        "Questions": 607483,
+        "Select_range": 47,
+        "Select_scan": 2,
+        "Ssl_accepts": 27,
+        "Ssl_finished_accepts": 27,
+        "Table_locks_immediate": 2,
+        "Table_open_cache_hits": 233939,
+        "Table_open_cache_misses": 4,
+        "Uptime": 136,
+        "Uptime_since_flush_status": 136
+      },
+      "redis": {
+        "set": 129420,
+        "spop": 141,
+        "exists": 129420,
+        "hincrby": 129420,
+        "get": 129420,
+        "sadd": 129420,
+        "evalsha": 129420,
+        "hexists": 129420,
+        "info": 50,
+        "hmget": 83,
+        "ping": 27
+      },
+      "cpu": {
+        "code-nest-loadtest-app-1-1": {
+          "avg": 1.5337199999999995,
+          "max": 2.0793
+        },
+        "code-nest-loadtest-app-2-1": {
+          "avg": 1.4920950000000004,
+          "max": 2.0555000000000003
+        },
+        "code-nest-loadtest-elasticsearch-1": {
+          "avg": 0.02515333333333333,
+          "max": 0.1598
+        },
+        "code-nest-loadtest-mysql-1": {
+          "avg": 1.5717233333333334,
+          "max": 2.0935
+        },
+        "code-nest-loadtest-nginx-1": {
+          "avg": 0.104575,
+          "max": 0.1533
+        },
+        "code-nest-loadtest-rabbitmq-1": {
+          "avg": 0.9247766666666668,
+          "max": 1.0678
+        },
+        "code-nest-loadtest-redis-1": {
+          "avg": 0.2469116666666667,
+          "max": 0.7125
+        }
+      },
+      "digests": [
+        {
+          "sql": "COMMIT",
+          "count": 67644,
+          "totalMs": 1270355,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `mq_outbox` ( `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 97034,
+          "totalMs": 34387,
+          "lockMs": 170
+        },
+        {
+          "sql": "SET `autocommit` = ?",
+          "count": 136212,
+          "totalMs": 25216,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT @@SESSION . `transaction_read_only`",
+          "count": 169056,
+          "totalMs": 25186,
+          "lockMs": 0
+        },
+        {
+          "sql": "DELETE FROM `article_like` WHERE `id` = ?",
+          "count": 32346,
+          "totalMs": 15045,
+          "lockMs": 64
+        },
+        {
+          "sql": "INSERT INTO `article_like` ( `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 32346,
+          "totalMs": 14904,
+          "lockMs": 68
+        },
+        {
+          "sql": "UPDATE `mq_outbox` SET `updated_at` = ? , STATUS = ? WHERE ( `id` IN (...) AND STATUS = ? )",
+          "count": 535,
+          "totalMs": 14666,
+          "lockMs": 1
+        },
+        {
+          "sql": "SELECT `id` , `author_id` , `category_id` , `title` , `summary` , `cover_url` , STATUS , `published_at` , `version` , `deleted` , `created_at` , `updated_at` FR",
+          "count": 32334,
+          "totalMs": 13641,
+          "lockMs": 123
+        },
+        {
+          "sql": "INSERT INTO `notification` ( `id` , `recipient_id` , `actor_id` , TYPE , `article_id` , `dedup_key` , `is_read` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 3370,
+          "totalMs": 13150,
+          "lockMs": 11948
+        },
+        {
+          "sql": "SELECT `id` , `user_id` , `article_id` , `author_id` , `created_at` , `updated_at` FROM `article_like` WHERE ( `user_id` = ? AND `article_id` = ? )",
+          "count": 32344,
+          "totalMs": 12957,
+          "lockMs": 107
+        },
+        {
+          "sql": "INSERT INTO `mq_consume_record` ( `id` , `message_id` , `consumer` , `created_at` , `updated_at` ) VALUES (...)",
+          "count": 3370,
+          "totalMs": 980,
+          "lockMs": 10
+        },
+        {
+          "sql": "INSERT INTO `user_stat` ( `user_id` , `follower_count` , `following_count` , `article_count` , `like_received_count` , `created_at` , `updated_at` ) VALUES (...",
+          "count": 42,
+          "totalMs": 789,
+          "lockMs": 0
+        },
+        {
+          "sql": "INSERT INTO `article_stat` ( `article_id` , `like_count` , `favorite_count` , `comment_count` , `view_count` , `created_at` , `updated_at` ) VALUES (...) AS NEW",
+          "count": 41,
+          "totalMs": 731,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT `id` , `routing_key` , `event_type` , `payload` , STATUS , `retry_count` , `next_retry_at` , `created_at` , `updated_at` FROM `mq_outbox` WHERE ( STATUS ",
+          "count": 47,
+          "totalMs": 25,
+          "lockMs": 0
+        },
+        {
+          "sql": "SELECT @@`version_comment` LIMIT ?",
+          "count": 4,
+          "totalMs": 2,
+          "lockMs": 0
+        }
+      ],
+      "counter": {
+        "articleId": "2104116109195183775",
+        "likeCount": 15,
+        "likeRows": 15
+      }
+    }
+  ]
+}

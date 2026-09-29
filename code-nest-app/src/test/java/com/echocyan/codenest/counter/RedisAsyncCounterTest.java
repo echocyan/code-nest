@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -42,6 +43,9 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     /**
      * 不存在于任何表中的对象 ID，计数从 0 开始。
@@ -80,6 +84,29 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
         // 单个消费者按顺序处理，marker 生效时重复消息也已处理过
         await().atMost(Duration.ofSeconds(10)).until(() -> replies(marker) == 1);
         assertThat(replies(duplicated)).isEqualTo(1);
+    }
+
+    /**
+     * 一个事务里的全部变更合并成一个事件：同一对象的变更先相加，相加为 0 的不发。
+     */
+    @Test
+    void changesInOneTransactionArePublishedAsOneEvent() {
+        long twice = randomId();
+        long once = randomId();
+        long cancelled = randomId();
+
+        transactionTemplate.executeWithoutResult(status -> {
+            counterApi.increment(CounterMetric.COMMENT_REPLY, twice, 1);
+            counterApi.increment(CounterMetric.COMMENT_REPLY, once, 1);
+            counterApi.increment(CounterMetric.COMMENT_REPLY, twice, 1);
+            counterApi.increment(CounterMetric.COMMENT_REPLY, cancelled, 1);
+            counterApi.increment(CounterMetric.COMMENT_REPLY, cancelled, -1);
+        });
+
+        assertThat(outboxRows(twice)).isEqualTo(1);
+        assertThat(outboxRows(once)).isEqualTo(1);
+        assertThat(outboxRows(cancelled)).isZero();
+        await().atMost(Duration.ofSeconds(10)).until(() -> replies(twice) == 2 && replies(once) == 1);
     }
 
     @Test
@@ -158,6 +185,12 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
         return values.isEmpty() ? 0 : values.getFirst();
     }
 
+    private long outboxRows(long targetId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM mq_outbox WHERE routing_key = 'counter.changed' AND payload LIKE ?",
+                Long.class, "%" + targetId + "%");
+    }
+
     private long count(String sql, String id) {
         return jdbcTemplate.queryForObject(sql, Long.class, id);
     }
@@ -166,7 +199,8 @@ class RedisAsyncCounterTest extends ArticleTestSupport {
      * 经默认交换机直接投递一条回复数 +1 的消息，消息格式与 DomainEventPublisher 发出的一致。
      */
     private void send(String messageId, long commentId) {
-        String body = "{\"metric\":\"COMMENT_REPLY\",\"targetId\":%d,\"delta\":1}".formatted(commentId);
+        String body = "{\"changes\":[{\"metric\":\"COMMENT_REPLY\",\"targetId\":%d,\"delta\":1}]}"
+                .formatted(commentId);
         Message message = MessageBuilder.withBody(body.getBytes(StandardCharsets.UTF_8))
                 .setMessageId(messageId)
                 .setType(CounterChangedEvent.class.getName())
